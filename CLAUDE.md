@@ -14,7 +14,7 @@ Node 22 y npm 10. No ejecutes `npm install` ni cambies versiones sin que se pida
 
 Un fallo de la prueba de humo se arregla en el código, no relajando la prueba. La prueba de contenido que falla se arregla en el contenido.
 
-No hay ganchos de git ni despliegue. Nada comprueba por ti al hacer commit o push: quien hace push es la última barrera, así que ejecuta antes el `check`, las pruebas afectadas y, si cambia la interfaz, `build`.
+Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a Vercel. Un push a `main` publica en producción (https://ailearn-peach.vercel.app/); un push a otra rama crea una vista previa. No hay ganchos de git: nada comprueba por ti al hacer commit o push, y Vercel solo compila. Quien hace push es la última barrera, así que ejecuta antes `build` (incluye `check`), las pruebas afectadas y, si cambia la interfaz, `e2e`.
 
 ## Qué no romper
 
@@ -31,7 +31,7 @@ No hay ganchos de git ni despliegue. Nada comprueba por ti al hacer commit o pus
 - Clave de progreso `ailearn:v1:local:<juego>`; borradores en `ailearn:v1:local:<juego>:borradores`.
 - Todo paquete importado desde `src/` debe estar declarado en `package.json` (`tests/deps`). KaTeX tiene una sola versión.
 - `?abierto` salta las puertas solo en desarrollo (`npm run dev`); no existe en la compilación.
-- No se crea remoto de git, no se hace push ni se despliega sin que se pida.
+- No se hace push (a ninguna rama) ni se despliega sin que se pida. `.vercel/` y `.env*` no se suben.
 - Sin `git add -A`, `git stash` ni `git reset`: haz commit de los ficheros que cambias, por nombre.
 
 ## Dónde vive cada cosa
