@@ -2,7 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import { MemoryRouter } from 'react-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { AppRoutes } from '../../App';
 import type { BankEntry, Game, NumeroQ, Project, RevisionQ } from '../../content/schema';
 import type { Summary } from '../../engine/types';
@@ -10,6 +10,7 @@ import { createLocalStore } from '../../storage/local';
 import type { Attempt, ProgressStore } from '../../storage/types';
 import { GamesContext } from '../GamesContext';
 import { StoreContext } from '../useProgress';
+import { resetOpenOverride } from './lookup';
 
 // Pruebas del Hub, el mapa, el panel de proyecto y las estadísticas (tarea 14). El juego es de prueba:
 // no depende del contenido real. Cada prueba tiene su propio almacén (nunca el singleton del hook).
@@ -356,6 +357,33 @@ describe('Mapa del juego', () => {
     expect(h1()).toHaveTextContent('Todavía no está abierto');
     await user.click(screen.getByRole('link', { name: 'Volver al mapa' }));
     await waitFor(() => expect(h1()).toHaveTextContent('Juego de prueba'));
+  });
+});
+
+describe('?abierto en el mapa y el panel', () => {
+  afterEach(() => resetOpenOverride());
+
+  it('sin progreso, la órbita 1 se ve abierta con enlaces a sus proyectos y a su examen', async () => {
+    await setup(`/j/${GAME}?abierto`);
+    // contract: petición de Oliver 2026-10-14 («añadiendo ?abierto en la url, tener acceso a todos los niveles»)
+    const one = region('Órbita uno');
+    expect(within(one).getByText('Órbita abierta')).toBeInTheDocument();
+    expect(within(one).getByRole('link', { name: 'Proyecto R' })).toHaveAttribute(
+      'href',
+      '/j/test/p/r',
+    );
+    const exam = within(within(one).getByRole('group', { name: 'Examen' }));
+    expect(exam.getByRole('link', { name: 'Hacer el examen' })).toHaveAttribute(
+      'href',
+      '/j/test/examen/1',
+    );
+  });
+
+  it('el panel de un proyecto sin validar enlaza sus hojas', async () => {
+    await setup(`/j/${GAME}/p/p?abierto`);
+    // contract: petición de Oliver 2026-10-14 (todas las hojas accesibles con ?abierto)
+    expect(screen.getByRole('link', { name: 'Abrir la hoja 1' })).toBeInTheDocument();
+    expect(screen.queryByText('Cerrada: valida el proyecto')).toBeNull();
   });
 });
 

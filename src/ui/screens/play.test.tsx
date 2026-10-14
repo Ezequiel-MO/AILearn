@@ -24,6 +24,7 @@ import { WARNINGS, createLocalStore } from '../../storage/local';
 import type { ProgressStore } from '../../storage/types';
 import { GamesContext } from '../GamesContext';
 import { StoreContext } from '../useProgress';
+import { resetOpenOverride } from './lookup';
 
 // Ejecutor falso para la pregunta de código (como en ExerciseRunner.test.tsx).
 const fake = vi.hoisted(() => ({ run: undefined as unknown }));
@@ -227,6 +228,7 @@ const editor = (): EditorView => {
 afterEach(() => {
   fake.run = undefined;
   vi.unstubAllEnvs();
+  resetOpenOverride();
 });
 
 describe('Puertas y rutas inexistentes', () => {
@@ -283,14 +285,25 @@ describe('Puertas y rutas inexistentes', () => {
     expect(h1()).toHaveTextContent('Proyecto R · Ejercicio 1');
   });
 
-  it('?abierto salta la puerta en desarrollo y no en producción', async () => {
-    const first = await setup(`/j/${GAME}/p/r/ex/0?abierto`);
-    // contract: brief tarea 13, añadidos («?abierto solo existe en desarrollo»): Vitest corre con DEV verdadero
-    expect(h1()).toHaveTextContent('Proyecto R · Ejercicio 1');
-    first.unmount();
+  it('?abierto salta la puerta también en producción', async () => {
     vi.stubEnv('DEV', false);
     await setup(`/j/${GAME}/p/r/ex/0?abierto`);
-    // contract: brief tarea 13, añadidos («la compilación de producción no lo lleva»)
+    // contract: petición de Oliver 2026-10-14 («añadiendo ?abierto en la url, tener acceso a todos los niveles»; producción es solo para él)
+    expect(h1()).toHaveTextContent('Proyecto R · Ejercicio 1');
+  });
+
+  it('?abierto sigue valiendo al navegar a una ruta sin el parámetro, hasta recargar', async () => {
+    const first = await setup(`/j/${GAME}?abierto`);
+    first.unmount();
+    await setup(`/j/${GAME}/p/r/ex/0`);
+    // contract: petición de Oliver 2026-10-14; los enlaces del juego no llevan `?abierto`
+    expect(h1()).toHaveTextContent('Proyecto R · Ejercicio 1');
+    resetOpenOverride();
+  });
+
+  it('sin ?abierto la puerta sigue cerrada', async () => {
+    await setup(`/j/${GAME}/p/r/ex/0`);
+    // contract: motor orbitOpen; `?abierto` no se queda entre pruebas (resetOpenOverride)
     expect(h1()).toHaveTextContent('Todavía no está abierto');
   });
 

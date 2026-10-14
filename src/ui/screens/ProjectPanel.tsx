@@ -54,7 +54,7 @@ function PanelView({ game, orbit, project }: { game: Game; orbit: number; projec
     return <Gate kind="closed" gameId={game.id} level={currentLevel} warning={warning} />;
   }
   const validated = isValidated(summary, project.id);
-  const sheetsAreOpen = sheetsOpen(summary, project.id);
+  const sheetsAreOpen = override || sheetsOpen(summary, project.id);
   return (
     <Layout title={project.name} back={mapPath(game.id)} level={currentLevel} warning={warning}>
       <p className="panel__sub">{project.sub}</p>

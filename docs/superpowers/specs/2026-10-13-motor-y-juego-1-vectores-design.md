@@ -138,7 +138,7 @@ Son las reglas de la trayectoria, con una adaptación para el código.
 
 XP, nivel e insignias se calculan a partir del progreso guardado y no se almacenan.
 
-Modo de desarrollo: el parámetro `?abierto` abre todo, y solo existe en la compilación de desarrollo.
+El parámetro `?abierto` abre todo, también en producción (cambio del 2026-10-14: el sitio es de un solo jugador). Dura hasta recargar la página.
 
 ## 6. Contenido y tipos de pregunta
 

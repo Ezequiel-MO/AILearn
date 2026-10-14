@@ -16,7 +16,14 @@ import { Layout } from '../Layout';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
-import { examPath, launchPath, projectPath, statsPath, useFocusTitle } from './lookup';
+import {
+  examPath,
+  launchPath,
+  projectPath,
+  statsPath,
+  useFocusTitle,
+  useOpenOverride,
+} from './lookup';
 
 /** `/j/:game`: el despegue y las órbitas con el estado que dice el motor. */
 export function GameMap() {
@@ -28,6 +35,7 @@ export function GameMap() {
 
 function MapView({ game }: { game: Game }) {
   const { summary, warning } = useProgress(game.id);
+  const override = useOpenOverride();
   useFocusTitle();
   const shape = useMemo(() => toShape(game), [game]);
   const points = xp(shape, summary);
@@ -41,7 +49,15 @@ function MapView({ game }: { game: Game }) {
       </div>
       <LaunchCard gameId={game.id} done={summary.launch} />
       {game.orbits.map((orbit, c) => (
-        <OrbitCard key={c} gameId={game.id} orbit={orbit} c={c} shape={shape} summary={summary} />
+        <OrbitCard
+          key={c}
+          gameId={game.id}
+          orbit={orbit}
+          c={c}
+          shape={shape}
+          summary={summary}
+          override={override}
+        />
       ))}
     </Layout>
   );
@@ -70,19 +86,26 @@ function OrbitCard({
   c,
   shape,
   summary,
+  override,
 }: {
   gameId: string;
   orbit: Orbit;
   c: number;
   shape: Shape;
   summary: Summary;
+  /** `?abierto`: todo se ve abierto. */
+  override: boolean;
 }) {
   const titleId = useId();
   const examTitleId = useId();
-  const open = orbitOpen(shape, summary, c);
+  const open = override || orbitOpen(shape, summary, c);
   // Aprobado = alguna vez aprobado (`examsPassed`); `examPassed` juzga un intento y no sirve aquí.
   const passed = summary.examsPassed.includes(c);
-  const examState = passed ? 'passed' : examAvailable(shape, summary, c) ? 'open' : 'closed';
+  const examState = passed
+    ? 'passed'
+    : override || examAvailable(shape, summary, c)
+      ? 'open'
+      : 'closed';
   const needOrbit = c === 0 ? t.hub.needLaunch : t.hub.needPreviousExam;
   // En una órbita cerrada el examen dice lo mismo que la órbita; «Valida todos los proyectos» solo en uno abierto.
   const needExam = !open

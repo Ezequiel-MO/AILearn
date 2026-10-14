@@ -30,7 +30,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - Constantes de las reglas (`src/engine/types.ts`): validación 80; proyecto de 3 ejercicios de 5 preguntas; examen de 6 preguntas, aprobado con 5; XP 50 por el despegue, 50 por examen, 10 por hoja y la nota por proyecto validado; nivel = XP / 150 con dos decimales.
 - Clave de progreso `ailearn:v1:local:<juego>`; borradores en `ailearn:v1:local:<juego>:borradores`.
 - Todo paquete importado desde `src/` debe estar declarado en `package.json` (`tests/deps`). KaTeX tiene una sola versión.
-- `?abierto` salta las puertas solo en desarrollo (`npm run dev`); no existe en la compilación.
+- `?abierto` salta las puertas, también en producción (el sitio es solo para Oliver). Dura hasta recargar la página; el mapa y el panel lo respetan.
 - No se hace push (a ninguna rama) ni se despliega sin que se pida. `.vercel/` y `.env*` no se suben.
 - Sin `git add -A`, `git stash` ni `git reset`: haz commit de los ficheros que cambias, por nombre.
 

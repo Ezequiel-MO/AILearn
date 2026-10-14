@@ -1,8 +1,8 @@
 import { expect, test as base, type Locator, type Page } from '@playwright/test';
 import { componentes } from '../../src/games/vectores/componentes';
 
-// Prueba de humo en Chrome sobre la compilación (`npm run preview`). En la compilación `?abierto` no
-// existe: el progreso se siembra en `localStorage` con la clave real y un documento válido para el
+// Prueba de humo en Chrome sobre la compilación (`npm run preview`). No se usa `?abierto`:
+// el progreso se siembra en `localStorage` con la clave real y un documento válido para el
 // esquema de `src/storage`. Cada prueba parte de un contexto nuevo (almacenamiento y caché vacíos).
 
 const PROGRESS_KEY = 'ailearn:v1:local:vectores';

@@ -51,12 +51,23 @@ export const examPath = (gameId: string, c: number): string => `${mapPath(gameId
 export const statsPath = (gameId: string): string => `${mapPath(gameId)}/estadisticas`;
 
 /**
- * `?abierto` salta las puertas, solo en desarrollo. Se lee de `import.meta.env.DEV` en cada llamada
- * (no al cargar el módulo): la compilación de producción lo sustituye por `false` y descarta la rama.
+ * `?abierto` salta las puertas, también en producción (el sitio es de un solo jugador). Una vez visto,
+ * dura hasta recargar la página: los enlaces del juego no llevan el parámetro.
  */
+let openAll = false;
+
 export function useOpenOverride(): boolean {
   const [params] = useSearchParams();
-  return import.meta.env.DEV && params.has('abierto');
+  const asked = params.has('abierto');
+  useEffect(() => {
+    if (asked) openAll = true;
+  }, [asked]);
+  return asked || openAll;
+}
+
+/** Solo para pruebas: olvida un `?abierto` anterior. */
+export function resetOpenOverride(): void {
+  openAll = false;
 }
 
 /**
