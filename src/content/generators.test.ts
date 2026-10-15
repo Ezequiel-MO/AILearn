@@ -22,7 +22,7 @@ const tuplesOf = (prompt: string): number[][] =>
 /** Redondeo a dos decimales de la solución escrita. */
 const round2 = (x: number): number => Math.round(x * 100) / 100;
 
-// contract: tabla de generadores del brief (id y bounds)
+// contract: tabla de generadores del brief (id y bounds); los tres últimos, de la Órbita 1
 const IDS = [
   'desplazamiento',
   'suma',
@@ -31,11 +31,14 @@ const IDS = [
   'norma',
   'distancia',
   'unitario',
+  'producto',
+  'coseno',
+  'proyeccion',
 ] as const;
 
 describe('generadores: contrato común', () => {
-  it('registra exactamente los siete generadores del brief', () => {
-    expect(Object.keys(generators).sort()).toEqual([...IDS].sort()); // contract: tabla del brief
+  it('registra exactamente los siete generadores del brief y los tres de la Órbita 1', () => {
+    expect(Object.keys(generators).sort()).toEqual([...IDS].sort()); // contract: tabla del brief y Órbita 1
   });
 
   for (const id of IDS) {
@@ -86,6 +89,9 @@ describe('bounds declarados', () => {
       norma: [0, 10.4],
       distancia: [0, 17],
       unitario: [-1, 1],
+      producto: [-72, 72], // contract: Órbita 1, componentes de -6 a 6: |u·v| ≤ 2·36
+      coseno: [-1, 1], // contract: Órbita 1, el coseno está en [-1, 1]
+      proyeccion: [-8.5, 8.5], // contract: Órbita 1, |proy| ≤ ‖a‖ ≤ √72 ≈ 8,49
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -285,6 +291,62 @@ describe('oráculo: la respuesta es la correcta para los datos del enunciado (20
       // contract: la distancia entre dos puntos es la norma del vector que los une
       const want = Math.hypot(b![0]! - a![0]!, b![1]! - a![1]!);
       expect(Math.abs((q.answer as number) - want), `semilla ${seed}`).toBeLessThan(1e-9);
+    }
+  });
+});
+
+describe('oráculo de la Órbita 1: producto, coseno y proyección (200 semillas)', () => {
+  // Las fórmulas se escriben aquí, a partir de las dos tuplas del enunciado.
+  const num = (id: string, seed: number) => {
+    const q = resolve(call(id), seed);
+    if (q.type !== 'numero') throw new Error(`${id} debe dar un número`);
+    const [a, b] = tuplesOf(q.prompt);
+    return { q, a: a!, b: b! };
+  };
+  const dotOf = (a: number[], b: number[]) => a[0]! * b[0]! + a[1]! * b[1]!;
+
+  it('producto: u·v exacto, tolerancia 0', () => {
+    for (const seed of SEEDS) {
+      const { q, a, b } = num('producto', seed);
+      expect(q.answer, `semilla ${seed}`).toBe(dotOf(a, b) + 0); // contract: definición del producto escalar
+      expect(q.tol).toBe(0); // contract: enteros exactos
+    }
+  });
+
+  it('coseno: u·v / (‖u‖‖v‖), sin vectores nulos, tolerancia 0,01', () => {
+    for (const seed of SEEDS) {
+      const { q, a, b } = num('coseno', seed);
+      expect(Math.hypot(...a) * Math.hypot(...b), `semilla ${seed}`).toBeGreaterThan(0); // contract: sin ángulo con el vector nulo
+      const want = dotOf(a, b) / (Math.hypot(...a) * Math.hypot(...b));
+      expect(Math.abs(q.answer - want), `semilla ${seed}`).toBeLessThan(1e-9); // contract: definición del coseno
+      expect(q.tol).toBe(0.01); // contract: dos decimales
+    }
+  });
+
+  it('proyeccion: a·b / ‖b‖, b no nulo, tolerancia 0,01', () => {
+    for (const seed of SEEDS) {
+      const { q, a, b } = num('proyeccion', seed);
+      expect(Math.hypot(...b), `semilla ${seed}`).toBeGreaterThan(0); // contract: no se proyecta sobre el vector nulo
+      const want = dotOf(a, b) / Math.hypot(...b);
+      expect(Math.abs(q.answer - want), `semilla ${seed}`).toBeLessThan(1e-9); // contract: proyección escalar
+      expect(q.tol).toBe(0.01); // contract: dos decimales
+    }
+  });
+
+  it('coseno y proyeccion: «=» si el valor es exacto y «\\approx» solo si se redondea', () => {
+    for (const id of ['coseno', 'proyeccion']) {
+      for (const seed of SEEDS) {
+        const q = resolve(call(id), seed);
+        const answer = q.answer as number;
+        const exact = Math.abs(answer - round2(answer)) < 1e-9;
+        // contract: misma regla que norma y distancia (ronda de arreglo 1, punto 8)
+        expect(
+          q.solution.endsWith(
+            `${exact ? '=' : '\\approx '}${String(round2(answer) + 0).replace('.', '{,}')}$`,
+          ),
+          `${id} semilla ${seed}: ${q.solution}`,
+        ).toBe(true);
+      }
     }
   });
 });

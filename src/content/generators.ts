@@ -277,6 +277,99 @@ const unitario: Generator = {
   },
 };
 
+// ---------- Órbita 1: el ángulo ----------
+
+/** Producto escalar con los pasos escritos: `a_1 b_1 + a_2 b_2 = … = total`. */
+const dotSteps = (a: readonly number[], b: readonly number[]): string => {
+  const total = a.reduce((s, x, i) => s + x * b[i]!, 0);
+  const terms = a.map((x, i) => `${paren(x)}\\cdot ${paren(b[i]!)}`).join('+');
+  const products = a.map((x, i) => paren(clean(x * b[i]!))).join('+');
+  return `${terms}=${products}=${tex(total)}`;
+};
+
+const producto: Generator = {
+  id: 'producto',
+  bounds: { min: -72, max: 72 },
+  make(id, _params, rng) {
+    const u = point(rng);
+    const v = point(rng);
+    const answer = u.reduce((s, x, i) => s + x * v[i]!, 0);
+    return numeroQ(
+      id,
+      {
+        prompt: `Sean $\\vec{u}=${tuple(u)}$ y $\\vec{v}=${tuple(v)}$. Calcula el producto escalar $\\vec{u}\\cdot\\vec{v}$.`,
+        hints: [
+          'El producto escalar multiplica las componentes que ocupan el mismo lugar y suma los resultados.',
+          'Multiplica las dos $x$, multiplica las dos $y$ y suma. Cuidado con los signos.',
+        ],
+        explain:
+          'El producto escalar es $\\vec{u}\\cdot\\vec{v}=u_1v_1+u_2v_2$: da un número, no un vector. Es positivo si las flechas apuntan hacia el mismo lado, cero si son perpendiculares y negativo si apuntan a lados opuestos.',
+        solution: `$\\vec{u}\\cdot\\vec{v}=${dotSteps(u, v)}$`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+const coseno: Generator = {
+  id: 'coseno',
+  bounds: { min: -1, max: 1 },
+  make(id, _params, rng) {
+    let u = point(rng);
+    while (isZero(u)) u = point(rng);
+    let v = point(rng);
+    while (isZero(v)) v = point(rng);
+    const d = u.reduce((s, x, i) => s + x * v[i]!, 0);
+    const uu = u.reduce((s, x) => s + x * x, 0);
+    const vv = v.reduce((s, x) => s + x * x, 0);
+    const answer = d / Math.sqrt(uu * vv);
+    return numeroQ(
+      id,
+      {
+        prompt: `Sean $\\vec{u}=${tuple(u)}$ y $\\vec{v}=${tuple(v)}$. Calcula el coseno del ángulo que forman. Redondea a dos decimales.`,
+        hints: [
+          'El coseno es el producto escalar dividido entre el producto de las dos normas.',
+          'Calcula primero $\\vec{u}\\cdot\\vec{v}$, después $\\lVert\\vec{u}\\rVert$ y $\\lVert\\vec{v}\\rVert$, y divide.',
+        ],
+        explain:
+          'El coseno es $\\cos\\theta=\\dfrac{\\vec{u}\\cdot\\vec{v}}{\\lVert\\vec{u}\\rVert\\,\\lVert\\vec{v}\\rVert}$ y siempre queda entre $-1$ y $1$. Si te sale fuera, has olvidado dividir entre alguna de las dos normas.',
+        solution: `$\\vec{u}\\cdot\\vec{v}=${dotSteps(u, v)}$, $\\lVert\\vec{u}\\rVert=\\sqrt{${tex(uu)}}$ y $\\lVert\\vec{v}\\rVert=\\sqrt{${tex(vv)}}$, así que $\\cos\\theta=\\dfrac{${tex(d)}}{\\sqrt{${tex(uu)}}\\,\\sqrt{${tex(vv)}}}${equalsOrApprox(answer)}${tex(answer)}$`,
+      },
+      answer,
+      0.01,
+    );
+  },
+};
+
+const proyeccion: Generator = {
+  id: 'proyeccion',
+  bounds: { min: -8.5, max: 8.5 },
+  make(id, _params, rng) {
+    const a = point(rng);
+    let b = point(rng);
+    while (isZero(b)) b = point(rng);
+    const d = a.reduce((s, x, i) => s + x * b[i]!, 0);
+    const bb = b.reduce((s, x) => s + x * x, 0);
+    const answer = d / Math.sqrt(bb);
+    return numeroQ(
+      id,
+      {
+        prompt: `Sean $\\vec{a}=${tuple(a)}$ y $\\vec{b}=${tuple(b)}$. Calcula la proyección escalar de $\\vec{a}$ sobre $\\vec{b}$, es decir, la longitud con signo de la sombra de $\\vec{a}$ sobre la recta de $\\vec{b}$. Redondea a dos decimales.`,
+        hints: [
+          'La proyección escalar es el producto escalar dividido entre la norma del vector sobre el que se proyecta.',
+          'Calcula $\\vec{a}\\cdot\\vec{b}$ y divídelo entre $\\lVert\\vec{b}\\rVert$, no entre $\\lVert\\vec{a}\\rVert$.',
+        ],
+        explain:
+          'La proyección escalar de $\\vec{a}$ sobre $\\vec{b}$ es $\\dfrac{\\vec{a}\\cdot\\vec{b}}{\\lVert\\vec{b}\\rVert}$: se divide entre la norma de $\\vec{b}$, la dirección sobre la que cae la sombra. Es negativa si la sombra cae hacia el lado opuesto a $\\vec{b}$.',
+        solution: `$\\vec{a}\\cdot\\vec{b}=${dotSteps(a, b)}$ y $\\lVert\\vec{b}\\rVert=\\sqrt{${tex(bb)}}$, así que la proyección escalar es $\\dfrac{${tex(d)}}{\\sqrt{${tex(bb)}}}${equalsOrApprox(answer)}${tex(answer)}$`,
+      },
+      answer,
+      0.01,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -285,6 +378,9 @@ export const generators: Record<string, Generator> = {
   norma,
   distancia,
   unitario,
+  producto,
+  coseno,
+  proyeccion,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */
