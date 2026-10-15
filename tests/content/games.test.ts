@@ -15,7 +15,8 @@ describe('registro de juegos', () => {
 
 describe('juego vectores: recuentos de la Órbita 0', () => {
   const vectores = games.find((g) => g.id === 'vectores');
-  const projects = vectores?.orbits.flatMap((c) => c.projects) ?? [];
+  // contract: Órbita 1 (2026-10-15): estos recuentos son de la Órbita 0, no del juego entero
+  const projects = vectores?.orbits[0]?.projects ?? [];
 
   it('hay un juego', () => {
     // contract: brief de la tarea 18, comprobación: «1 juego»
@@ -32,6 +33,27 @@ describe('juego vectores: recuentos de la Órbita 0', () => {
     expect(projects.flatMap((p) => p.exercises.flatMap((e) => e.questions))).toHaveLength(45);
     expect(projects.flatMap((p) => p.sheets)).toHaveLength(9);
     expect(vectores?.launch).toHaveLength(10);
+  });
+});
+
+describe('juego vectores: recuentos de la Órbita 1', () => {
+  const orbit = games.find((g) => g.id === 'vectores')?.orbits[1];
+  const projects = orbit?.projects ?? [];
+
+  it('la Órbita 1 se llama «El ángulo» y tiene tres proyectos', () => {
+    // contract: spec, sección 10: Órbita 1 «El ángulo» con Producto escalar, Coseno y Proyección
+    expect(orbit?.name).toBe('El ángulo');
+    expect(projects.map((p) => p.id)).toEqual(['producto-escalar', 'coseno', 'proyeccion']);
+  });
+
+  it('tiene 45 preguntas de proyecto, 9 hojas y un banco de 12 entradas, 4 por proyecto', () => {
+    // contract: spec, sección 5: 3 ejercicios de 5 preguntas y 3 hojas por proyecto
+    expect(projects.flatMap((p) => p.exercises.flatMap((e) => e.questions))).toHaveLength(45);
+    expect(projects.flatMap((p) => p.sheets)).toHaveLength(9);
+    // contract: examen-1.ts: tres fijas y una generada por proyecto, como el banco de la Órbita 0
+    expect(projects.map((p) => orbit?.examBank.filter((e) => e.project === p.id).length)).toEqual([
+      4, 4, 4,
+    ]);
   });
 });
 

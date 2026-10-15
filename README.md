@@ -2,7 +2,7 @@
 
 Juegos para aprender ingeniería de IA con la matemática como columna vertebral. Cada juego enseña un bloque de matemáticas y lo aplica a un tema de IA. Los niveles tienen un despegue de entrada, órbitas con proyectos de tres ejercicios que se validan con nota 80 y un examen por órbita, con XP y nivel decimal.
 
-Esta entrega contiene el motor de la trayectoria, el despegue y la órbita 0 («La flecha») del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
+Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha») y la órbita 1 («El ángulo») del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
 
 El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`.
 
@@ -45,7 +45,7 @@ src/
   storage/    Interfaz de progreso y su implementación sobre localStorage, con migración.
   ui/         Marco, plano de vectores, editor, tipos de pregunta, pantallas y textos fijos.
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
-    vectores/ Juego 1: Despegue, proyectos de la Órbita 0, banco de examen, embeddings de juguete.
+    vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 y 1, sus bancos de examen, embeddings de juguete.
 tests/
   content/    Pruebas que recorren el registro de juegos y ayudantes compartidos.
   deps/       Imports declarados en package.json y versión única de KaTeX.

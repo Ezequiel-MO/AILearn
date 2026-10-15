@@ -1,6 +1,6 @@
 # AIlearn: guía para el agente
 
-Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria y el juego 1, «Vectores y embeddings» (Despegue y Órbita 0). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
+Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria y el juego 1, «Vectores y embeddings» (Despegue, Órbita 0 y Órbita 1). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
 
 ## Cómo comprobar
 
@@ -36,7 +36,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 
 ## Dónde vive cada cosa
 
-- `src/engine/`: reglas (`progression.ts`: nota, validación, puertas, examen, XP, nivel; `vectors.ts`: métricas del plano; `rng.ts`; `session.ts`; `types.ts`).
+- `src/engine/`: reglas (`progression.ts`: nota, validación, puertas, examen, XP, nivel; `vectors.ts`: métricas del plano, también producto escalar, coseno, ángulo en grados y proyección; `rng.ts`; `session.ts`; `types.ts`).
 - `src/content/`: `schema.ts` (esquema Zod de pregunta, proyecto, órbita y juego), `validate.ts` (`gameProblems`), `generators.ts`, `grade.ts`, `exam.ts` (sorteo del examen).
 - `src/python/`: `worker.ts`, `runner.ts` (la interfaz que usa la interfaz), `core.ts` y `harness.ts` (ejecución y comprobaciones), `node.ts` (Pyodide en Node para las pruebas), `config.ts`.
 - `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `merge.ts` (fusión de dos documentos del mismo jugador), `types.ts`. Un documento ilegible se aparta, no se borra.
