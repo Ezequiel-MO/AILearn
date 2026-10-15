@@ -14,7 +14,7 @@ const spec: PlaneSpec = {
     { id: 'u', label: 'u', x: 2, y: 1, movable: true },
     { id: 'v', label: 'v', x: 1, y: 3, movable: true },
   ],
-  readouts: ['components', 'norm', 'distance', 'sum'],
+  readouts: ['components', 'norm', 'distance', 'sum', 'dot', 'cos', 'angle', 'projection'],
   pair: ['u', 'v'],
 };
 

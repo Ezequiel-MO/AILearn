@@ -328,24 +328,28 @@ a {
 }
 
 .plane__vector,
+.plane__shadow,
 .plane__label,
 .plane__handle {
   --slot-color: var(--plane-v0);
 }
 
 .plane__vector[data-slot='1'],
+.plane__shadow[data-slot='1'],
 .plane__label[data-slot='1'],
 .plane__handle[data-slot='1'] {
   --slot-color: var(--plane-v1);
 }
 
 .plane__vector[data-slot='2'],
+.plane__shadow[data-slot='2'],
 .plane__label[data-slot='2'],
 .plane__handle[data-slot='2'] {
   --slot-color: var(--plane-v2);
 }
 
 .plane__vector[data-slot='3'],
+.plane__shadow[data-slot='3'],
 .plane__label[data-slot='3'],
 .plane__handle[data-slot='3'] {
   --slot-color: var(--plane-v3);
@@ -383,6 +387,33 @@ a {
 
 .plane__distance {
   stroke-dasharray: 2 4;
+}
+
+.plane__angle-arc,
+.plane__shadow-drop {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+}
+
+.plane__shadow-drop {
+  stroke-dasharray: 4 4;
+}
+
+.plane__b-line {
+  stroke: var(--plane-axis);
+  stroke-width: 1;
+  opacity: 0.7;
+}
+
+.plane__shadow-arrow {
+  stroke: var(--slot-color);
+  stroke-width: 3;
+  stroke-dasharray: 8 6;
+}
+
+.plane__shadow polygon {
+  fill: var(--slot-color);
 }
 
 .plane__label {

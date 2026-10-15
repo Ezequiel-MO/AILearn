@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react';
 import type { KeyboardEvent, PointerEvent } from 'react';
 import type { PlaneSpec } from '../content/schema';
-import { measure } from '../engine/vectors';
+import { measure, projection } from '../engine/vectors';
 import type { Vec } from '../engine/vectors';
 import { fmt, fmtPair } from './format';
 import { CENTER, HANDLE_RADIUS, HANDLE_RING_RADIUS, MARGIN, VIEW, placeLabels } from './labels';
@@ -15,6 +15,11 @@ const SLOTS = 4;
 const MAX_TICKS = 12;
 const MAX_GRID_LINES = 60;
 const EPS = 1e-9;
+/** Radio del arco del ángulo, en unidades de vista; se encoge si un vector es corto. Debajo de ARC_MIN no se dibuja. */
+const ARC_RADIUS = 34;
+const ARC_MIN = 10;
+/** Una proyección más corta que esto (unidades de vista) no se dibuja: la sombra es un punto. */
+const SHADOW_MIN = 1;
 
 const clean = (n: number): number => Number(n.toFixed(6));
 
@@ -182,6 +187,39 @@ export function VectorPlane({
   const sumTip: Point | null = sumPoint ? [sx(sumPoint[0]), sy(sumPoint[1])] : null;
   const sumArrow = sumTip ? arrow(sumTip) : null;
 
+  // --- Ángulo y proyección del par: se calculan con el motor; la interfaz solo las coloca ---
+  const angleDeg = pair ? measure('angle', [pair[0], pair[1]], asVecs) : NaN;
+  const wantsArc = readouts.includes('angle') || readouts.includes('cos');
+  let arcPath: string | null = null;
+  // 0° no tiene arco que ver; a 180° es media circunferencia (el lado del sweep es indiferente)
+  if (pair && wantsArc && Number.isFinite(angleDeg) && angleDeg > 0.5) {
+    const a = arrow(tipOf(pair[0]));
+    const b = arrow(tipOf(pair[1]));
+    const r = Math.min(ARC_RADIUS, 0.7 * Math.min(a.length, b.length));
+    if (r >= ARC_MIN) {
+      const at = (d: Point): string => `${CENTER + d[0] * r} ${CENTER + d[1] * r}`;
+      const pa = current[pair[0]];
+      const pb = current[pair[1]];
+      // la y de pantalla crece hacia abajo: de a a b en sentido antihorario del plano es sweep 0
+      const sweep = pa[0] * pb[1] - pa[1] * pb[0] > 0 ? 0 : 1;
+      arcPath = `M ${at(a.dir)} A ${r} ${r} 0 0 ${sweep} ${at(b.dir)}`;
+    }
+  }
+
+  const shadowVec =
+    pair && readouts.includes('projection') ? projection(current[pair[0]], current[pair[1]]) : null;
+  const shadowTip: Point | null = shadowVec ? [sx(shadowVec[0]), sy(shadowVec[1])] : null;
+  const shadowArrow = shadowTip ? arrow(shadowTip) : null;
+  const shadowShown = shadowArrow !== null && shadowArrow.length >= SHADOW_MIN;
+  // la recta de b, de lado a lado: ayuda a ver sobre qué se proyecta (solo con b no nulo)
+  const bDir = shadowVec && pair ? arrow(tipOf(pair[1])).dir : null;
+  const bLine: [Point, Point] | null = bDir
+    ? [
+        [CENTER - bDir[0] * 4 * VIEW, CENTER - bDir[1] * 4 * VIEW],
+        [CENTER + bDir[0] * 4 * VIEW, CENTER + bDir[1] * 4 * VIEW],
+      ]
+    : null;
+
   // --- Lecturas, con las funciones del motor ---
   const rows: { key: string; name: string; value: string }[] = [];
   for (const kind of readouts) {
@@ -209,6 +247,32 @@ export function VectorPlane({
           name: `d(${nameOf(a)}, ${nameOf(b)})`,
           value: fmt(measure('distance', [a, b], asVecs)),
         });
+      } else if (kind === 'dot') {
+        rows.push({
+          key: 'dot',
+          name: t.plane.dotName(nameOf(a), nameOf(b)),
+          value: fmt(measure('dot', [a, b], asVecs)),
+        });
+      } else if (kind === 'cos') {
+        const value = measure('cos', [a, b], asVecs);
+        rows.push({
+          key: 'cos',
+          name: t.plane.cosName(nameOf(a), nameOf(b)),
+          value: Number.isNaN(value) ? t.plane.noAngle : fmt(value),
+        });
+      } else if (kind === 'angle') {
+        rows.push({
+          key: 'angle',
+          name: t.plane.angleName(nameOf(a), nameOf(b)),
+          value: Number.isNaN(angleDeg) ? t.plane.noAngle : `${fmt(angleDeg)}°`,
+        });
+      } else if (kind === 'projection') {
+        const value = measure('proj', [a, b], asVecs);
+        rows.push({
+          key: 'proj',
+          name: t.plane.projectionName(nameOf(a), nameOf(b)),
+          value: Number.isNaN(value) ? t.plane.noProjection : fmt(value),
+        });
       } else {
         rows.push({
           key: 's',
@@ -234,7 +298,11 @@ export function VectorPlane({
   ];
   const labelAt = placeLabels({
     labels: labelRequests,
-    arrowTips: [...vectors.map((v) => tipOf(v.id)), ...(sumTip ? [sumTip] : [])],
+    arrowTips: [
+      ...vectors.map((v) => tipOf(v.id)),
+      ...(sumTip ? [sumTip] : []),
+      ...(shadowShown && shadowTip ? [shadowTip] : []),
+    ],
     handles: movableHandles.map((v) => tipOf(v.id)),
   });
   const labelSpots = labelRequests.map((l, i) => ({ ...l, at: labelAt[i] }));
@@ -332,6 +400,16 @@ export function VectorPlane({
           </g>
 
           <g clipPath={`url(#${clipId})`}>
+            {bLine && (
+              <line
+                className="plane__b-line"
+                aria-hidden="true"
+                x1={bLine[0][0]}
+                y1={bLine[0][1]}
+                x2={bLine[1][0]}
+                y2={bLine[1][1]}
+              />
+            )}
             {wantsSum && pair && sumTip && (
               <g className="plane__parallelogram">
                 <line x1={tipOf(pair[0])[0]} y1={tipOf(pair[0])[1]} x2={sumTip[0]} y2={sumTip[1]} />
@@ -363,6 +441,26 @@ export function VectorPlane({
                 </g>
               );
             })}
+            {arcPath && <path className="plane__angle-arc" aria-hidden="true" d={arcPath} />}
+            {pair && shadowShown && shadowArrow && shadowTip && (
+              <g className="plane__shadow" aria-hidden="true" data-slot={slotOf(pair[0])}>
+                <line
+                  className="plane__shadow-drop"
+                  x1={tipOf(pair[0])[0]}
+                  y1={tipOf(pair[0])[1]}
+                  x2={shadowTip[0]}
+                  y2={shadowTip[1]}
+                />
+                <line
+                  className="plane__shadow-arrow"
+                  x1={CENTER}
+                  y1={CENTER}
+                  x2={shadowArrow.lineEnd[0]}
+                  y2={shadowArrow.lineEnd[1]}
+                />
+                {shadowArrow.head && <polygon points={shadowArrow.head} />}
+              </g>
+            )}
           </g>
 
           <g className="plane__labels" aria-hidden="true">

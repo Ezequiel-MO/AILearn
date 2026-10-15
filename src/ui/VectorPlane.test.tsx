@@ -543,3 +543,170 @@ describe('VectorPlane: etiquetas sobre astas y asas', () => {
     }
   });
 });
+
+describe('VectorPlane: lecturas del ángulo (Órbita 1)', () => {
+  const planeSpec = (readoutKinds: PlaneSpec['readouts']) =>
+    spec({
+      readouts: readoutKinds,
+      pair: ['u', 'v'],
+      vectors: [
+        { id: 'u', label: 'u', x: 3, y: 4, movable: true },
+        { id: 'v', label: 'v', x: 4, y: 3, movable: true },
+      ],
+    });
+  const view = (
+    readoutKinds: PlaneSpec['readouts'],
+    u: [number, number] = [3, 4],
+    v: [number, number] = [4, 3],
+  ) => render(<VectorPlane spec={planeSpec(readoutKinds)} positions={{ u, v }} />);
+
+  // contract: aritmética a mano: u=(3,4), v=(4,3) -> u·v = 3·4 + 4·3 = 24
+  it('muestra el producto escalar del par, con el nombre a · b', () => {
+    view(['dot']);
+    expect(within(readouts()).getByText('u · v')).toBeInTheDocument();
+    expect(within(readouts()).getByText('24')).toBeInTheDocument();
+  });
+
+  // contract: aritmética a mano: cos = 24 / (5·5) = 0,96 (coma decimal, ruling R15)
+  it('muestra el coseno del par con coma decimal', () => {
+    view(['cos']);
+    expect(within(readouts()).getByText('cos(u, v)')).toBeInTheDocument();
+    expect(within(readouts()).getByText('0,96')).toBeInTheDocument();
+  });
+
+  // contract: aritmética a mano: ángulo = atan2(|3·3 - 4·4|, 24) = atan(7/24) = 16,2602°, que fmt redondea a 16,26
+  it('muestra el ángulo en grados con el signo °', () => {
+    view(['angle']);
+    expect(within(readouts()).getByText('ángulo(u, v)')).toBeInTheDocument();
+    expect(within(readouts()).getByText('16,26°')).toBeInTheDocument();
+  });
+
+  // contract: aritmética a mano: proyección escalar de u sobre v = 24 / ‖v‖ = 24 / 5 = 4,8
+  it('muestra la proyección escalar de pair[0] sobre pair[1]', () => {
+    view(['projection']);
+    expect(within(readouts()).getByText('proy de u sobre v')).toBeInTheDocument();
+    expect(within(readouts()).getByText('4,8')).toBeInTheDocument();
+  });
+
+  // contract: tarea 9, reglas del plano: las lecturas salen en el orden de readouts, como las de distance y sum
+  it('las lecturas siguen el orden de readouts', () => {
+    view(['projection', 'dot']);
+    const names = [...readouts().querySelectorAll('dt')].map((d) => d.textContent);
+    expect(names).toEqual(['proy de u sobre v', 'u · v']);
+  });
+
+  // contract: motor (vectors.ts): con un vector nulo cos, ángulo y proyección sobre él son NaN; el plano muestra un texto fijo, nunca NaN
+  it('con un vector nulo muestra el texto fijo en lugar de NaN', () => {
+    view(['dot', 'cos', 'angle', 'projection'], [3, 4], [0, 0]);
+    const group = readouts();
+    expect(within(group).getAllByText('sin ángulo')).toHaveLength(2);
+    expect(within(group).getByText('sin proyección')).toBeInTheDocument();
+    // u·0 = 0: el producto escalar con el vector nulo sí existe
+    expect(within(group).getByText('0')).toBeInTheDocument();
+    expect(group.textContent).not.toContain('NaN');
+  });
+
+  // contract: motor (vectors.ts): la proyección del vector nulo sobre uno no nulo es 0·b/‖b‖ = 0, no NaN
+  it('proyectar el vector nulo sobre uno no nulo da 0, no el texto fijo', () => {
+    view(['projection'], [0, 0], [4, 3]);
+    expect(within(readouts()).getByText('0')).toBeInTheDocument();
+    expect(within(readouts()).queryByText('sin proyección')).toBeNull();
+  });
+
+  // contract: encargo del plano: el arco aparece con 'angle' o con 'cos' y con ninguna otra lectura
+  it('el arco aparece solo con angle o cos', () => {
+    for (const kinds of [['angle'], ['cos']] as PlaneSpec['readouts'][]) {
+      const { container, unmount } = view(kinds);
+      expect(container.querySelector('.plane__angle-arc')).not.toBeNull();
+      unmount();
+    }
+    const { container } = view(['dot', 'projection', 'distance']);
+    expect(container.querySelector('.plane__angle-arc')).toBeNull();
+  });
+
+  // contract: encargo del plano: sin arco si algún vector es nulo; a 0° (paralelos) tampoco hay arco que ver
+  it('no hay arco con un vector nulo ni con vectores paralelos', () => {
+    const nul = view(['angle'], [3, 4], [0, 0]);
+    expect(nul.container.querySelector('.plane__angle-arc')).toBeNull();
+    nul.unmount();
+    const par = view(['angle'], [1, 1], [2, 2]);
+    expect(par.container.querySelector('.plane__angle-arc')).toBeNull();
+  });
+
+  // contract: geometría del plano: el arco es de radio r centrado en el origen (CENTER) y va de la dirección de u=(3,4) a la de
+  // v=(4,3) por el ángulo menor (large-arc 0); en pantalla la y crece hacia abajo, así que de u (arriba) a v (a la derecha) se gira
+  // en sentido horario: sweep 1
+  it('el arco parte del origen, va de un vector al otro y es el ángulo menor', () => {
+    const { container } = view(['angle']);
+    const d = container.querySelector('.plane__angle-arc')?.getAttribute('d') ?? '';
+    const m = /^M ([\d.]+) ([\d.]+) A ([\d.]+) ([\d.]+) 0 (\d) (\d) ([\d.]+) ([\d.]+)$/.exec(d);
+    expect(m).not.toBeNull();
+    const [, x0, y0, rx, , large, sweep, x1, y1] = (m ?? []).map(Number);
+    expect(Math.hypot(x0 - CENTER, y0 - CENTER)).toBeCloseTo(rx, 3);
+    expect(Math.hypot(x1 - CENTER, y1 - CENTER)).toBeCloseTo(rx, 3);
+    expect(large).toBe(0);
+    expect(sweep).toBe(1);
+    expect((x0 - CENTER) / (CENTER - y0)).toBeCloseTo(3 / 4, 3);
+    expect((x1 - CENTER) / (CENTER - y1)).toBeCloseTo(4 / 3, 3);
+  });
+
+  // contract: encargo del plano: el arco y la proyección son decorativos (aria-hidden); los valores se leen en las lecturas
+  it('el arco y la proyección son aria-hidden', () => {
+    const { container } = view(['angle', 'projection']);
+    expect(container.querySelector('.plane__angle-arc')).toHaveAttribute('aria-hidden', 'true');
+    expect(container.querySelector('.plane__shadow')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  // contract: encargo del plano: la flecha de proyección y la perpendicular solo aparecen con 'projection'
+  it('la flecha de proyección y la perpendicular aparecen solo con projection', () => {
+    const sin = view(['angle', 'dot', 'cos']);
+    expect(sin.container.querySelector('.plane__shadow')).toBeNull();
+    sin.unmount();
+    const { container } = view(['projection']);
+    expect(container.querySelector('.plane__shadow-arrow')).not.toBeNull();
+    expect(container.querySelector('.plane__shadow-drop')).not.toBeNull();
+  });
+
+  // contract: aritmética a mano: la proyección de u=(3,4) sobre v=(4,3) es (24/25)·(4,3) = (3,84; 2,88); la escala es
+  // (CENTER - MARGIN) / range con range 6; la perpendicular va de la punta de u a ese pie
+  it('la perpendicular une la punta de u con el pie de la proyección', () => {
+    const { container } = view(['projection']);
+    const k = (CENTER - MARGIN) / 6;
+    const drop = container.querySelector('.plane__shadow-drop') as SVGLineElement;
+    expect(Number(drop.getAttribute('x1'))).toBeCloseTo(CENTER + 3 * k, 3);
+    expect(Number(drop.getAttribute('y1'))).toBeCloseTo(CENTER - 4 * k, 3);
+    expect(Number(drop.getAttribute('x2'))).toBeCloseTo(CENTER + 3.84 * k, 3);
+    expect(Number(drop.getAttribute('y2'))).toBeCloseTo(CENTER - 2.88 * k, 3);
+  });
+
+  // contract: motor (projection): con b nulo no hay proyección (null) y no se dibuja nada de ella
+  it('con b nulo no se dibuja la proyección', () => {
+    const { container } = view(['projection'], [3, 4], [0, 0]);
+    expect(container.querySelector('.plane__shadow')).toBeNull();
+    expect(container.querySelector('.plane__b-line')).toBeNull();
+  });
+
+  // contract: aritmética a mano: u=(0,3) ⟂ v=(4,0): la proyección es el vector nulo y no se dibuja (la sombra es un punto)
+  it('con vectores ortogonales no se dibuja la proyección', () => {
+    const { container } = view(['projection'], [0, 3], [4, 0]);
+    expect(container.querySelector('.plane__shadow')).toBeNull();
+  });
+
+  // contract: tarea 9, reglas del plano: las lecturas y el dibujo siguen a `positions`; con u=(3,4) y v=(-4,3): u·v = -12 + 12 = 0,
+  // ángulo 90° y proyección nula (no se dibuja); con v=(4,3) eran 24, 16,26° y 4,8
+  it('se actualizan al mover un vector', () => {
+    const s = planeSpec(['dot', 'angle', 'projection']);
+    const { container, rerender } = render(
+      <VectorPlane spec={s} positions={{ u: [3, 4], v: [4, 3] }} />,
+    );
+    expect(within(readouts()).getByText('16,26°')).toBeInTheDocument();
+    expect(container.querySelector('.plane__shadow')).not.toBeNull();
+    const before = container.querySelector('.plane__angle-arc')?.getAttribute('d');
+    rerender(<VectorPlane spec={s} positions={{ u: [3, 4], v: [-4, 3] }} />);
+    expect(within(readouts()).getByText('90°')).toBeInTheDocument();
+    expect(within(readouts()).queryByText('16,26°')).toBeNull();
+    expect(within(readouts()).getAllByText('0')).toHaveLength(2);
+    expect(container.querySelector('.plane__shadow')).toBeNull();
+    expect(container.querySelector('.plane__angle-arc')?.getAttribute('d')).not.toBe(before);
+  });
+});

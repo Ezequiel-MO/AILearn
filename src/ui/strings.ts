@@ -21,6 +21,13 @@ export const t = {
     readouts: 'Lecturas',
     xAxis: 'x',
     yAxis: 'y',
+    dotName: (a: string, b: string) => `${a} · ${b}`,
+    cosName: (a: string, b: string) => `cos(${a}, ${b})`,
+    angleName: (a: string, b: string) => `ángulo(${a}, ${b})`,
+    projectionName: (a: string, b: string) => `proy de ${a} sobre ${b}`,
+    // el vector nulo no tiene dirección: el ángulo, el coseno y la proyección no existen
+    noAngle: 'sin ángulo',
+    noProjection: 'sin proyección',
     handleLabel: (name: string, position: string) => `Asa del vector ${name}, en ${position}`,
   },
 
