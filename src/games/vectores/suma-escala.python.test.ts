@@ -376,18 +376,13 @@ accepts('suma-escala.ex02.5', [
     append: `s = u + v\nplt.quiver([0, 0, 0], [0, 0, 0], [u[0], v[0], s[0]], [u[1], v[1], s[1]], ${QUIVER})\n`,
   },
   {
-    name: 'sin las opciones de escala',
-    append:
-      's = u + v\nplt.quiver(0, 0, u[0], u[1])\nplt.quiver(0, 0, v[0], v[1])\nplt.quiver(0, 0, s[0], s[1])\n',
-  },
-  {
     name: 'con ejes creados con subplots',
     append: `s = u + v\nplt.close("all")\nfig, ax = plt.subplots()\nax.quiver(0, 0, 2, 1, ${QUIVER})\nax.quiver(0, 0, 3, 2, ${QUIVER})\nax.quiver(0, 0, s[0], s[1], ${QUIVER})\n`,
   },
   {
-    // contract: review-16 (sondas del revisor: formas cortas de llamar a quiver)
+    // contract: review-16 (sondas del revisor: formas cortas de llamar a quiver); con las opciones de escala desde el informe de Oliver (2026-10-15)
     name: 'forma corta con desempaquetado',
-    append: `s = u + v\nplt.quiver(0, 0, *u)\nplt.quiver(0, 0, *v)\nplt.quiver(0, 0, *s)\n`,
+    append: `s = u + v\nplt.quiver(0, 0, *u, ${QUIVER})\nplt.quiver(0, 0, *v, ${QUIVER})\nplt.quiver(0, 0, *s, ${QUIVER})\n`,
   },
   {
     name: 'con colores y una flecha de adorno',
@@ -395,6 +390,21 @@ accepts('suma-escala.ex02.5', [
   },
 ]);
 rejects('suma-escala.ex02.5', [
+  {
+    // contract: informe de Oliver (2026-10-15): con plt.quiver sin opciones la respuesta contaba como correcta y la figura salía deformada
+    name: 'dibuja las tres flechas sin las opciones de escala',
+    append:
+      's = u + v\nplt.quiver(0, 0, u[0], u[1])\nplt.quiver(0, 0, v[0], v[1])\nplt.quiver(0, 0, s[0], s[1])\n',
+    message: /no están dibujadas a escala/,
+    failures: 1,
+  },
+  {
+    // contract: informe de Oliver (2026-10-15): basta una flecha sin escala para que la figura engañe
+    name: 'una de las tres flechas sin las opciones de escala',
+    append: `s = u + v\nplt.quiver(0, 0, u[0], u[1], ${QUIVER})\nplt.quiver(0, 0, v[0], v[1], ${QUIVER})\nplt.quiver(0, 0, s[0], s[1])\n`,
+    message: /no están dibujadas a escala/,
+    failures: 1,
+  },
   {
     name: 'falta la flecha de la suma',
     append: `s = u + v\nplt.quiver(0, 0, u[0], u[1], ${QUIVER})\nplt.quiver(0, 0, v[0], v[1], ${QUIVER})\n`,

@@ -409,6 +409,8 @@ _fig = len(plt.get_fignums()) > 0
 check(_fig, "No hay ninguna figura: dibuja las flechas con \`plt.quiver\`.")
 _flechas = [(float(a), float(b)) for ax in plt.gcf().axes for c in ax.collections if type(c).__name__ == "Quiver" for a, b in zip(np.ravel(np.ma.getdata(c.U)), np.ravel(np.ma.getdata(c.V)))] if _fig else []
 check((not _fig) or len(_flechas) > 0, "No hay flechas en la figura: dibújalas con \`plt.quiver\`.")
+_quivers = [c for ax in plt.gcf().axes for c in ax.collections if type(c).__name__ == "Quiver"] if _fig else []
+check(all(isinstance(c.angles, str) and c.angles == "xy" and c.scale_units == "xy" and c.scale == 1 for c in _quivers), 'Las flechas no están dibujadas a escala: sin opciones, \`plt.quiver\` estira o encoge cada flecha a su aire y no llegan adonde dicen sus componentes. Añade \`angles="xy", scale_units="xy", scale=1\` a cada llamada.')
 check(len(_flechas) == 0 or any(np.allclose(f, [2, 1]) for f in _flechas), "Falta la flecha de \`u\`: tiene que avanzar 2 en horizontal y 1 en vertical.")
 check(len(_flechas) == 0 or any(np.allclose(f, [3, 2]) for f in _flechas), "Falta la flecha de \`v\`: tiene que avanzar 3 en horizontal y 2 en vertical.")
 check(len(_flechas) == 0 or any(np.allclose(f, [5, 3]) for f in _flechas), "Falta la flecha de la suma: tiene que avanzar 5 en horizontal y 3 en vertical.")

@@ -433,13 +433,8 @@ accepts('proyeccion.ex02.5', [
     append: `p = (a @ b) / (b @ b) * b\nplt.quiver([0, 0, 0], [0, 0, 0], [a[0], b[0], p[0]], [a[1], b[1], p[1]], ${QUIVER})\n`,
   },
   {
-    name: 'sin las opciones de escala',
-    append:
-      'p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, a[0], a[1])\nplt.quiver(0, 0, b[0], b[1])\nplt.quiver(0, 0, p[0], p[1])\n',
-  },
-  {
     name: 'forma corta con desempaquetado',
-    append: `p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, *a)\nplt.quiver(0, 0, *b)\nplt.quiver(0, 0, *p)\n`,
+    append: `p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, *a, ${QUIVER})\nplt.quiver(0, 0, *b, ${QUIVER})\nplt.quiver(0, 0, *p, ${QUIVER})\n`,
   },
   {
     name: 'con la perpendicular dibujada desde la punta de p',
@@ -451,6 +446,21 @@ accepts('proyeccion.ex02.5', [
   },
 ]);
 rejects('proyeccion.ex02.5', [
+  {
+    // contract: informe de Oliver (2026-10-15): con plt.quiver sin opciones la respuesta contaba como correcta y la figura salía deformada
+    name: 'dibuja las tres flechas sin las opciones de escala',
+    append:
+      'p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, a[0], a[1])\nplt.quiver(0, 0, b[0], b[1])\nplt.quiver(0, 0, p[0], p[1])\n',
+    message: /no están dibujadas a escala/,
+    failures: 1,
+  },
+  {
+    // contract: informe de Oliver (2026-10-15): basta una flecha sin escala para que la figura engañe
+    name: 'una de las tres flechas sin las opciones de escala',
+    append: `p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, a[0], a[1], ${QUIVER})\nplt.quiver(0, 0, b[0], b[1], ${QUIVER})\nplt.quiver(0, 0, p[0], p[1])\n`,
+    message: /no están dibujadas a escala/,
+    failures: 1,
+  },
   {
     name: 'falta la flecha de p',
     append: `p = (a @ b) / (b @ b) * b\nplt.quiver(0, 0, a[0], a[1], ${QUIVER})\nplt.quiver(0, 0, b[0], b[1], ${QUIVER})\n`,
