@@ -15,7 +15,7 @@ npm install
 npm run dev
 ```
 
-`npm run dev` sirve el juego en el navegador. `?abierto` (por ejemplo `#/j/vectores?abierto`) salta las puertas de la trayectoria para probar cualquier pantalla, también en producción; dura hasta recargar la página. El progreso se guarda en `localStorage` y sobrevive a recargar.
+`npm run dev` sirve el juego en el navegador. `?abierto` (por ejemplo `#/j/vectores?abierto`) salta las puertas de la trayectoria para probar cualquier pantalla, también en producción; dura hasta recargar la página. El progreso se guarda en `localStorage` y sobrevive a recargar. Con «Entrar con Google» (opcional) se guarda además en Firebase y se comparte entre dispositivos: al entrar, lo local y lo de la nube se fusionan sin perder nada.
 
 Python (NumPy y matplotlib) corre en el navegador con Pyodide, que se descarga de su CDN la primera vez que una pregunta de código lo necesita. Esa primera carga necesita conexión y tarda entre 7 y 14 s en frío.
 

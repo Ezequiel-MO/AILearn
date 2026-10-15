@@ -1,5 +1,9 @@
 import { lazy, Suspense } from 'react';
 import { HashRouter, Route, Routes } from 'react-router';
+import { createCloudStore } from './cloud/store';
+import { createLocalStore } from './storage/local';
+import { AccountContext } from './ui/Account';
+import { StoreContext } from './ui/useProgress';
 
 // Solo en desarrollo: con la constante falsa, el bundler descarta la importación y el módulo no se empaqueta.
 const DevRoutes = import.meta.env.DEV ? lazy(() => import('./ui/dev/DevRoutes')) : null;
@@ -110,10 +114,17 @@ export function AppRoutes() {
   );
 }
 
+// Una sola instancia por sesión, como el almacén local que envuelve.
+const store = createCloudStore(createLocalStore());
+
 export function App() {
   return (
-    <HashRouter>
-      <AppRoutes />
-    </HashRouter>
+    <StoreContext.Provider value={store}>
+      <AccountContext.Provider value={store.account}>
+        <HashRouter>
+          <AppRoutes />
+        </HashRouter>
+      </AccountContext.Provider>
+    </StoreContext.Provider>
   );
 }

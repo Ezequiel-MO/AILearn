@@ -134,6 +134,13 @@ const createHub = (store: ProgressStore, gameId: string): Hub => {
     else notify();
   };
 
+  // Lo traído de la nube se adopta como cualquier otro cambio. El hub vive toda la sesión: sin baja.
+  store.onExternalChange?.((changed) => {
+    if (changed !== gameId) return;
+    const doc = store.load(gameId);
+    if (publish(doc.summary, store.warning(), doc.attempts)) notify();
+  });
+
   const actions: Actions = {
     record: (result, context) =>
       mutate((doc) => {

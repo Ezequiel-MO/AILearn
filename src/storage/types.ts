@@ -28,4 +28,9 @@ export interface ProgressStore {
   saveDraft(gameId: string, questionId: string, code: string): void;
   /** Aviso pendiente para el jugador (en castellano), o null. */
   warning(): string | null;
+  /**
+   * Avisa cuando el progreso de un juego cambia por fuera de `save` (p. ej. al traerlo de la nube).
+   * Devuelve la baja. Opcional: el almacén local no lo necesita.
+   */
+  onExternalChange?(listener: (gameId: string) => void): () => void;
 }

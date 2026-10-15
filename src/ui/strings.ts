@@ -184,4 +184,13 @@ export const t = {
     statsCorrect: 'Aciertos',
     statsLaunch: 'Despegue',
   },
+
+  // --- Cuenta (inicio de sesión y progreso en la nube) ---
+  account: {
+    signIn: 'Entrar con Google',
+    signOut: 'Salir',
+    syncing: 'Guardando en la nube…',
+    synced: 'Guardado en la nube',
+    failed: 'Sin guardar en la nube: se reintentará',
+  },
 } as const;

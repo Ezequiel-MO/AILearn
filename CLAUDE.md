@@ -26,7 +26,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - Todo texto visible, en castellano. Identificadores del código, en inglés. Los textos fijos de la interfaz viven en `src/ui/strings.ts`, un grupo `t.<área>` por área.
 - Decimales con coma al mostrarlos; se aceptan con coma o con punto. Pares con algún decimal separados por «; ».
 - Sin librería de estado global, sin librería de gráficos para el plano (SVG propio) y sin librería de internacionalización.
-- Tipografías servidas desde el propio sitio. Ninguna llamada a red en tiempo de juego salvo la descarga de Pyodide y sus paquetes (CDN, versión fijada en `src/python/config.ts` y en `package.json`: deben coincidir).
+- Tipografías servidas desde el propio sitio. Ninguna llamada a red en tiempo de juego salvo la descarga de Pyodide y sus paquetes (CDN, versión fijada en `src/python/config.ts` y en `package.json`: deben coincidir) y Firebase (sesión y progreso en la nube).
 - Constantes de las reglas (`src/engine/types.ts`): validación 80; proyecto de 3 ejercicios de 5 preguntas; examen de 6 preguntas, aprobado con 5; XP 50 por el despegue, 50 por examen, 10 por hoja y la nota por proyecto validado; nivel = XP / 150 con dos decimales.
 - Clave de progreso `ailearn:v1:local:<juego>`; borradores en `ailearn:v1:local:<juego>:borradores`.
 - Todo paquete importado desde `src/` debe estar declarado en `package.json` (`tests/deps`). KaTeX tiene una sola versión.
@@ -39,8 +39,9 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - `src/engine/`: reglas (`progression.ts`: nota, validación, puertas, examen, XP, nivel; `vectors.ts`: métricas del plano; `rng.ts`; `session.ts`; `types.ts`).
 - `src/content/`: `schema.ts` (esquema Zod de pregunta, proyecto, órbita y juego), `validate.ts` (`gameProblems`), `generators.ts`, `grade.ts`, `exam.ts` (sorteo del examen).
 - `src/python/`: `worker.ts`, `runner.ts` (la interfaz que usa la interfaz), `core.ts` y `harness.ts` (ejecución y comprobaciones), `node.ts` (Pyodide en Node para las pruebas), `config.ts`.
-- `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `types.ts`. Un documento ilegible se aparta, no se borra.
-- `src/ui/`: `Layout`, `VectorPlane`, `CodeEditor`, `ExerciseRunner`, `Md`; `questions/` (un componente por tipo); `screens/` (pantallas y puertas); `dev/` (rutas `#/dev/*`, solo en desarrollo); `strings.ts`.
+- `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `merge.ts` (fusión de dos documentos del mismo jugador), `types.ts`. Un documento ilegible se aparta, no se borra.
+- `src/cloud/`: `firebase.ts` (configuración, sesión con Google, sincronización en Firestore; se carga en diferido) y `store.ts` (envuelve el almacén local: lo local manda y la nube se fusiona al entrar, al cargar y tras cada guardado). Progreso en `users/{uid}/progress/{juego}` como texto JSON; los borradores no suben. Reglas en `firestore.rules`, publicadas a mano en la consola.
+- `src/ui/`: `Layout`, `Account` (inicio de sesión en la cabecera), `VectorPlane`, `CodeEditor`, `ExerciseRunner`, `Md`; `questions/` (un componente por tipo); `screens/` (pantallas y puertas); `dev/` (rutas `#/dev/*`, solo en desarrollo); `strings.ts`.
 - `src/games/index.ts`: registro de juegos; `src/games/vectores/`: contenido del juego 1.
 - `src/App.tsx`: rutas con `HashRouter`: `/`, `/j/:game`, `/j/:game/p/:project`, `/j/:game/estadisticas` (estas cuatro, de la tarea 14), `/j/:game/despegue`, `/j/:game/p/:project/ex/:n`, `/j/:game/p/:project/hoja/:n`, `/j/:game/examen/:c`.
 - `tests/content/`: pruebas que recorren `games` y ayudantes (`python-helpers.ts`, `prose-helpers.ts`). `tests/deps/`, `tests/lint/`, `tests/e2e/`.

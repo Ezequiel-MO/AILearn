@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { Account } from './Account';
 import { t } from './strings';
 
 /**
@@ -22,6 +23,7 @@ export function Layout({
 }) {
   return (
     <div className="layout">
+      <Account />
       <header className="layout__header">
         {back !== undefined && (
           <Link className="layout__back" to={back}>

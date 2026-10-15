@@ -11,6 +11,7 @@ import {
   isValidated,
   level,
   mark,
+  mergeSummaries,
   projectMark,
   sheetsOpen,
   solveSheet,
@@ -288,5 +289,36 @@ describe('firstTry', () => {
   });
   it('acertar con pista no lo es', () => {
     expect(firstTry({ ...base, hinted: true })).toBe(false); // contract: R38 punto 3, exige no haber pedido pista
+  });
+});
+
+describe('mergeSummaries', () => {
+  it('lo conseguido en cualquiera de los dos cuenta: despegue, mejor marca, unión de exámenes y hojas', () => {
+    const a: Summary = {
+      launch: false,
+      firsts: { 'p/0': 3, 'p/1': 5 },
+      examsPassed: [0],
+      sheets: ['h1'],
+    };
+    const b: Summary = {
+      launch: true,
+      firsts: { 'p/0': 4, 'p/1': 2, 'q/0': 1 },
+      examsPassed: [1, 0],
+      sheets: ['h2', 'h1'],
+    };
+    // contract: petición de Oliver 2026-10-14 (progreso en la cuenta sin perder lo local); la marca guardada es la mejor (handInExercise)
+    expect(mergeSummaries(a, b)).toEqual({
+      launch: true,
+      firsts: { 'p/0': 4, 'p/1': 5, 'q/0': 1 },
+      examsPassed: [0, 1],
+      sheets: ['h1', 'h2'],
+    });
+  });
+
+  it('con un resumen vacío devuelve el otro', () => {
+    const s: Summary = { launch: true, firsts: { 'p/0': 2 }, examsPassed: [0], sheets: ['h'] };
+    // contract: fusión sin pérdida (petición de Oliver 2026-10-14)
+    expect(mergeSummaries(emptySummary(), s)).toEqual(s);
+    expect(mergeSummaries(s, emptySummary())).toEqual(s);
   });
 });

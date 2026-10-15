@@ -82,6 +82,24 @@ export const solveSheet = (s: Summary, sheetId: string): Summary =>
     ? { ...s, sheets: [...s.sheets] }
     : { ...s, sheets: [...s.sheets, sheetId] };
 
+/**
+ * Une dos resúmenes del mismo jugador (dos dispositivos): lo conseguido en cualquiera cuenta.
+ * La mejor marca por ejercicio; exámenes y hojas, la unión (primero los de `a`).
+ */
+export const mergeSummaries = (a: Summary, b: Summary): Summary => {
+  const firsts = { ...a.firsts };
+  for (const [key, value] of Object.entries(b.firsts)) {
+    firsts[key] = Math.max(firsts[key] ?? 0, value);
+  }
+  const union = <T>(x: T[], y: T[]): T[] => [...x, ...y.filter((v) => !x.includes(v))];
+  return {
+    launch: a.launch || b.launch,
+    firsts,
+    examsPassed: union(a.examsPassed, b.examsPassed),
+    sheets: union(a.sheets, b.sheets),
+  };
+};
+
 export const xp = (shape: Shape, s: Summary): number => {
   let total = s.launch ? XP_LAUNCH : 0;
   const sheetIds = new Set<string>();
