@@ -14,7 +14,14 @@ const METRICS = [
   'distance',
   'sum_x',
   'sum_y',
+  'dot',
+  'cos',
+  'angle',
+  'proj',
 ] as const satisfies readonly Metric[];
+
+/** Lecturas que comparan los dos vectores de `pair`. */
+const PAIR_READOUTS = ['distance', 'sum', 'dot', 'cos', 'angle', 'projection'] as const;
 
 export const planeVectorSchema = z.strictObject({
   id,
@@ -29,7 +36,7 @@ export const planeSpecSchema = z
     range: z.number().positive(),
     snap: z.number().positive(),
     vectors: z.array(planeVectorSchema),
-    readouts: z.array(z.enum(['components', 'norm', 'distance', 'sum'])),
+    readouts: z.array(z.enum(['components', 'norm', ...PAIR_READOUTS])),
     pair: z.tuple([z.string(), z.string()]).optional(),
   })
   .superRefine((p, ctx) => {
@@ -37,11 +44,12 @@ export const planeSpecSchema = z
     if (ids.size !== p.vectors.length) {
       ctx.addIssue({ code: 'custom', message: 'Hay ids de vector repetidos en el plano' });
     }
-    if ((p.readouts.includes('distance') || p.readouts.includes('sum')) && !p.pair) {
+    const needsPair = p.readouts.filter((r) => (PAIR_READOUTS as readonly string[]).includes(r));
+    if (needsPair.length > 0 && !p.pair) {
       ctx.addIssue({
         code: 'custom',
         path: ['pair'],
-        message: 'pair es obligatorio si readouts incluye distance o sum',
+        message: `pair es obligatorio si readouts incluye ${needsPair.join(', ')}`,
       });
     }
     if (p.pair) {
