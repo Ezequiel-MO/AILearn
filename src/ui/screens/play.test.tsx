@@ -405,6 +405,75 @@ describe('Despegue', () => {
   });
 });
 
+describe('Repaso de un ejercicio ya entregado', () => {
+  const handedIn = () => {
+    const s = newStore().store;
+    seed(s, { firsts: { 'p/0': 3 } });
+    return s;
+  };
+
+  it('se abre en repaso: aviso, cinco pestañas y la pregunta 1, sin contador de «a la primera»', async () => {
+    await setup(`/j/${GAME}/p/p/ex/0?abierto`, handedIn());
+    // contract: petición de Oliver (2026-10-15): «lo superado debería poder inspeccionarlo» sin volver a entregar
+    expect(screen.getByText(/nada de lo que hagas aquí cuenta para la nota/)).toBeVisible();
+    const nav = screen.getByRole('navigation', { name: 'Preguntas del ejercicio' });
+    expect(within(nav).getAllByRole('button')).toHaveLength(5); // contract: 5 preguntas por ejercicio
+    expect(within(nav).getByRole('button', { name: 'Ir a la pregunta 1' })).toHaveAttribute(
+      'aria-current',
+      'step',
+    );
+    expect(screen.getByText('Enunciado pa1')).toBeVisible();
+    expect(screen.queryByText(/A la primera/)).toBeNull(); // contract: el repaso no puntúa
+  });
+
+  it('salta a cualquier pregunta y enseña explicación y solución bajo demanda', async () => {
+    const { user } = await setup(`/j/${GAME}/p/p/ex/0?abierto`, handedIn());
+    await user.click(screen.getByRole('button', { name: 'Ir a la pregunta 4' }));
+    // contract: navegación libre entre las preguntas
+    expect(screen.getByText('Enunciado pa4')).toBeVisible();
+    expect(screen.getByText('4 de 5')).toBeInTheDocument();
+    expect(screen.queryByText('SOLUCION pa4')).toBeNull(); // contract: la solución se pide, no se impone
+    await user.click(screen.getByRole('button', { name: 'Ver la solución' }));
+    expect(screen.getByText('EXPLICACION pa4')).toBeVisible();
+    expect(screen.getByText('SOLUCION pa4')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Anterior' }));
+    expect(screen.getByText('Enunciado pa3')).toBeVisible(); // contract: Anterior y Siguiente recorren las preguntas
+    expect(screen.queryByText('SOLUCION pa3')).toBeNull(); // contract: al cambiar de pregunta se oculta la solución
+  });
+
+  it('contestar en el repaso dice si es correcto, pero no registra intentos ni cambia la marca', async () => {
+    const store = handedIn();
+    const { user } = await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    await answer(user, '9');
+    expect(screen.getByText(/Todavía no\. Puedes volver a intentarlo/)).toBeVisible();
+    await answer(user, '5');
+    expect(screen.getByText('¡Correcto!')).toBeVisible();
+    // contract: petición de Oliver (2026-10-15): repasar no es volver a entregar
+    expect(saved(store).attempts).toHaveLength(0);
+    expect(saved(store).summary.firsts).toEqual({ 'p/0': 3 });
+  });
+
+  it('«Volver a hacerlo» arranca la tanda que cuenta, y al terminarla «Repasar» vuelve al repaso', async () => {
+    const store = handedIn();
+    const { user } = await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    await user.click(screen.getByRole('button', { name: 'Volver a hacerlo (cuenta)' }));
+    // contract: la tanda normal, con su contador
+    expect(screen.getByText('A la primera: 0')).toBeInTheDocument();
+    for (let n = 0; n < 5; n++) await solve(user);
+    expect(saved(store).summary.firsts['p/0']).toBe(5); // contract: la tanda repetida cuenta (mejor marca)
+    await user.click(screen.getByRole('button', { name: 'Repasar' }));
+    expect(screen.getByRole('navigation', { name: 'Preguntas del ejercicio' })).toBeVisible();
+    expect(screen.queryByRole('region', { name: 'Resultado' })).toBeNull();
+  });
+
+  it('un ejercicio sin entregar se abre en la tanda normal, no en repaso', async () => {
+    await setup(`/j/${GAME}/p/p/ex/1?abierto`, handedIn());
+    // contract: solo lo entregado se repasa
+    expect(screen.queryByRole('navigation', { name: 'Preguntas del ejercicio' })).toBeNull();
+    expect(screen.getByText('A la primera: 0')).toBeInTheDocument();
+  });
+});
+
 describe('Ejercicio', () => {
   it('4 a la primera y la quinta acertada a la segunda: firsts 4 (no 5), cinco intentos de contexto proyecto y el resultado en pantalla', async () => {
     const { store, user } = await setup(`/j/${GAME}/p/p/ex/0?abierto`);
@@ -444,6 +513,8 @@ describe('Ejercicio', () => {
         return s;
       })(),
     );
+    // contract: petición de Oliver (2026-10-15): un ejercicio entregado se abre en repaso; repetirlo es un gesto explícito
+    await user.click(screen.getByRole('button', { name: 'Volver a hacerlo (cuenta)' }));
     for (let n = 0; n < 2; n++) await solve(user);
     for (let n = 0; n < 3; n++) await miss(user);
     // contract: brief tarea 13, tabla de casos («Repetir el ejercicio con 2 → sigue 4; el registro crece en 5»)

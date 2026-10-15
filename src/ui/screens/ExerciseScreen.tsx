@@ -2,9 +2,17 @@ import { useCallback, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Game, Project } from '../../content/schema';
 import { toShape } from '../../content/schema';
-import { orbitOpen, isValidated, level, projectMark, xp } from '../../engine/progression';
+import {
+  exerciseDone,
+  orbitOpen,
+  isValidated,
+  level,
+  projectMark,
+  xp,
+} from '../../engine/progression';
 import type { QuestionResult } from '../../engine/session';
 import { QUESTIONS_PER_EXERCISE, VALID } from '../../engine/types';
+import { ExerciseReview } from '../ExerciseReview';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
@@ -48,6 +56,8 @@ function ExercisePlay({
   const override = useOpenOverride();
   const [run, setRun] = useState(0);
   const [result, setResult] = useState<RunSummary | null>(null);
+  // Un ejercicio ya entregado se abre en repaso: se inspecciona sin que cuente.
+  const [reviewing, setReviewing] = useState(() => exerciseDone(summary, project.id, ex));
   useFocusTitle(run);
 
   const onResult = useCallback((r: QuestionResult) => record(r, 'proyecto'), [record]);
@@ -76,15 +86,27 @@ function ExercisePlay({
       warning={warning}
     >
       <div className="play__runner">
-        <ExerciseRunner
-          key={run}
-          mode="proyecto"
-          questions={questions}
-          onResult={onResult}
-          onDone={onDone}
-          getDraft={getDraft}
-          onDraft={saveDraft}
-        />
+        {reviewing ? (
+          <ExerciseReview
+            questions={questions}
+            getDraft={getDraft}
+            onDraft={saveDraft}
+            onRepeat={() => {
+              setReviewing(false);
+              setRun((n) => n + 1);
+            }}
+          />
+        ) : (
+          <ExerciseRunner
+            key={run}
+            mode="proyecto"
+            questions={questions}
+            onResult={onResult}
+            onDone={onDone}
+            getDraft={getDraft}
+            onDraft={saveDraft}
+          />
+        )}
       </div>
       {result && (
         <section className="play__result" aria-labelledby="play-result-title">
@@ -108,6 +130,16 @@ function ExercisePlay({
               }}
             >
               {t.play.repeat}
+            </button>
+            <button
+              type="button"
+              className="play__action"
+              onClick={() => {
+                setResult(null);
+                setReviewing(true);
+              }}
+            >
+              {t.review.toReview}
             </button>
           </div>
         </section>

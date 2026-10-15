@@ -280,7 +280,7 @@ const summaryOf = (s: SessionState): RunSummary => ({
   results: s.results,
 });
 
-function Solution({ text }: { text: string }) {
+export function Solution({ text }: { text: string }) {
   return (
     <>
       <p className="runner__label">{t.runner.solutionLabel}</p>
@@ -293,7 +293,7 @@ function Solution({ text }: { text: string }) {
  * La pregunta con su borrador. Vive con `key` por pregunta: el borrador se lee una sola vez al montar
  * (la pregunta de código no lo relee) y `onDraft` queda atado al id de ESTA pregunta.
  */
-function Stage({
+export function Stage({
   question,
   locked,
   onSubmit,

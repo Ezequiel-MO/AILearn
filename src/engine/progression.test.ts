@@ -5,6 +5,7 @@ import {
   examAvailable,
   examOpen,
   examPassed,
+  exerciseDone,
   firstTry,
   handInExam,
   handInExercise,
@@ -320,5 +321,16 @@ describe('mergeSummaries', () => {
     // contract: fusión sin pérdida (petición de Oliver 2026-10-14)
     expect(mergeSummaries(emptySummary(), s)).toEqual(s);
     expect(mergeSummaries(s, emptySummary())).toEqual(s);
+  });
+});
+
+describe('exerciseDone', () => {
+  it('es falso hasta entregar el ejercicio y verdadero después, aunque sea con 0 a la primera', () => {
+    const s = emptySummary();
+    expect(exerciseDone(s, 'p', 0)).toBe(false); // contract: petición de Oliver (2026-10-15): lo superado se repasa sin volver a entregar
+    const handed = handInExercise(s, 'p', 0, 0);
+    expect(exerciseDone(handed, 'p', 0)).toBe(true); // contract: entregado una vez basta, la marca no importa
+    expect(exerciseDone(handed, 'p', 1)).toBe(false); // contract: cada ejercicio por separado
+    expect(exerciseDone(handed, 'q', 0)).toBe(false); // contract: cada proyecto por separado
   });
 });

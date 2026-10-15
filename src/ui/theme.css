@@ -963,6 +963,29 @@ a {
   color: var(--color-accent-strong);
 }
 
+/* Repaso de un ejercicio ya entregado: nota, pestañas de pregunta. */
+.review__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.review__nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.review__tab {
+  min-width: 2.75rem;
+  justify-content: center;
+}
+
+.review__tab[aria-current='step'] {
+  border-color: var(--color-accent-strong);
+  color: var(--color-accent-strong);
+}
+
 .runner__body {
   display: grid;
   gap: var(--space-4);

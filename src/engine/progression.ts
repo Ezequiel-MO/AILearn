@@ -50,6 +50,10 @@ export const sheetsOpen = (s: Summary, projectId: string): boolean => isValidate
 
 export const completeLaunch = (s: Summary): Summary => ({ ...s, launch: true });
 
+/** ¿Se ha entregado el ejercicio alguna vez? Entonces se puede repasar sin que cuente. */
+export const exerciseDone = (s: Summary, projectId: string, ex: 0 | 1 | 2): boolean =>
+  Object.hasOwn(s.firsts, `${projectId}/${ex}`);
+
 export const handInExercise = (
   s: Summary,
   projectId: string,

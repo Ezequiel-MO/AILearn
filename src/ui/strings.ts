@@ -200,4 +200,18 @@ export const t = {
     synced: 'Guardado en la nube',
     failed: 'Sin guardar en la nube: se reintentará',
   },
+
+  // --- Repaso de un ejercicio ya entregado ---
+  review: {
+    note: 'Repaso: ya entregaste este ejercicio. Puedes moverte entre las preguntas, ver pistas y solución y volver a contestar; nada de lo que hagas aquí cuenta para la nota.',
+    navLabel: 'Preguntas del ejercicio',
+    goTo: (n: number) => `Ir a la pregunta ${n}`,
+    showSolution: 'Ver la solución',
+    hideSolution: 'Ocultar la solución',
+    wrong: 'Todavía no. Puedes volver a intentarlo o ver la solución.',
+    previous: 'Anterior',
+    next: 'Siguiente',
+    repeat: 'Volver a hacerlo (cuenta)',
+    toReview: 'Repasar',
+  },
 } as const;
