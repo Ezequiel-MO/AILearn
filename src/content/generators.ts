@@ -468,6 +468,119 @@ const cosenoAzar: Generator = {
   },
 };
 
+// ---------- Órbita 3: búsqueda ----------
+
+const mejorPuntuacion: Generator = {
+  id: 'mejor-puntuacion',
+  bounds: { min: -27, max: 27 },
+  make(id, _params, rng) {
+    const draw = (): number[] => Array.from({ length: 3 }, () => int(rng, -3, 3));
+    let q = draw();
+    while (isZero(q)) q = draw();
+    const dot = (d: readonly number[]): number => d.reduce((s, x, i) => s + x * q[i]!, 0);
+    // Se sortea de nuevo hasta que un solo documento gane: la pregunta no admite empates arriba.
+    let docs: number[][];
+    let scores: number[];
+    do {
+      docs = Array.from({ length: 4 }, draw);
+      scores = docs.map(dot);
+    } while (scores.filter((s) => s === Math.max(...scores)).length > 1);
+    const answer = Math.max(...scores);
+    const winner = scores.indexOf(answer) + 1;
+    const docList = docs.map((d, i) => `$\\vec{d}_${i + 1}=${tuple(d)}$`);
+    const steps = docs.map((d, i) => `$\\vec{d}_${i + 1}\\cdot\\vec{q}=${dotSteps(d, q)}$`);
+    return numeroQ(
+      id,
+      {
+        prompt: `Un buscador puntúa cada documento con el producto escalar entre su embedding y el de la consulta, y se queda con el que más puntúa. Con embeddings inventados de $\\mathbb{R}^3$, la consulta es $\\vec{q}=${tuple(q)}$ y los documentos son ${docList.slice(0, 3).join(', ')} y ${docList[3]!}. ¿Qué puntuación tiene el documento que gana?`,
+        hints: [
+          'Calcula las cuatro puntuaciones $\\vec{d}_i\\cdot\\vec{q}$ y quédate con la mayor.',
+          'Cada producto escalar es una suma de tres productos de componentes. Cuidado con los signos: la mayor puntuación puede ser negativa si todas lo son.',
+        ],
+        explain:
+          'La búsqueda por vecinos más cercanos puntúa todos los documentos contra la consulta y ordena de mayor a menor: el top-1 es el primero de esa lista. Se pide la puntuación del ganador, no su número.',
+        solution: `${steps.join('; ')}. Gana $\\vec{d}_${winner}$ con $${tex(answer)}$.`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+/** Analogías clásicas «b es a a como c es a…»: el vector buscado es a − b + c. */
+const ANALOGIES: readonly (readonly [string, string, string])[] = [
+  ['rey', 'hombre', 'mujer'],
+  ['padre', 'hombre', 'mujer'],
+  ['Roma', 'Italia', 'Alemania'],
+  ['Lisboa', 'Portugal', 'Francia'],
+  ['príncipe', 'hombre', 'mujer'],
+];
+
+const analogia: Generator = {
+  id: 'analogia',
+  bounds: { min: -15, max: 15 },
+  make(id, _params, rng) {
+    const [wa, wb, wc] = ANALOGIES[int(rng, 0, ANALOGIES.length - 1)]!;
+    const draw = (): number[] => Array.from({ length: 3 }, () => int(rng, -5, 5));
+    const a = draw();
+    const b = draw();
+    const c = draw();
+    const answer = a.map((x, i) => x - b[i]! + c[i]!);
+    const steps = a.map((x, i) => `${tex(x)}-${paren(b[i]!)}+${paren(c[i]!)}`).join(',\\ ');
+    return vectorQ(
+      id,
+      {
+        prompt: `Con embeddings inventados de $\\mathbb{R}^3$, «${wa}» es $\\vec{a}=${tuple(a)}$, «${wb}» es $\\vec{b}=${tuple(b)}$ y «${wc}» es $\\vec{c}=${tuple(c)}$. Para completar la analogía «${wb} es a ${wa} como ${wc} es a…» se calcula $\\vec{a}-\\vec{b}+\\vec{c}$ y se busca la palabra más cercana a ese vector. Escribe $\\vec{a}-\\vec{b}+\\vec{c}$.`,
+        hints: [
+          '$\\vec{a}-\\vec{b}$ es lo que separa las dos primeras palabras; sumarle $\\vec{c}$ traslada esa misma diferencia a la tercera.',
+          'Opera componente a componente: la primera de $\\vec{a}$, menos la primera de $\\vec{b}$, más la primera de $\\vec{c}$; y así con las otras dos.',
+        ],
+        explain:
+          'Una analogía se resuelve con aritmética de vectores: la diferencia $\\vec{a}-\\vec{b}$ representa la relación, y sumada a $\\vec{c}$ apunta hacia la palabra que falta. Restar $\\vec{b}$ es restar cada una de sus componentes, con su signo.',
+        solution: `$\\vec{a}-\\vec{b}+\\vec{c}=(${steps})=${tuple(answer)}$`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+const umbral: Generator = {
+  id: 'umbral',
+  bounds: { min: 0, max: 5 },
+  make(id, _params, rng) {
+    const t = int(rng, 4, 8) / 10;
+    // Cosenos de dos decimales entre 0,10 y 0,95, ninguno igual al umbral.
+    const scores: number[] = [];
+    while (scores.length < 5) {
+      const s = int(rng, 10, 95) / 100;
+      if (Math.abs(s - t) > 1e-9) scores.push(s);
+    }
+    const passing = scores.filter((s) => s > t);
+    const answer = passing.length;
+    const list = scores.map(tex).join(';\\ ');
+    const which =
+      answer === 0
+        ? 'ninguno lo pasa, así que el buscador responde «no lo sé»'
+        : `lo pasan $${passing.map(tex).join(';\\ ')}$`;
+    return numeroQ(
+      id,
+      {
+        prompt: `Un buscador solo usa los documentos cuyo coseno con la consulta llega al umbral $${tex(t)}$; si ninguno llega, responde «no lo sé». Los cinco documentos de la base puntúan $${list}$. ¿Cuántos documentos pasan el umbral?`,
+        hints: [
+          `Compara cada coseno con $${tex(t)}$, uno a uno.`,
+          'Fíjate en las décimas antes que en las centésimas: $0{,}69$ no llega a $0{,}7$.',
+        ],
+        explain:
+          'Un umbral sobre el coseno deja fuera los documentos poco parecidos a la consulta. Cuenta solo los que llegan al umbral, y cero también es una respuesta posible.',
+        solution: `Con umbral $${tex(t)}$: ${which}. En total, $${answer}$.`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -482,6 +595,9 @@ export const generators: Record<string, Generator> = {
   'producto-rn': productoRn,
   normalizar,
   'coseno-azar': cosenoAzar,
+  'mejor-puntuacion': mejorPuntuacion,
+  analogia,
+  umbral,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */

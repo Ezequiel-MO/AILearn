@@ -37,6 +37,9 @@ const IDS = [
   'producto-rn',
   'normalizar',
   'coseno-azar',
+  'mejor-puntuacion',
+  'analogia',
+  'umbral',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -98,6 +101,9 @@ describe('bounds declarados', () => {
       'producto-rn': [-100, 100], // contract: Órbita 2, cuatro componentes de -5 a 5: |u·v| ≤ 4·25
       normalizar: [-1, 1], // contract: Órbita 2, las componentes de un unitario están en [-1, 1]
       'coseno-azar': [0, 0.1], // contract: Órbita 2, 1/√d con d entre 100 y 10 000
+      'mejor-puntuacion': [-27, 27], // contract: Órbita 3, componentes de -3 a 3 en ℝ³: |d·q| ≤ 3·9
+      analogia: [-15, 15], // contract: Órbita 3, componentes de -5 a 5: |a − b + c| ≤ 3·5
+      umbral: [0, 5], // contract: Órbita 3, cinco documentos
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -404,6 +410,67 @@ describe('oráculo de la Órbita 2: producto-rn, normalizar y coseno-azar (200 s
       expect(round2(q.answer)).toBe(q.answer);
       expect(q.tol).toBe(0.005); // contract: medio centésimo, la mitad del paso de dos decimales
     }
+  });
+});
+
+describe('oráculo de la Órbita 3: mejor-puntuacion, analogia y umbral (200 semillas)', () => {
+  it('mejor-puntuacion: la mayor de las cuatro puntuaciones d·q, sin empate arriba, tolerancia 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('mejor-puntuacion'), seed);
+      if (q.type !== 'numero') throw new Error('mejor-puntuacion debe dar un número');
+      const [query, ...docs] = tuplesOf(q.prompt);
+      // contract: Órbita 3, generador mejor-puntuacion: una consulta y cuatro documentos de ℝ³
+      expect([query!.length, ...docs.map((d) => d.length)], `semilla ${seed}`).toEqual([
+        3, 3, 3, 3, 3,
+      ]);
+      expect(
+        query!.some((x) => x !== 0),
+        `semilla ${seed}`,
+      ).toBe(true); // contract: consulta no nula
+      const scores = docs.map((d) => d.reduce((s, x, i) => s + x * query![i]!, 0));
+      const best = Math.max(...scores);
+      expect(q.answer, `semilla ${seed}`).toBe(best + 0); // contract: top-1 por producto escalar
+      // contract: Órbita 3: un solo ganador, para que «el documento que gana» no sea ambiguo
+      expect(scores.filter((s) => s === best)).toHaveLength(1);
+      expect(q.tol).toBe(0); // contract: enteros exactos
+    }
+  });
+
+  it('analogia: a − b + c componente a componente, tolerancia 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('analogia'), seed);
+      if (q.type !== 'vector') throw new Error('analogia debe dar un vector');
+      const [a, b, c] = tuplesOf(q.prompt);
+      // contract: Órbita 3, generador analogia: tres vectores de ℝ³
+      expect([a!.length, b!.length, c!.length], `semilla ${seed}`).toEqual([3, 3, 3]);
+      // contract: Órbita 3, Analogías: el vector buscado es a − b + c
+      expect(q.answer, `semilla ${seed}`).toEqual(a!.map((x, i) => x - b![i]! + c![i]! + 0));
+      expect(q.tol).toBe(0); // contract: enteros exactos
+    }
+  });
+
+  it('umbral: cuántos de los cinco cosenos pasan el umbral, ninguno igual a él, tolerancia 0', () => {
+    let zeros = 0;
+    for (const seed of SEEDS) {
+      const q = resolve(call('umbral'), seed);
+      if (q.type !== 'numero') throw new Error('umbral debe dar un número');
+      const [threshold, scores] = [...q.prompt.matchAll(/\$([^$]*)\$/g)].map((m) =>
+        m[1]!.split(';\\ ').map((x) => Number(x.replace('{,}', '.'))),
+      );
+      const t = threshold![0]!;
+      // contract: Órbita 3, generador umbral: un umbral y cinco cosenos de dos decimales
+      expect(scores, `semilla ${seed}`).toHaveLength(5);
+      expect(
+        scores!.every((s) => s !== t),
+        `semilla ${seed}`,
+      ).toBe(true); // contract: sin empate con el umbral
+      // contract: Órbita 3, Por qué falla un RAG: pasan los que llegan al umbral
+      expect(q.answer, `semilla ${seed}`).toBe(scores!.filter((s) => s > t).length);
+      expect(q.tol).toBe(0); // contract: un recuento
+      if (q.answer === 0) zeros++;
+    }
+    // contract: Órbita 3: «no lo sé» (ninguno pasa) también sale en el examen alguna vez
+    expect(zeros).toBeGreaterThan(0);
   });
 });
 
