@@ -52,6 +52,13 @@ def _reset_numpy():
         pass
 
 
+def _fresh_modules():
+    # Los módulos del juego (modules.ts) se importan de nuevo en cada ejecución: si el jugador
+    # modifica un array de «embeddings» en su sitio, ni sus comprobaciones ni la siguiente ejecución lo heredan.
+    for name in ("embeddings",):
+        sys.modules.pop(name, None)
+
+
 def _explain(exc, line):
     # R43: una frase en castellano delante de la traza original. Cada frase dice qué error es y,
     # como mucho, «puede ser» o «puede pasar si»: nunca afirma una causa que el error no demuestra.
@@ -148,6 +155,7 @@ def _run(code, checks_src, has_checks, player_file, input_msg, name_msg):
     import matplotlib.pyplot as plt
 
     _reset_numpy()
+    _fresh_modules()
     plt.close("all")
     # El backend Agg no muestra nada: plt.show() no hace nada (y no avisa).
     plt.show = lambda *args, **kwargs: None
@@ -189,6 +197,7 @@ def _run(code, checks_src, has_checks, player_file, input_msg, name_msg):
             namespace["np"] = np
             namespace["plt"] = plt
             namespace["check"] = check
+            _fresh_modules()
             sink = io.StringIO()
             with contextlib.redirect_stdout(sink), contextlib.redirect_stderr(sink):
                 try:

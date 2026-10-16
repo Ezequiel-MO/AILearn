@@ -1,6 +1,7 @@
 import type { loadPyodide as LoadPyodide } from 'pyodide';
 import { PACKAGES, PYODIDE_INDEX_URL } from './config';
 import { runInPyodide, type RunResult } from './core';
+import { installModules } from './modules';
 
 // Protocolo entre runner.ts (hilo principal) y este worker.
 export type WorkerRequest = { type: 'run'; id: number; code: string; checks?: string };
@@ -26,6 +27,7 @@ const init = async (): Promise<unknown> => {
   };
   const pyodide = await mod.loadPyodide({ indexURL: PYODIDE_INDEX_URL });
   await pyodide.loadPackage([...PACKAGES]);
+  installModules(pyodide);
   // La primera importación de matplotlib es lenta (caché de fuentes): se paga aquí, antes de 'ready',
   // para que no cuente contra el tiempo límite de la primera ejecución.
   await pyodide.runPythonAsync(

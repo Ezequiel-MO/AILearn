@@ -1,6 +1,7 @@
 import { join } from 'node:path';
 import { loadPyodide } from 'pyodide';
 import { PACKAGES } from './config';
+import { installModules } from './modules';
 
 // Pyodide sobre Node para las pruebas. Los paquetes (numpy, matplotlib…) se descargan
 // del CDN la primera vez y se guardan en node_modules/.cache/pyodide para las siguientes.
@@ -9,6 +10,7 @@ export const loadNodePyodide = async (): Promise<unknown> => {
     packageCacheDir: join(process.cwd(), 'node_modules', '.cache', 'pyodide'),
   });
   await pyodide.loadPackage([...PACKAGES]);
+  installModules(pyodide);
   // La primera importación de matplotlib tarda unos segundos (caché de fuentes): se paga aquí, no en la primera prueba.
   await pyodide.runPythonAsync(
     'import matplotlib\nmatplotlib.use("Agg")\nimport matplotlib.pyplot',
