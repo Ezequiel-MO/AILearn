@@ -66,3 +66,24 @@ for (const game of games) {
     });
   });
 }
+
+describe('juego vectores: recuentos de la Órbita 2', () => {
+  const orbit = games.find((g) => g.id === 'vectores')?.orbits[2];
+  const projects = orbit?.projects ?? [];
+
+  it('la Órbita 2 se llama «Muchas dimensiones» y tiene tres proyectos', () => {
+    // contract: spec, sección 10: Órbita 2 «Muchas dimensiones» con ℝⁿ en NumPy, Normalizar y Dimensión alta
+    expect(orbit?.name).toBe('Muchas dimensiones');
+    expect(projects.map((p) => p.id)).toEqual(['rn-numpy', 'normalizar', 'dimension-alta']);
+  });
+
+  it('tiene 45 preguntas de proyecto, 9 hojas y un banco de 12 entradas, 4 por proyecto', () => {
+    // contract: spec, sección 5: 3 ejercicios de 5 preguntas y 3 hojas por proyecto
+    expect(projects.flatMap((p) => p.exercises.flatMap((e) => e.questions))).toHaveLength(45);
+    expect(projects.flatMap((p) => p.sheets)).toHaveLength(9);
+    // contract: examen-2.ts: tres fijas y una generada por proyecto, como los bancos de las Órbitas 0 y 1
+    expect(projects.map((p) => orbit?.examBank.filter((e) => e.project === p.id).length)).toEqual([
+      4, 4, 4,
+    ]);
+  });
+});
