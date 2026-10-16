@@ -370,6 +370,104 @@ const proyeccion: Generator = {
   },
 };
 
+// ---------- Órbita 2: muchas dimensiones ----------
+
+const productoRn: Generator = {
+  id: 'producto-rn',
+  bounds: { min: -100, max: 100 },
+  make(id, _params, rng) {
+    const u = Array.from({ length: 4 }, () => int(rng, -5, 5));
+    const v = Array.from({ length: 4 }, () => int(rng, -5, 5));
+    const answer = u.reduce((s, x, i) => s + x * v[i]!, 0);
+    return numeroQ(
+      id,
+      {
+        prompt: `En $\\mathbb{R}^4$, sean $\\vec{u}=${tuple(u)}$ y $\\vec{v}=${tuple(v)}$. Calcula el producto escalar $\\vec{u}\\cdot\\vec{v}$.`,
+        hints: [
+          'En cuatro dimensiones el producto escalar se calcula igual que en el plano, con cuatro productos en lugar de dos.',
+          'Multiplica las componentes que ocupan el mismo lugar, una a una, y suma los cuatro resultados. Cuidado con los signos.',
+        ],
+        explain:
+          'El producto escalar en $\\mathbb{R}^n$ es $\\vec{u}\\cdot\\vec{v}=u_1v_1+u_2v_2+\\dots+u_nv_n$: un producto por cada componente y una suma. Da un número, no un vector.',
+        solution: `$\\vec{u}\\cdot\\vec{v}=${dotSteps(u, v)}$`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+/** Vectores enteros de ℝ³ con norma entera: (componentes, norma). */
+const INTEGER_NORMS: readonly (readonly [readonly number[], number])[] = [
+  [[1, 2, 2], 3],
+  [[2, 3, 6], 7],
+  [[1, 4, 8], 9],
+  [[4, 4, 7], 9],
+  [[2, 6, 9], 11],
+  [[6, 6, 7], 11],
+];
+
+const normalizar: Generator = {
+  id: 'normalizar',
+  bounds: { min: -1, max: 1 },
+  make(id, _params, rng) {
+    const [base, n] = INTEGER_NORMS[int(rng, 0, INTEGER_NORMS.length - 1)]!;
+    // permutación al azar de las tres componentes y signo al azar en cada una
+    const rest = [...base];
+    const v: number[] = [];
+    while (rest.length > 0) {
+      const [x] = rest.splice(int(rng, 0, rest.length - 1), 1);
+      v.push(int(rng, 0, 1) === 0 ? x! : -x!);
+    }
+    const answer = v.map((x) => x / n);
+    const squares = v.map((x) => `${paren(x)}^2`).join('+');
+    const sum = v.reduce((s, x) => s + x * x, 0);
+    return vectorQ(
+      id,
+      {
+        prompt: `Normaliza $\\vec{v}=${tuple(v)}$: escribe el vector unitario que apunta en la misma dirección y con el mismo sentido. Redondea cada componente a dos decimales.`,
+        hints: [
+          'Normalizar es dividir el vector entre su norma.',
+          'Calcula primero $\\lVert\\vec{v}\\rVert$ (en este vector sale un número entero) y divide cada componente entre ella.',
+        ],
+        explain:
+          'El unitario de $\\vec{v}$ es $\\dfrac{\\vec{v}}{\\lVert\\vec{v}\\rVert}$: cada componente se divide entre la norma, de modo que la dirección no cambia y la longitud pasa a ser $1$. Todas sus componentes quedan entre $-1$ y $1$.',
+        solution: `$\\lVert\\vec{v}\\rVert=\\sqrt{${squares}}=\\sqrt{${tex(sum)}}=${tex(n)}$, así que $\\dfrac{\\vec{v}}{\\lVert\\vec{v}\\rVert}${allEqualsOrApprox(answer)}${tuple(answer)}$`,
+      },
+      answer,
+      0.01,
+    );
+  },
+};
+
+/** Dimensiones cuyo 1/√d tiene como mucho dos decimales. */
+const RANDOM_DIMS = [100, 400, 625, 2500, 10000] as const;
+
+const cosenoAzar: Generator = {
+  id: 'coseno-azar',
+  bounds: { min: 0, max: 0.1 },
+  make(id, _params, rng) {
+    const d = RANDOM_DIMS[int(rng, 0, RANDOM_DIMS.length - 1)]!;
+    const root = Math.sqrt(d);
+    const answer = 1 / root;
+    return numeroQ(
+      id,
+      {
+        prompt: `Se sortean muchos pares de vectores al azar en $\\mathbb{R}^{${d}}$, con componentes independientes y centradas en $0$, y se calcula el coseno de cada par. ¿Cuánto vale, aproximadamente, la desviación típica de esos cosenos? Escríbelo con dos decimales.`,
+        hints: [
+          'La media de esos cosenos es $0$: al azar, dos vectores no tienden a apuntar hacia el mismo lado ni hacia lados opuestos.',
+          'La desviación típica del coseno se hace más pequeña al crecer la dimensión $d$: es $1/\\sqrt{d}$.',
+        ],
+        explain:
+          'En dimensión alta, dos vectores al azar son casi perpendiculares: su coseno se agrupa en torno a $0$ con una desviación típica de $1/\\sqrt{d}$. Cuanto mayor es $d$, más estrecha es la campana.',
+        solution: `La desviación típica es $\\dfrac{1}{\\sqrt{d}}=\\dfrac{1}{\\sqrt{${d}}}=\\dfrac{1}{${tex(root)}}=${tex(answer)}$. Un coseno muy por encima de este valor ya no se explica por azar.`,
+      },
+      answer,
+      0.005,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -381,6 +479,9 @@ export const generators: Record<string, Generator> = {
   producto,
   coseno,
   proyeccion,
+  'producto-rn': productoRn,
+  normalizar,
+  'coseno-azar': cosenoAzar,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */

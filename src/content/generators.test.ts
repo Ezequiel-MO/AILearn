@@ -34,6 +34,9 @@ const IDS = [
   'producto',
   'coseno',
   'proyeccion',
+  'producto-rn',
+  'normalizar',
+  'coseno-azar',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -92,6 +95,9 @@ describe('bounds declarados', () => {
       producto: [-72, 72], // contract: Órbita 1, componentes de -6 a 6: |u·v| ≤ 2·36
       coseno: [-1, 1], // contract: Órbita 1, el coseno está en [-1, 1]
       proyeccion: [-8.5, 8.5], // contract: Órbita 1, |proy| ≤ ‖a‖ ≤ √72 ≈ 8,49
+      'producto-rn': [-100, 100], // contract: Órbita 2, cuatro componentes de -5 a 5: |u·v| ≤ 4·25
+      normalizar: [-1, 1], // contract: Órbita 2, las componentes de un unitario están en [-1, 1]
+      'coseno-azar': [0, 0.1], // contract: Órbita 2, 1/√d con d entre 100 y 10 000
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -347,6 +353,56 @@ describe('oráculo de la Órbita 1: producto, coseno y proyección (200 semillas
           `${id} semilla ${seed}: ${q.solution}`,
         ).toBe(true);
       }
+    }
+  });
+});
+
+describe('oráculo de la Órbita 2: producto-rn, normalizar y coseno-azar (200 semillas)', () => {
+  it('producto-rn: dos vectores de ℝ⁴ y su producto escalar exacto, tolerancia 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('producto-rn'), seed);
+      if (q.type !== 'numero') throw new Error('producto-rn debe dar un número');
+      const [a, b] = tuplesOf(q.prompt);
+      // contract: Órbita 2, generador producto-rn: vectores de cuatro componentes
+      expect([a!.length, b!.length], `semilla ${seed}`).toEqual([4, 4]);
+      const want = a!.reduce((s, x, i) => s + x * b![i]!, 0);
+      expect(q.answer, `semilla ${seed}`).toBe(want + 0); // contract: definición del producto escalar en ℝⁿ
+      expect(q.tol).toBe(0); // contract: enteros exactos
+    }
+  });
+
+  it('normalizar: v de ℝ³ con norma entera y su unitario v/‖v‖, tolerancia 0,01', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('normalizar'), seed);
+      if (q.type !== 'vector') throw new Error('normalizar debe dar un vector');
+      const [v] = tuplesOf(q.prompt);
+      const n = Math.hypot(...v!);
+      // contract: Órbita 2, generador normalizar: vector de ℝ³ con norma entera
+      expect(v!.length, `semilla ${seed}`).toBe(3);
+      expect(Number.isInteger(n), `semilla ${seed}`).toBe(true);
+      // contract: definición del unitario v/‖v‖
+      v!.forEach((x, i) => expect(Math.abs(q.answer[i]! - x / n)).toBeLessThan(1e-9));
+      expect(Math.abs(Math.hypot(...q.answer) - 1)).toBeLessThan(1e-9); // contract: norma 1
+      expect(q.tol).toBe(0.01); // contract: dos decimales
+    }
+  });
+
+  it('normalizar: sortea signos y órdenes distintos', () => {
+    const prompts = new Set(SEEDS.map((seed) => resolve(call('normalizar'), seed).prompt));
+    // contract: Órbita 2: seis vectores base, permutados y con signos, dan mucha más variedad que seis
+    expect(prompts.size).toBeGreaterThan(50);
+  });
+
+  it('coseno-azar: la respuesta es 1/√d para la d del enunciado, tolerancia 0,005', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('coseno-azar'), seed);
+      if (q.type !== 'numero') throw new Error('coseno-azar debe dar un número');
+      const d = Number(/\\mathbb\{R\}\^\{(\d+)\}/.exec(q.prompt)?.[1]);
+      // contract: Órbita 2, Dimensión alta: la desviación típica del coseno al azar es 1/√d
+      expect(q.answer, `semilla ${seed}`).toBeCloseTo(1 / Math.sqrt(d), 12);
+      // contract: Órbita 2: d elegida para que 1/√d tenga como mucho dos decimales
+      expect(round2(q.answer)).toBe(q.answer);
+      expect(q.tol).toBe(0.005); // contract: medio centésimo, la mitad del paso de dos decimales
     }
   });
 });
