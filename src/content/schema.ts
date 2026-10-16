@@ -38,8 +38,17 @@ export const planeSpecSchema = z
     vectors: z.array(planeVectorSchema),
     readouts: z.array(z.enum(['components', 'norm', ...PAIR_READOUTS])),
     pair: z.tuple([z.string(), z.string()]).optional(),
+    /** Radio de una circunferencia centrada en el origen (la unidad, al normalizar). Solo se dibuja. */
+    circle: z.number().positive().optional(),
   })
   .superRefine((p, ctx) => {
+    if (p.circle !== undefined && p.circle > p.range) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['circle'],
+        message: 'circle no puede ser mayor que range',
+      });
+    }
     const ids = new Set(p.vectors.map((v) => v.id));
     if (ids.size !== p.vectors.length) {
       ctx.addIssue({ code: 'custom', message: 'Hay ids de vector repetidos en el plano' });

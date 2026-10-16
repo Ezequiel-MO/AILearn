@@ -95,7 +95,7 @@ export function VectorPlane({
   positions: Record<string, [number, number]>;
   onMove?: (id: string, to: [number, number]) => void;
 }) {
-  const { range, snap, vectors, readouts, pair } = spec;
+  const { range, snap, vectors, readouts, pair, circle } = spec;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; pointerId: number; offset: Point } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -400,6 +400,15 @@ export function VectorPlane({
           </g>
 
           <g clipPath={`url(#${clipId})`}>
+            {circle !== undefined && (
+              <circle
+                className="plane__circle"
+                aria-hidden="true"
+                cx={CENTER}
+                cy={CENTER}
+                r={circle * scale}
+              />
+            )}
             {bLine && (
               <line
                 className="plane__b-line"

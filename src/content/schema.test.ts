@@ -290,3 +290,16 @@ describe('ronda de arreglo 1', () => {
     expect(gameSchema.safeParse(g).success).toBe(true); // contract: fix1 punto 4
   });
 });
+
+describe('circunferencia del plano (Órbita 2)', () => {
+  it('admite circle positivo y no mayor que range', () => {
+    // contract: Órbita 2, proyecto Normalizar: circunferencia unidad opcional en el plano
+    expect(planeSpecSchema.safeParse({ ...plane, circle: 1 }).success).toBe(true);
+  });
+  it('rechaza circle nulo, negativo o mayor que range', () => {
+    // contract: regla propia de la Órbita 2: el radio es positivo y la circunferencia cabe en el plano
+    expect(planeSpecSchema.safeParse({ ...plane, circle: 0 }).success).toBe(false);
+    expect(planeSpecSchema.safeParse({ ...plane, circle: -1 }).success).toBe(false);
+    expect(planeSpecSchema.safeParse({ ...plane, circle: plane.range + 1 }).success).toBe(false);
+  });
+});

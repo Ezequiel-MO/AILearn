@@ -400,6 +400,13 @@ a {
   stroke-dasharray: 4 4;
 }
 
+.plane__circle {
+  fill: none;
+  stroke: var(--plane-axis);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
 .plane__b-line {
   stroke: var(--plane-axis);
   stroke-width: 1;

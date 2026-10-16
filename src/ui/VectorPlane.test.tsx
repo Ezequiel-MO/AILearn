@@ -710,3 +710,23 @@ describe('VectorPlane: lecturas del ángulo (Órbita 1)', () => {
     expect(container.querySelector('.plane__angle-arc')?.getAttribute('d')).not.toBe(before);
   });
 });
+
+describe('VectorPlane: circunferencia (Órbita 2)', () => {
+  it('sin circle no dibuja circunferencia', () => {
+    const { container } = render(<VectorPlane spec={spec()} positions={{}} />);
+    // contract: Órbita 2: la circunferencia solo aparece si el plano la pide
+    expect(container.querySelector('.plane__circle')).toBeNull();
+  });
+
+  it('con circle dibuja una circunferencia centrada en el origen con ese radio, oculta a lectores', () => {
+    const { container } = render(
+      <VectorPlane spec={spec({ range: 2, circle: 1 })} positions={{}} />,
+    );
+    const c = container.querySelector('.plane__circle');
+    // contract: Órbita 2, Normalizar: radio 1 en unidades del plano = (CENTER − MARGIN) / range píxeles
+    expect(c?.getAttribute('cx')).toBe(String(CENTER));
+    expect(c?.getAttribute('cy')).toBe(String(CENTER));
+    expect(Number(c?.getAttribute('r'))).toBeCloseTo((CENTER - MARGIN) / 2, 6);
+    expect(c?.getAttribute('aria-hidden')).toBe('true');
+  });
+});
