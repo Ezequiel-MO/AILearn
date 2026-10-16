@@ -46,7 +46,6 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - `src/App.tsx`: rutas con `HashRouter`: `/`, `/j/:game`, `/j/:game/p/:project`, `/j/:game/estadisticas` (estas cuatro, de la tarea 14), `/j/:game/despegue`, `/j/:game/p/:project/ex/:n`, `/j/:game/p/:project/hoja/:n`, `/j/:game/examen/:c`.
 - `tests/content/`: pruebas que recorren `games` y ayudantes (`python-helpers.ts`, `prose-helpers.ts`). `tests/deps/`, `tests/lint/`, `tests/e2e/`.
 - `docs/superpowers/`: specs y planes.
-- `public/detectives/`: «Detectives de Problemas», juego aparte de problemas de 4.º de primaria (castellano y catalán) servido en `/detectives/`. Una sola página HTML con su JavaScript dentro y sus tipografías en `fonts/`; no usa el motor ni React, y Vite la copia tal cual.
 
 ## Contenido: reglas que las pruebas hacen cumplir
 
