@@ -1,6 +1,6 @@
 # AIlearn: guía para el agente
 
-Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria y el juego 1, «Vectores y embeddings» (Despegue y Órbitas 0, 1 y 2). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
+Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria y el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
 
 ## Cómo comprobar
 
@@ -38,7 +38,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 
 - `src/engine/`: reglas (`progression.ts`: nota, validación, puertas, examen, XP, nivel; `vectors.ts`: métricas del plano, también producto escalar, coseno, ángulo en grados y proyección; `rng.ts`; `session.ts`; `types.ts`).
 - `src/content/`: `schema.ts` (esquema Zod de pregunta, proyecto, órbita y juego), `validate.ts` (`gameProblems`), `generators.ts`, `grade.ts`, `exam.ts` (sorteo del examen).
-- `src/python/`: `worker.ts`, `runner.ts` (la interfaz que usa la interfaz), `core.ts` y `harness.ts` (ejecución y comprobaciones), `node.ts` (Pyodide en Node para las pruebas), `config.ts`.
+- `src/python/`: `worker.ts`, `runner.ts` (la interfaz que usa la interfaz), `core.ts` y `harness.ts` (ejecución y comprobaciones), `node.ts` (Pyodide en Node para las pruebas), `config.ts`, `modules.ts` (módulos de Python del juego, escritos en Pyodide al arrancar) y `embeddings.py` (embeddings reales precalculados de la Órbita 3; lo genera `scripts/embeddings.py`, no se edita a mano).
 - `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `merge.ts` (fusión de dos documentos del mismo jugador), `types.ts`. Un documento ilegible se aparta, no se borra.
 - `src/cloud/`: `firebase.ts` (configuración, sesión con Google, sincronización en Firestore; se carga en diferido) y `store.ts` (envuelve el almacén local: lo local manda y la nube se fusiona al entrar, al cargar y tras cada guardado). Progreso en `users/{uid}/progress/{juego}` como texto JSON; los borradores no suben. Reglas en `firestore.rules`, publicadas a mano en la consola.
 - `src/ui/`: `Layout`, `Account` (inicio de sesión en la cabecera), `VectorPlane`, `CodeEditor`, `ExerciseRunner`, `Md`; `questions/` (un componente por tipo); `screens/` (pantallas y puertas); `dev/` (rutas `#/dev/*`, solo en desarrollo); `strings.ts`.

@@ -87,3 +87,31 @@ describe('juego vectores: recuentos de la Órbita 2', () => {
     ]);
   });
 });
+
+describe('juego vectores: recuentos de la Órbita 3', () => {
+  const orbit = games.find((g) => g.id === 'vectores')?.orbits[3];
+  const projects = orbit?.projects ?? [];
+
+  it('la Órbita 3 se llama «Búsqueda» y tiene tres proyectos', () => {
+    // contract: spec, sección 10: Órbita 3 «Búsqueda» con Vecinos y top-k, Analogías y Por qué falla un RAG
+    expect(orbit?.name).toBe('Búsqueda');
+    expect(projects.map((p) => p.id)).toEqual(['vecinos', 'analogias', 'fallos-rag']);
+  });
+
+  it('tiene 45 preguntas de proyecto, 9 hojas y un banco de 12 entradas, 4 por proyecto', () => {
+    // contract: spec, sección 5: 3 ejercicios de 5 preguntas y 3 hojas por proyecto
+    expect(projects.flatMap((p) => p.exercises.flatMap((e) => e.questions))).toHaveLength(45);
+    expect(projects.flatMap((p) => p.sheets)).toHaveLength(9);
+    // contract: examen-3.ts: tres fijas y una generada por proyecto, como los bancos anteriores
+    expect(projects.map((p) => orbit?.examBank.filter((e) => e.project === p.id).length)).toEqual([
+      4, 4, 4,
+    ]);
+  });
+
+  it('con ella el juego tiene las 4 órbitas y los 12 proyectos del spec', () => {
+    const game = games.find((g) => g.id === 'vectores');
+    // contract: spec, sección 10: «En total, 12 proyectos y 4 exámenes»
+    expect(game?.orbits).toHaveLength(4);
+    expect(game?.orbits.flatMap((o) => o.projects)).toHaveLength(12);
+  });
+});

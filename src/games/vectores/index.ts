@@ -1,10 +1,13 @@
 import type { Game } from '../../content/schema';
+import { analogias } from './analogias';
 import { componentes } from './componentes';
 import { coseno } from './coseno';
 import { dimensionAlta } from './dimension-alta';
 import { examen0 } from './examen-0';
 import { examen1 } from './examen-1';
 import { examen2 } from './examen-2';
+import { examen3 } from './examen-3';
+import { fallosRag } from './fallos-rag';
 import { normaDistancia } from './norma-distancia';
 import { normalizar } from './normalizar';
 import { launch } from './despegue';
@@ -12,6 +15,7 @@ import { productoEscalar } from './producto-escalar';
 import { proyeccion } from './proyeccion';
 import { rnNumpy } from './rn-numpy';
 import { sumaEscala } from './suma-escala';
+import { vecinos } from './vecinos';
 
 export const vectores: Game = {
   id: 'vectores',
@@ -32,6 +36,11 @@ export const vectores: Game = {
       name: 'Muchas dimensiones',
       projects: [rnNumpy, normalizar, dimensionAlta],
       examBank: examen2,
+    },
+    {
+      name: 'Búsqueda',
+      projects: [vecinos, analogias, fallosRag],
+      examBank: examen3,
     },
   ],
 };

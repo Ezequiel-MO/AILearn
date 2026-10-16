@@ -2,7 +2,7 @@
 
 Juegos para aprender ingeniería de IA con la matemática como columna vertebral. Cada juego enseña un bloque de matemáticas y lo aplica a un tema de IA. Los niveles tienen un despegue de entrada, órbitas con proyectos de tres ejercicios que se validan con nota 80 y un examen por órbita, con XP y nivel decimal.
 
-Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo») y la órbita 2 («Muchas dimensiones») del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
+Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
 
 El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`.
 
@@ -41,16 +41,17 @@ Las pruebas de código cargan Pyodide en Node y guardan su caché de paquetes en
 src/
   engine/     Reglas de la trayectoria (nota, validación, puertas, examen, XP, nivel). TypeScript puro.
   content/    Esquema del contenido (Zod), validación, generadores, corrección y sorteo del examen.
-  python/     Worker de Pyodide, su interfaz, el arnés que ejecuta código y comprobaciones.
+  python/     Worker de Pyodide, su interfaz, el arnés que ejecuta código y comprobaciones, y el módulo `embeddings` (embeddings reales precalculados).
   storage/    Interfaz de progreso y su implementación sobre localStorage, con migración.
   ui/         Marco, plano de vectores, editor, tipos de pregunta, pantallas y textos fijos.
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
-    vectores/ Juego 1: Despegue, proyectos de las Órbitas 0, 1 y 2, sus bancos de examen, embeddings de juguete.
+    vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, embeddings de juguete.
 tests/
   content/    Pruebas que recorren el registro de juegos y ayudantes compartidos.
   deps/       Imports declarados en package.json y versión única de KaTeX.
   lint/       Pruebas de las reglas de ESLint propias.
   e2e/        Prueba de humo de Playwright (tarea 19a; Vitest no la recoge).
+scripts/      embeddings.py: regenera src/python/embeddings.py con el modelo (en un entorno de Python aparte).
 docs/         Spec, planes y relevos.
 ```
 
