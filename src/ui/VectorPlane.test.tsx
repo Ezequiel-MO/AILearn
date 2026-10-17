@@ -778,6 +778,25 @@ describe('VectorPlane: transformación lineal (juego 2)', () => {
     noNaN(container);
   });
 
+  it('con columnas casi paralelas, cada línea transformada pasa por su punto más cercano al centro', () => {
+    const { container } = render(
+      <VectorPlane spec={tspec({ range: 3 })} positions={{ i: [3, 2], j: [2, 1] }} />,
+    );
+    const lines = [...container.querySelectorAll('.plane__image-grid line')];
+    expect(lines.length).toBeGreaterThan(0);
+    for (const l of lines) {
+      const [x1, y1, x2, y2] = ['x1', 'y1', 'x2', 'y2'].map((a) => Number(l.getAttribute(a)));
+      // proyección del centro de la vista sobre el segmento: t en [0, 1] si el segmento la cubre
+      const [ux, uy] = [x2! - x1!, y2! - y1!];
+      const t = ((CENTER - x1!) * ux + (CENTER - y1!) * uy) / (ux * ux + uy * uy);
+      // contract: revisión del juego 2 (2026-10-17): con î=(3,2), ĵ=(2,1) y range 3 faltaban líneas en
+      // las esquinas porque cada segmento se centraba en k·î, lejos de la vista; debe cubrir el tramo visible
+      expect(t).toBeGreaterThan(0);
+      expect(t).toBeLessThan(1);
+    }
+    noNaN(container);
+  });
+
   it('la flecha A·v sigue a las columnas movidas', () => {
     const { container } = render(
       <VectorPlane spec={tspec()} positions={{ i: [0, 1], j: [1, 0] }} />,

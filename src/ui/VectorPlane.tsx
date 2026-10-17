@@ -251,8 +251,13 @@ export function VectorPlane({
     ): void => {
       if (dirLen < EPS) return; // la dirección es nula: la imagen de cada línea es un punto
       const [dx, dy] = [dir[0] / dirLen, -dir[1] / dirLen]; // unitario en pantalla (y hacia abajo)
+      const origin = imageTip([0, 0]);
       for (const k of multiples(spacing, reachFor)) {
-        const o = imageTip([base[0] * k, base[1] * k]);
+        const p = imageTip([base[0] * k, base[1] * k]);
+        // el segmento se centra en el punto de la línea más cercano al origen: con columnas casi
+        // paralelas, k·base queda lejos y un segmento centrado ahí no llegaría a la vista
+        const t = (p[0] - origin[0]) * dx + (p[1] - origin[1]) * dy;
+        const o: Point = [p[0] - dx * t, p[1] - dy * t];
         imageLines.push({
           key: `${prefix}${k}`,
           axis: k === 0,

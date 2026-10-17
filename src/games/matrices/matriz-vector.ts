@@ -49,7 +49,7 @@ export const matrizVector: Project = {
           id: 'matriz-vector.ex00.2',
           type: 'manipular',
           prompt:
-            'Esta matriz **inclina** el plano: $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. Sus columnas son $\\hat{\\imath}=(1, 0)$ y $\\hat{\\jmath}=(1, 1)$, y $A\\vec{v}$ es la flecha discontinua.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 2)$.',
+            'Esta matriz **inclina** el plano: $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. Sus columnas son $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(1, 1)$, y $A\\vec{v}$ es la flecha discontinua.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 2)$.',
           hints: [
             'Fíjate en la altura: solo la segunda columna sube, porque la primera es horizontal.',
             'La segunda coordenada de $A\\vec{v}$ es $b\\cdot 1$, así que ya sabes cuánto vale $b$. Con ella, busca $a$ para la primera coordenada.',
@@ -74,7 +74,7 @@ export const matrizVector: Project = {
           id: 'matriz-vector.ex00.3',
           type: 'manipular',
           prompt:
-            'Ahora las columnas ya no son sencillas: $A=\\begin{pmatrix}1&-1\\\\2&1\\end{pmatrix}$ tiene por columnas $\\hat{\\imath}=(1, 2)$ y $\\hat{\\jmath}=(-1, 1)$. Hace falta combinar las dos con las coordenadas de $\\vec{v}$.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 3)$.',
+            'Ahora las columnas ya no son sencillas: $A=\\begin{pmatrix}1&-1\\\\2&1\\end{pmatrix}$ tiene por columnas $A\\hat{\\imath}=(1, 2)$ y $A\\hat{\\jmath}=(-1, 1)$. Hace falta combinar las dos con las coordenadas de $\\vec{v}$.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 3)$.',
           hints: [
             'Si $\\vec{v}=(a, b)$, entonces $A\\vec{v}=a\\cdot(1, 2)+b\\cdot(-1, 1)=(a-b,\\ 2a+b)$.',
             'Prueba valores de $a$ y $b$ hasta que las dos coordenadas de la flecha discontinua valgan $3$. Si sumas las dos coordenadas de $A\\vec{v}$ sale un resultado que depende solo de $a$.',
@@ -108,7 +108,7 @@ export const matrizVector: Project = {
           explain:
             'Un solo vector no basta para fijar la matriz: hay dos columnas que elegir y un solo punto de llegada, así que sobra libertad. Fija una columna y la otra queda determinada.',
           solution:
-            'Por ejemplo, con $\\hat{\\imath}=(1, 1)$ hace falta $2\\cdot(1, 1)+\\hat{\\jmath}=(4, 3)$, es decir, $\\hat{\\jmath}=(2, 1)$. También sirven $\\hat{\\imath}=(2, 1)$ con $\\hat{\\jmath}=(0, 1)$, o $\\hat{\\imath}=(0, 1)$ con $\\hat{\\jmath}=(4, 1)$.',
+            'Por ejemplo, con $A\\hat{\\imath}=(1, 1)$ hace falta $2\\cdot(1, 1)+A\\hat{\\jmath}=(4, 3)$, es decir, $A\\hat{\\jmath}=(2, 1)$. También sirven $A\\hat{\\imath}=(2, 1)$ con $A\\hat{\\jmath}=(0, 1)$, o $A\\hat{\\imath}=(0, 1)$ con $A\\hat{\\jmath}=(4, 1)$.',
           plane: transformPlane({
             movable: true,
             extra: [vec(2, 1, false)],
@@ -125,7 +125,7 @@ export const matrizVector: Project = {
           id: 'matriz-vector.ex00.5',
           type: 'manipular',
           prompt:
-            'Esta matriz tiene las dos columnas sobre la misma recta: $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$, con $\\hat{\\imath}=(2, 1)$ y $\\hat{\\jmath}=(-2, -1)$. Mira cómo se aplasta la rejilla.\n\nEl vector nulo $(0, 0)$ siempre se queda en $(0, 0)$, así que no cuenta. Busca un vector **distinto del nulo** que esta matriz mande a $(0, 0)$. Para que no valga el nulo, pon su coordenada $x$ en $2$.',
+            'Esta matriz tiene las dos columnas sobre la misma recta: $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$, con $A\\hat{\\imath}=(2, 1)$ y $A\\hat{\\jmath}=(-2, -1)$. Mira cómo se aplasta la rejilla.\n\nEl vector nulo $(0, 0)$ siempre se queda en $(0, 0)$, así que no cuenta. Busca un vector **distinto del nulo** que esta matriz mande a $(0, 0)$. Para que no valga el nulo, pon su coordenada $x$ en $2$.',
           hints: [
             'Con $\\vec{v}=(2, b)$, el resultado es $2\\cdot(2, 1)+b\\cdot(-2, -1)$. ¿Qué $b$ hace que las dos columnas se cancelen?',
             'Las dos columnas son una la opuesta de la otra: para anularlas hay que tomar la misma cantidad de las dos.',
@@ -133,7 +133,7 @@ export const matrizVector: Project = {
           explain:
             'Como las dos columnas están sobre la misma recta, una puede cancelar a la otra: es la forma de que una combinación no nula dé el vector nulo. Eso significa que la matriz pierde información: varios vectores acaban en el mismo punto.',
           solution:
-            'Hay que tomar de las dos columnas la misma cantidad, porque $\\hat{\\jmath}=-\\hat{\\imath}$: con $\\vec{v}=(2, 2)$, $2\\cdot(2, 1)+2\\cdot(-2, -1)=(0, 0)$. Cualquier $(t, t)$ sirve, y todos acaban en el mismo punto que el vector nulo: la matriz aplasta el plano en una recta y no se puede deshacer.',
+            'Hay que tomar de las dos columnas la misma cantidad, porque $A\\hat{\\jmath}=-A\\hat{\\imath}$: con $\\vec{v}=(2, 2)$, $2\\cdot(2, 1)+2\\cdot(-2, -1)=(0, 0)$. Cualquier $(t, t)$ sirve, y todos acaban en el mismo punto que el vector nulo: la matriz aplasta el plano en una recta y no se puede deshacer.',
           plane: transformPlane({
             i: [2, 1],
             j: [-2, -1],

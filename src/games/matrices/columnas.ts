@@ -104,7 +104,7 @@ export const columnas: Project = {
             'La lectura de la matriz tiene que mostrar $-1$ en la diagonal y $0$ fuera de ella.',
           ],
           explain:
-            'Dar la vuelta a las dos flechas a la vez no invierte la orientación: el cuadrado no se ve rojo. Un reflejo da la vuelta a una sola.',
+            'Dar la vuelta a las dos flechas a la vez no invierte la orientación: el cuadrado no se ve rojo. El reflejo del primer ejercicio, en cambio, da la vuelta a una sola.',
           solution:
             '$\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$ dan la matriz $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$. Todo punto $(x, y)$ acaba en $(-x, -y)$, es decir, multiplicado por $-1$. El determinante vale $1$: se conservan el área y la orientación.',
           plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
