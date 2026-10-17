@@ -730,3 +730,106 @@ describe('VectorPlane: circunferencia (Órbita 2)', () => {
     expect(c?.getAttribute('aria-hidden')).toBe('true');
   });
 });
+
+describe('VectorPlane: transformación lineal (juego 2)', () => {
+  const unit = (CENTER - MARGIN) / 6; // píxeles por unidad con range 6
+  const tspec = (over: Partial<PlaneSpec> = {}): PlaneSpec =>
+    spec({
+      vectors: [
+        { id: 'i', label: 'î', x: 1, y: 0, movable: true },
+        { id: 'j', label: 'ĵ', x: 0, y: 1, movable: true },
+        { id: 'v', label: 'v', x: 1, y: 2, movable: false },
+      ],
+      transform: { columns: ['i', 'j'], apply: ['v'] },
+      readouts: ['matrix', 'det'],
+      ...over,
+    });
+  const noNaN = (container: HTMLElement) => {
+    // contract: regla propia de la tarea T1: ni NaN ni Infinity en lo que se dibuja, ni con det 0
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/);
+  };
+
+  it('sin transform no dibuja rejilla transformada ni cuadrado imagen', () => {
+    const { container } = render(<VectorPlane spec={spec()} positions={{}} />);
+    // contract: diseño de la tarea T1: la transformación solo aparece si el plano la pide
+    expect(container.querySelector('.plane__image-grid')).toBeNull();
+    expect(container.querySelector('.plane__image-square')).toBeNull();
+  });
+
+  it('con transform dibuja la rejilla transformada, el cuadrado imagen y la flecha A·v', () => {
+    const { container } = render(
+      <VectorPlane spec={tspec()} positions={{ i: [2, 0], j: [1, 1] }} />,
+    );
+    // contract: diseño de la tarea T1: se dibujan las imágenes de las rectas x=k e y=k, con k entero
+    expect(container.querySelectorAll('.plane__image-grid line').length).toBeGreaterThanOrEqual(26);
+    // contract: el cuadrado unidad (0, î, î+ĵ, ĵ) con î=(2,0), ĵ=(1,1) tiene vértices (0,0), (2,0), (3,1), (1,1)
+    const square = container.querySelector('.plane__image-square')?.getAttribute('points');
+    const p = (x: number, y: number) => `${CENTER + x * unit},${CENTER - y * unit}`;
+    expect(square).toBe([p(0, 0), p(2, 0), p(3, 1), p(1, 1)].join(' '));
+    // contract: A·v con A de columnas (2,0), (1,1) y v = (1,2) es 1·(2,0) + 2·(1,1) = (4,2); la punta es el primer punto de la cabeza
+    const tip = container.querySelector('.plane__image polygon')?.getAttribute('points');
+    expect(tip?.split(' ')[0]).toBe(p(4, 2));
+    // contract: la flecha derivada no se arrastra: no tiene asa
+    expect(screen.queryByRole('button', { name: /A·v/ })).toBeNull();
+    // contract: diseño de la tarea T1: etiqueta «A·<etiqueta de v>»
+    expect([...container.querySelectorAll('.plane__label')].map((e) => e.textContent)).toContain(
+      'A·v',
+    );
+    noNaN(container);
+  });
+
+  it('la flecha A·v sigue a las columnas movidas', () => {
+    const { container } = render(
+      <VectorPlane spec={tspec()} positions={{ i: [0, 1], j: [1, 0] }} />,
+    );
+    // contract: A·v con columnas (0,1) y (1,0) y v = (1,2) es 1·(0,1) + 2·(1,0) = (2,1)
+    const tip = container.querySelector('.plane__image polygon')?.getAttribute('points');
+    expect(tip?.split(' ')[0]).toBe(`${CENTER + 2 * unit},${CENTER - 1 * unit}`);
+  });
+
+  it('las lecturas matrix y det muestran A por filas y su determinante, con coma decimal', () => {
+    const { container } = render(
+      <VectorPlane spec={tspec()} positions={{ i: [2, 0.5], j: [-1, 1.5] }} />,
+    );
+    const cells = [...container.querySelectorAll('.plane__matrix-cell')].map((c) => c.textContent);
+    // contract: A tiene por columnas î = (2; 0,5) y ĵ = (−1; 1,5): fila 1 = (2, −1), fila 2 = (0,5, 1,5), con menos tipográfico
+    expect(cells).toEqual(['2', '−1', '0,5', '1,5']);
+    // contract: det = 2·1,5 − 0,5·(−1) = 3,5
+    expect(within(readouts()).getByText('det A')).toBeInTheDocument();
+    expect(within(readouts()).getByText('3,5')).toBeInTheDocument();
+  });
+
+  it('un det negativo (reflexión) usa el tinte de orientación invertida; uno positivo no', () => {
+    const flipped = render(<VectorPlane spec={tspec()} positions={{ i: [0, 1], j: [1, 0] }} />);
+    // contract: det de columnas (0,1) y (1,0) es −1: orientación invertida
+    expect(flipped.container.querySelector('.plane__image-square--flipped')).not.toBeNull();
+    expect(within(readouts()).getByText('−1')).toBeInTheDocument();
+    flipped.unmount();
+    const normal = render(<VectorPlane spec={tspec()} positions={{ i: [1, 0], j: [0, 1] }} />);
+    // contract: det de la identidad es 1: no se invierte
+    expect(normal.container.querySelector('.plane__image-square--flipped')).toBeNull();
+  });
+
+  it('con det 0 (columnas paralelas) o columnas nulas no hay NaN ni se rompe', () => {
+    const parallel = render(<VectorPlane spec={tspec()} positions={{ i: [1, 2], j: [2, 4] }} />);
+    noNaN(parallel.container);
+    expect(parallel.container.querySelector('.plane__image-square--flipped')).toBeNull();
+    parallel.unmount();
+    const zero = render(<VectorPlane spec={tspec()} positions={{ i: [0, 0], j: [0, 0] }} />);
+    noNaN(zero.container);
+    zero.unmount();
+    const oneZero = render(<VectorPlane spec={tspec()} positions={{ i: [0, 0], j: [0, 2] }} />);
+    noNaN(oneZero.container);
+  });
+
+  it('los controles no cambian: las columnas móviles conservan su asa y mover llama a onMove', async () => {
+    const onMove = vi.fn();
+    render(<VectorPlane spec={tspec()} positions={{ i: [1, 0], j: [0, 1] }} onMove={onMove} />);
+    const user = userEvent.setup();
+    await user.tab();
+    // contract: tarea 9, aria-label del asa «Asa del vector …» (la prueba e2e lo busca)
+    expect(screen.getByRole('button', { name: /^Asa del vector î/ })).toHaveFocus();
+    await user.keyboard('{ArrowRight}');
+    expect(onMove).toHaveBeenCalledExactlyOnceWith('i', [2, 0]); // contract: tarea 9, un paso de snap (1) a la derecha
+  });
+});

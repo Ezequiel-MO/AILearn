@@ -1,7 +1,7 @@
 import { useId, useRef, useState } from 'react';
-import type { KeyboardEvent, PointerEvent } from 'react';
+import type { KeyboardEvent, PointerEvent, ReactNode } from 'react';
 import type { PlaneSpec } from '../content/schema';
-import { measure, projection } from '../engine/vectors';
+import { applyColumns, det2, measure, projection } from '../engine/vectors';
 import type { Vec } from '../engine/vectors';
 import { fmt, fmtPair } from './format';
 import { CENTER, HANDLE_RADIUS, HANDLE_RING_RADIUS, MARGIN, VIEW, placeLabels } from './labels';
@@ -20,6 +20,8 @@ const ARC_RADIUS = 34;
 const ARC_MIN = 10;
 /** Una proyección más corta que esto (unidades de vista) no se dibuja: la sombra es un punto. */
 const SHADOW_MIN = 1;
+/** Líneas de la rejilla transformada, a cada lado del origen, como máximo por familia (x = k, y = k). */
+const MAX_IMAGE_LINES = 30;
 
 const clean = (n: number): number => Number(n.toFixed(6));
 
@@ -95,7 +97,7 @@ export function VectorPlane({
   positions: Record<string, [number, number]>;
   onMove?: (id: string, to: [number, number]) => void;
 }) {
-  const { range, snap, vectors, readouts, pair, circle } = spec;
+  const { range, snap, vectors, readouts, pair, circle, transform } = spec;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; pointerId: number; offset: Point } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -220,8 +222,59 @@ export function VectorPlane({
       ]
     : null;
 
+  // --- Transformación lineal: A tiene por columnas las posiciones actuales de las dos columnas ---
+  const colI: Point | null = transform ? current[transform.columns[0]] : null;
+  const colJ: Point | null = transform ? current[transform.columns[1]] : null;
+  const detA = colI && colJ ? det2(colI, colJ) : NaN;
+  const flipped = detA < -EPS;
+  const imageTip = (p: Point): Point => [sx(p[0]), sy(p[1])];
+  const imageLines: { key: string; axis: boolean; a: Point; b: Point }[] = [];
+  let imageSquare: string | null = null;
+  const images: { id: string; vec: Point; tip: Point; arrow: Arrow }[] = [];
+  if (transform && colI && colJ) {
+    const lenI = Math.hypot(colI[0], colI[1]);
+    const lenJ = Math.hypot(colJ[0], colJ[1]);
+    const spacing = coarsen(range, 1, MAX_GRID_LINES);
+    // cuántas líneas hacen falta para que la rejilla deformada siga llenando la vista: la separación
+    // entre las líneas de una familia es |det|/|otra columna|; con det ≈ 0 las líneas se apilan y basta el tope
+    const reach = (other: number): number => {
+      const needed =
+        Math.abs(detA) < EPS ? Infinity : (range * Math.SQRT2 * other) / Math.abs(detA);
+      return Math.min(MAX_IMAGE_LINES * spacing, Math.max(range, Math.ceil(needed)));
+    };
+    const family = (
+      prefix: string,
+      base: Point,
+      dir: Point,
+      dirLen: number,
+      reachFor: number,
+    ): void => {
+      if (dirLen < EPS) return; // la dirección es nula: la imagen de cada línea es un punto
+      const [dx, dy] = [dir[0] / dirLen, -dir[1] / dirLen]; // unitario en pantalla (y hacia abajo)
+      for (const k of multiples(spacing, reachFor)) {
+        const o = imageTip([base[0] * k, base[1] * k]);
+        imageLines.push({
+          key: `${prefix}${k}`,
+          axis: k === 0,
+          a: [o[0] - dx * 4 * VIEW, o[1] - dy * 4 * VIEW],
+          b: [o[0] + dx * 4 * VIEW, o[1] + dy * 4 * VIEW],
+        });
+      }
+    };
+    // x = k se transforma en k·î + t·ĵ; y = k se transforma en k·ĵ + t·î
+    family('x', colI, colJ, lenJ, reach(lenJ));
+    family('y', colJ, colI, lenI, reach(lenI));
+    const corners: Point[] = [[0, 0], colI, [colI[0] + colJ[0], colI[1] + colJ[1]], colJ];
+    imageSquare = corners.map((c) => imageTip(c).join(',')).join(' ');
+    for (const id of transform.apply ?? []) {
+      const vec = applyColumns(colI, colJ, current[id]);
+      const tip = imageTip(vec);
+      images.push({ id, vec, tip, arrow: arrow(tip) });
+    }
+  }
+
   // --- Lecturas, con las funciones del motor ---
-  const rows: { key: string; name: string; value: string }[] = [];
+  const rows: { key: string; name: string; value: ReactNode; matrix?: boolean }[] = [];
   for (const kind of readouts) {
     if (kind === 'components') {
       for (const v of vectors) {
@@ -239,6 +292,23 @@ export function VectorPlane({
           value: fmt(measure('norm', [v.id], asVecs)),
         });
       }
+    } else if (kind === 'matrix') {
+      if (colI && colJ) {
+        // A por filas: la fila 1 es (î.x, ĵ.x) y la fila 2 es (î.y, ĵ.y)
+        const cells = [colI[0], colJ[0], colI[1], colJ[1]];
+        rows.push({
+          key: 'matrix',
+          name: t.plane.matrixName,
+          matrix: true,
+          value: cells.map((c, n) => (
+            <span key={n} className="plane__matrix-cell">
+              {fmt(c)}
+            </span>
+          )),
+        });
+      }
+    } else if (kind === 'det') {
+      rows.push({ key: 'det', name: t.plane.detName, value: fmt(detA) });
     } else if (pair) {
       const [a, b] = pair;
       if (kind === 'distance') {
@@ -293,14 +363,26 @@ export function VectorPlane({
       tip: tipOf(v.id),
       gap: interactive && v.movable ? HANDLE_HIT_RADIUS + 2 : 14,
       isSum: false,
+      slotId: v.id,
     })),
-    ...(sumTip ? [{ key: 'sum', text: sumText, tip: sumTip, gap: 16, isSum: true }] : []),
+    ...(sumTip
+      ? [{ key: 'sum', text: sumText, tip: sumTip, gap: 16, isSum: true, slotId: '' }]
+      : []),
+    ...images.map((im) => ({
+      key: `img-${im.id}`,
+      text: t.plane.imageName(nameOf(im.id)),
+      tip: im.tip,
+      gap: 14,
+      isSum: false,
+      slotId: im.id,
+    })),
   ];
   const labelAt = placeLabels({
     labels: labelRequests,
     arrowTips: [
       ...vectors.map((v) => tipOf(v.id)),
       ...(sumTip ? [sumTip] : []),
+      ...images.map((im) => im.tip),
       ...(shadowShown && shadowTip ? [shadowTip] : []),
     ],
     handles: movableHandles.map((v) => tipOf(v.id)),
@@ -400,6 +482,24 @@ export function VectorPlane({
           </g>
 
           <g clipPath={`url(#${clipId})`}>
+            {transform && imageSquare && (
+              <g className="plane__image-grid" aria-hidden="true">
+                {imageLines.map((l) => (
+                  <line
+                    key={l.key}
+                    className={l.axis ? 'plane__image-axis' : undefined}
+                    x1={l.a[0]}
+                    y1={l.a[1]}
+                    x2={l.b[0]}
+                    y2={l.b[1]}
+                  />
+                ))}
+                <polygon
+                  className={`plane__image-square${flipped ? ' plane__image-square--flipped' : ''}`}
+                  points={imageSquare}
+                />
+              </g>
+            )}
             {circle !== undefined && (
               <circle
                 className="plane__circle"
@@ -450,6 +550,18 @@ export function VectorPlane({
                 </g>
               );
             })}
+            {images.map((im) => (
+              <g
+                key={im.id}
+                className="plane__image"
+                aria-hidden="true"
+                data-slot={slotOf(im.id)}
+                data-image={im.id}
+              >
+                <line x1={CENTER} y1={CENTER} x2={im.arrow.lineEnd[0]} y2={im.arrow.lineEnd[1]} />
+                {im.arrow.head && <polygon points={im.arrow.head} />}
+              </g>
+            ))}
             {arcPath && <path className="plane__angle-arc" aria-hidden="true" d={arcPath} />}
             {pair && shadowShown && shadowArrow && shadowTip && (
               <g className="plane__shadow" aria-hidden="true" data-slot={slotOf(pair[0])}>
@@ -477,7 +589,7 @@ export function VectorPlane({
               <text
                 key={l.key}
                 className={`plane__label${l.isSum ? ' plane__label--sum' : ''}`}
-                data-slot={l.isSum ? undefined : slotOf(l.key)}
+                data-slot={l.isSum ? undefined : slotOf(l.slotId)}
                 x={l.at[0]}
                 y={l.at[1]}
                 textAnchor="middle"
@@ -526,7 +638,7 @@ export function VectorPlane({
               <div key={r.key} className="plane__readout">
                 <dt>{r.name}</dt>
                 <dd>
-                  <output className="num">{r.value}</output>
+                  <output className={r.matrix ? 'num plane__matrix' : 'num'}>{r.value}</output>
                 </dd>
               </div>
             ))}

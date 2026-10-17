@@ -1,7 +1,19 @@
 export type Vec = readonly number[];
 
 export type Metric =
-  'x' | 'y' | 'norm' | 'distance' | 'sum_x' | 'sum_y' | 'dot' | 'cos' | 'angle' | 'proj';
+  | 'x'
+  | 'y'
+  | 'norm'
+  | 'distance'
+  | 'sum_x'
+  | 'sum_y'
+  | 'dot'
+  | 'cos'
+  | 'angle'
+  | 'proj'
+  | 'det'
+  | 'img_x'
+  | 'img_y';
 
 const sameDim = (a: Vec, b: Vec): void => {
   if (a.length !== b.length) {
@@ -71,8 +83,17 @@ export const projection = (a: Vec, b: Vec): number[] | null => {
   return scale(dot(a, b) / bb, b);
 };
 
+/** Determinante de la matriz 2×2 cuyas columnas son a y b: a.x·b.y − a.y·b.x. */
+export const det2 = (a: Vec, b: Vec): number => a[0] * b[1] - a[1] * b[0];
+
+/** Imagen de v por la matriz de columnas i y j: v.x·i + v.y·j. */
+export const applyColumns = (i: Vec, j: Vec, v: Vec): [number, number] => [
+  v[0] * i[0] + v[1] * j[0],
+  v[0] * i[1] + v[1] * j[1],
+];
+
 /** Número de ids de vectores que exige cada métrica. */
-export const METRIC_ARITY: Record<Metric, 1 | 2> = {
+export const METRIC_ARITY: Record<Metric, 1 | 2 | 3> = {
   x: 1,
   y: 1,
   norm: 1,
@@ -83,10 +104,15 @@ export const METRIC_ARITY: Record<Metric, 1 | 2> = {
   cos: 2,
   angle: 2,
   proj: 2,
+  det: 2,
+  img_x: 3,
+  img_y: 3,
 };
 
 /**
- * `of` son ids de vectores del plano: uno para x, y, norm; dos para el resto.
+ * `of` son ids de vectores del plano: uno para x, y, norm; tres para img_x, img_y; dos para el resto.
+ * `det` de `[a, b]` es el determinante de la matriz de columnas a y b; `img_x` e `img_y` de `[i, j, v]`
+ * son las componentes de la imagen de v por la matriz de columnas i y j.
  * `proj` es la proyección escalar del primero sobre el segundo. `cos`, `angle` y `proj` dan NaN
  * cuando el ángulo no existe (vector nulo), y NaN no cumple ninguna meta.
  */
@@ -100,7 +126,7 @@ export const measure = (metric: Metric, of: string[], vectors: Record<string, Ve
     if (!v) throw new Error(`Falta el vector «${id}»`);
     return v;
   });
-  const [a, b] = vs;
+  const [a, b, c] = vs;
   switch (metric) {
     case 'x':
       return a[0];
@@ -122,5 +148,11 @@ export const measure = (metric: Metric, of: string[], vectors: Record<string, Ve
       return angle(a, b);
     case 'proj':
       return scalarProjection(a, b);
+    case 'det':
+      return det2(a, b);
+    case 'img_x':
+      return applyColumns(a, b, c)[0];
+    case 'img_y':
+      return applyColumns(a, b, c)[1];
   }
 };

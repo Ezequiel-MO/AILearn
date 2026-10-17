@@ -29,6 +29,10 @@ export const t = {
     noAngle: 'sin ángulo',
     noProjection: 'sin proyección',
     handleLabel: (name: string, position: string) => `Asa del vector ${name}, en ${position}`,
+    // transformación lineal: A tiene por columnas los dos vectores de la base
+    matrixName: 'A',
+    detName: 'det A',
+    imageName: (name: string) => `A·${name}`,
   },
 
   // --- Preguntas (tarea 10) ---
@@ -39,6 +43,8 @@ export const t = {
     answerLabel: 'Tu respuesta',
     vectorLegend: 'Tu respuesta, componente a componente',
     componentLabel: (index: number, count: number) => `Componente ${index} de ${count}`,
+    matrixLegend: 'Tu respuesta, fila a fila',
+    cellLabel: (row: number, col: number) => `Fila ${row}, columna ${col}`,
     optionsLegend: 'Opciones',
     verdictLegend: 'Tu veredicto',
     verdictOk: 'Está bien',

@@ -18,6 +18,9 @@ const METRICS = [
   'cos',
   'angle',
   'proj',
+  'det',
+  'img_x',
+  'img_y',
 ] as const satisfies readonly Metric[];
 
 /** Lecturas que comparan los dos vectores de `pair`. */
@@ -31,13 +34,26 @@ export const planeVectorSchema = z.strictObject({
   movable: z.boolean(),
 });
 
+/** Lecturas de la matriz A cuyas columnas son los vectores de `transform.columns`. */
+const TRANSFORM_READOUTS = ['matrix', 'det'] as const;
+
+/**
+ * Transformación lineal dibujada en el plano: A tiene por columnas las posiciones actuales de los
+ * vectores `columns` (î y ĵ, que pueden ser móviles). `apply` son vectores cuya imagen A·v se dibuja.
+ */
+export const transformSchema = z.strictObject({
+  columns: z.tuple([id, id]),
+  apply: z.array(id).optional(),
+});
+
 export const planeSpecSchema = z
   .strictObject({
     range: z.number().positive(),
     snap: z.number().positive(),
     vectors: z.array(planeVectorSchema),
-    readouts: z.array(z.enum(['components', 'norm', ...PAIR_READOUTS])),
+    readouts: z.array(z.enum(['components', 'norm', ...PAIR_READOUTS, ...TRANSFORM_READOUTS])),
     pair: z.tuple([z.string(), z.string()]).optional(),
+    transform: transformSchema.optional(),
     /** Radio de una circunferencia centrada en el origen (la unidad, al normalizar). Solo se dibuja. */
     circle: z.number().positive().optional(),
   })
@@ -59,6 +75,50 @@ export const planeSpecSchema = z
         code: 'custom',
         path: ['pair'],
         message: `pair es obligatorio si readouts incluye ${needsPair.join(', ')}`,
+      });
+    }
+    const needsTransform = p.readouts.filter((r) =>
+      (TRANSFORM_READOUTS as readonly string[]).includes(r),
+    );
+    if (needsTransform.length > 0 && !p.transform) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['transform'],
+        message: `transform es obligatorio si readouts incluye ${needsTransform.join(', ')}`,
+      });
+    }
+    if (p.transform) {
+      const [ci, cj] = p.transform.columns;
+      for (const name of p.transform.columns) {
+        if (!ids.has(name)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['transform', 'columns'],
+            message: `transform.columns nombra un vector inexistente: ${name}`,
+          });
+        }
+      }
+      if (ci === cj) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['transform', 'columns'],
+          message: 'transform.columns necesita dos vectores distintos',
+        });
+      }
+      (p.transform.apply ?? []).forEach((name, i) => {
+        if (!ids.has(name)) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['transform', 'apply', i],
+            message: `transform.apply nombra un vector inexistente: ${name}`,
+          });
+        } else if (name === ci || name === cj) {
+          ctx.addIssue({
+            code: 'custom',
+            path: ['transform', 'apply', i],
+            message: `transform.apply no puede nombrar una columna de la matriz: ${name}`,
+          });
+        }
       });
     }
     if (p.pair) {
@@ -124,13 +184,26 @@ export const numeroQSchema = z.strictObject({
   plane: planeSpecSchema.optional(),
 });
 
-export const vectorQSchema = z.strictObject({
-  ...baseShape,
-  type: z.literal('vector'),
-  answer: z.array(z.number()).min(1),
-  tol,
-  plane: planeSpecSchema.optional(),
-});
+export const vectorQSchema = z
+  .strictObject({
+    ...baseShape,
+    type: z.literal('vector'),
+    /** Con `shape`, por filas: primero la fila 1 entera, luego la 2… */
+    answer: z.array(z.number()).min(1),
+    tol,
+    plane: planeSpecSchema.optional(),
+    /** [filas, columnas]: la respuesta se teclea como matriz. La corrección no cambia. */
+    shape: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
+  })
+  .superRefine((q, ctx) => {
+    if (q.shape && q.shape[0] * q.shape[1] !== q.answer.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['shape'],
+        message: `shape ${q.shape[0]}×${q.shape[1]} no cuadra con una respuesta de ${q.answer.length} componentes`,
+      });
+    }
+  });
 
 export const opcionQSchema = z
   .strictObject({

@@ -180,6 +180,51 @@ describe('checkIds', () => {
   });
 });
 
+describe('checkReachable con metas de tres vectores (juego 2)', () => {
+  const imgGoals = (x: number, y: number): ManipularQ['goals'] => [
+    { metric: 'img_x', of: ['i', 'j', 'v'], target: x, tol: 0.01 },
+    { metric: 'img_y', of: ['i', 'j', 'v'], target: y, tol: 0.01 },
+  ];
+
+  it('i y j fijas y v móvil: encuentra v con A·v = (6, 2)', () => {
+    const vs: Mover[] = [
+      { id: 'i', x: 2, y: 0, movable: false },
+      { id: 'j', x: 1, y: 1, movable: false },
+      { id: 'v', x: 1, y: 1, movable: true },
+    ];
+    // contract: A = columnas (2,0) y (1,1); v = (2,2) da 2·(2,0) + 2·(1,1) = (6,2)
+    expect(checkReachable(manipular('q', vs, imgGoals(6, 2)))).toEqual([]);
+    // contract: img_y = 2 obliga a v.y = 2 y img_x = 5 a v.x = 1,5, que no está en la rejilla de snap 1
+    expect(checkReachable(manipular('q', vs, imgGoals(5, 2)))).toHaveLength(1);
+  });
+
+  it('i y j móviles y v fija: encuentra la matriz con A·(1, 2) = (3, 4)', () => {
+    const vs: Mover[] = [
+      { id: 'i', x: 1, y: 0, movable: true },
+      { id: 'j', x: 0, y: 1, movable: true },
+      { id: 'v', x: 1, y: 2, movable: false },
+    ];
+    // contract: v = (1,2) -> A·v = i + 2j; i = (1,0) y j = (1,2) dan (3,4)
+    expect(checkReachable(manipular('q', vs, imgGoals(3, 4)))).toEqual([]);
+    // contract: con v = (1,2) fija, i + 2j tiene componentes ≤ 6 + 12 = 18, pero (19,0) no se alcanza
+    expect(checkReachable(manipular('q', vs, imgGoals(19, 0)))).toHaveLength(1);
+    // contract: la posición inicial i = (1,0), j = (0,1) da A·v = (1,2), no (3,4)
+    expect(checkStartNotSolved(manipular('q', vs, imgGoals(3, 4)))).toEqual([]);
+    // contract: y sí la detecta si la meta ya se cumple al inicio
+    expect(checkStartNotSolved(manipular('q', vs, imgGoals(1, 2)))).toHaveLength(1);
+  });
+
+  it('det con dos columnas móviles: det = -1 es alcanzable', () => {
+    const vs: Mover[] = [
+      { id: 'i', x: 1, y: 0, movable: true },
+      { id: 'j', x: 0, y: 1, movable: true },
+    ];
+    const goals: ManipularQ['goals'] = [{ metric: 'det', of: ['i', 'j'], target: -1, tol: 0.01 }];
+    // contract: columnas (0,1) y (1,0) tienen det 0·0 − 1·1 = −1
+    expect(checkReachable(manipular('q', vs, goals))).toEqual([]);
+  });
+});
+
 describe('checkReachable', () => {
   const at = (x: number) => [{ metric: 'x' as const, of: ['u'], target: x, tol: 0.1 }];
 

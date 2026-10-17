@@ -42,6 +42,9 @@
   --plane-sum: #5fcf8a;
   --plane-area: #0e141b;
   --plane-axis: #4a5b70;
+  /* Transformación lineal: rejilla deformada, y el cuadrado unidad con la orientación invertida */
+  --plane-image: #7aa2f7;
+  --plane-flip: #ef6f6c;
 
   /* Espaciado */
   --space-1: 0.25rem;
@@ -329,6 +332,7 @@ a {
 
 .plane__vector,
 .plane__shadow,
+.plane__image,
 .plane__label,
 .plane__handle {
   --slot-color: var(--plane-v0);
@@ -336,6 +340,7 @@ a {
 
 .plane__vector[data-slot='1'],
 .plane__shadow[data-slot='1'],
+.plane__image[data-slot='1'],
 .plane__label[data-slot='1'],
 .plane__handle[data-slot='1'] {
   --slot-color: var(--plane-v1);
@@ -343,6 +348,7 @@ a {
 
 .plane__vector[data-slot='2'],
 .plane__shadow[data-slot='2'],
+.plane__image[data-slot='2'],
 .plane__label[data-slot='2'],
 .plane__handle[data-slot='2'] {
   --slot-color: var(--plane-v2);
@@ -350,6 +356,7 @@ a {
 
 .plane__vector[data-slot='3'],
 .plane__shadow[data-slot='3'],
+.plane__image[data-slot='3'],
 .plane__label[data-slot='3'],
 .plane__handle[data-slot='3'] {
   --slot-color: var(--plane-v3);
@@ -506,6 +513,79 @@ a {
   margin: 0;
   color: var(--color-text);
   font-size: var(--text-lg);
+}
+
+/* Transformación lineal en el plano */
+.plane__image-grid line {
+  stroke: var(--plane-image);
+  stroke-width: 1;
+  opacity: 0.35;
+}
+
+.plane__image-grid .plane__image-axis {
+  stroke-width: 1.5;
+  opacity: 0.7;
+}
+
+.plane__image-square {
+  fill: var(--plane-image);
+  fill-opacity: 0.14;
+  stroke: none;
+}
+
+.plane__image-square--flipped {
+  fill: var(--plane-flip);
+  fill-opacity: 0.18;
+}
+
+.plane__image line {
+  stroke: var(--slot-color);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 8 6;
+}
+
+.plane__image polygon {
+  fill: var(--slot-color);
+}
+
+.plane__matrix,
+.question__matrix {
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: repeat(var(--matrix-cols, 2), auto);
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-mono);
+}
+
+/* Corchetes altos a los lados */
+.plane__matrix::before,
+.plane__matrix::after,
+.question__matrix::before,
+.question__matrix::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0.5rem;
+  border: 2px solid var(--color-text-muted);
+}
+
+.plane__matrix::before,
+.question__matrix::before {
+  left: 0;
+  border-right: none;
+}
+
+.plane__matrix::after,
+.question__matrix::after {
+  right: 0;
+  border-left: none;
+}
+
+.plane__matrix-cell {
+  text-align: right;
 }
 
 /* === Preguntas === */

@@ -210,6 +210,68 @@ describe('vector', () => {
   });
 });
 
+describe('vector con shape (respuesta en forma de matriz)', () => {
+  const matrix = (over: Partial<VectorQ> = {}) =>
+    vector({ answer: [1, 2, 3, 4], tol: 0.01, shape: [2, 2], ...over });
+  const cell = (r: number, c: number) =>
+    screen.getByRole('textbox', { name: `Fila ${r}, columna ${c}` });
+
+  // contract: tarea T1 del juego 2: con shape [filas, columnas] los campos son una rejilla, con aria-label «Fila r, columna c»
+  it('hay un campo por celda, con su fila y columna, sin paréntesis de tupla', () => {
+    setup(matrix({ answer: [1, 2, 3, 4, 5, 6], shape: [2, 3] }));
+    expect(screen.getAllByRole('textbox')).toHaveLength(6);
+    expect(cell(2, 3)).toBeInTheDocument();
+    const group = screen.getByRole('group', { name: 'Tu respuesta, fila a fila' });
+    expect(group.style.getPropertyValue('--matrix-cols')).toBe('3'); // contract: tarea T1: tantas columnas como pide shape
+    expect(
+      screen.queryByRole('group', { name: 'Tu respuesta, componente a componente' }),
+    ).toBeNull();
+  });
+
+  // contract: tarea T1: el orden de tabulación es por filas (el de la respuesta)
+  it('el orden de tabulación es por filas', async () => {
+    const { user } = setup(matrix());
+    await user.tab();
+    expect(cell(1, 1)).toHaveFocus();
+    await user.tab();
+    expect(cell(1, 2)).toHaveFocus();
+    await user.tab();
+    expect(cell(2, 1)).toHaveFocus();
+    await user.tab();
+    expect(cell(2, 2)).toHaveFocus();
+  });
+
+  // contract: tarea T1: la respuesta va por filas y se corrige como un vector (coma o punto)
+  it('se corrige por filas, con coma o punto decimal', async () => {
+    const { onSubmit, user } = setup(matrix({ answer: [0.5, 2, -3, 4] }));
+    await user.type(cell(1, 1), '0,5');
+    await user.type(cell(1, 2), '2');
+    await user.type(cell(2, 1), '-3');
+    await user.type(cell(2, 2), '4.0{Enter}');
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  // contract: tarea T1: celdas intercambiadas (por columnas en vez de por filas) no es la respuesta
+  it('una matriz traspuesta entrega false', async () => {
+    const { onSubmit, user } = setup(matrix());
+    await user.type(cell(1, 1), '1');
+    await user.type(cell(1, 2), '3');
+    await user.type(cell(2, 1), '2');
+    await user.type(cell(2, 2), '4');
+    await user.click(submitButton());
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  // contract: tarea 10, reglas: una celda vacía o ilegible -> aviso, sin onSubmit
+  it('con una celda vacía muestra el aviso y no entrega', async () => {
+    const { onSubmit, user } = setup(matrix());
+    await user.type(cell(1, 1), '1');
+    await user.click(submitButton());
+    expect(screen.getByText(INVALID)).toBeVisible();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
 describe('opcion', () => {
   // contract: tarea 10, tabla: opcion, pulsar una opción sin entregar -> onSubmit no llamado
   it('elegir una opción no entrega', async () => {

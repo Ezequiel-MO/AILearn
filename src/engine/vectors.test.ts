@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   add,
   angle,
+  applyColumns,
   cosine,
+  det2,
   distance,
   dot,
   measure,
@@ -114,5 +116,31 @@ describe('producto escalar, coseno, ángulo y proyección (Órbita 1)', () => {
     expect(measure('angle', ['u', 'v'], vs)).toBeCloseTo(16.26, 2); // contract: acos(0,96) ≈ 16,26°
     expect(measure('proj', ['u', 'v'], vs)).toBeCloseTo(4.8, 12); // contract: 24/5
     expect(() => measure('dot', ['u'], vs)).toThrow(); // contract: dot exige dos vectores
+  });
+});
+
+describe('determinante e imagen por una matriz (juego 2)', () => {
+  it('det de las columnas (2,0) y (0,3) es 6', () => {
+    expect(det2([2, 0], [0, 3])).toBe(6); // contract: 2·3 − 0·0
+  });
+  it('una reflexión (columnas (0,1) y (1,0)) tiene det negativo', () => {
+    expect(det2([0, 1], [1, 0])).toBe(-1); // contract: 0·0 − 1·1
+  });
+  it('columnas paralelas dan det 0', () => {
+    expect(det2([1, 2], [2, 4])).toBe(0); // contract: 1·4 − 2·2
+  });
+  it('imagen de (3,2) con columnas (1,0) y (1,1) es (5,2)', () => {
+    expect(applyColumns([1, 0], [1, 1], [3, 2])).toEqual([5, 2]); // contract: 3·(1,0) + 2·(1,1)
+  });
+  it('imagen de (1,2) por la reflexión de columnas (0,1) y (1,0) es (2,1)', () => {
+    expect(applyColumns([0, 1], [1, 0], [1, 2])).toEqual([2, 1]); // contract: 1·(0,1) + 2·(1,0)
+  });
+  it('measure con det, img_x e img_y', () => {
+    const vs = { i: [2, 1], j: [-1, 3], v: [2, 1] };
+    expect(measure('det', ['i', 'j'], vs)).toBe(7); // contract: 2·3 − 1·(−1)
+    expect(measure('img_x', ['i', 'j', 'v'], vs)).toBe(3); // contract: 2·2 + 1·(−1)
+    expect(measure('img_y', ['i', 'j', 'v'], vs)).toBe(5); // contract: 2·1 + 1·3
+    expect(() => measure('img_x', ['i', 'j'], vs)).toThrow(); // contract: img_x exige tres vectores
+    expect(() => measure('det', ['i', 'j', 'v'], vs)).toThrow(); // contract: det exige dos vectores
   });
 });

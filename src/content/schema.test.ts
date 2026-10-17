@@ -303,3 +303,82 @@ describe('circunferencia del plano (Órbita 2)', () => {
     expect(planeSpecSchema.safeParse({ ...plane, circle: plane.range + 1 }).success).toBe(false);
   });
 });
+
+describe('transformación lineal en el plano (juego 2)', () => {
+  const tplane = {
+    ...plane,
+    vectors: [
+      { id: 'i', label: 'î', x: 1, y: 0, movable: true },
+      { id: 'j', label: 'ĵ', x: 0, y: 1, movable: true },
+      { id: 'v', label: 'v', x: 2, y: 1, movable: false },
+    ],
+  };
+  const withT = (transform: unknown, readouts: string[] = ['components']) => ({
+    ...tplane,
+    readouts,
+    transform,
+  });
+
+  it('admite transform con columnas existentes y apply sobre otros vectores', () => {
+    // contract: diseño de la tarea T1 del juego 2: transform {columns:[i,j], apply?} y readouts matrix/det
+    expect(
+      planeSpecSchema.safeParse(withT({ columns: ['i', 'j'], apply: ['v'] }, ['matrix', 'det']))
+        .success,
+    ).toBe(true);
+    expect(planeSpecSchema.safeParse(withT({ columns: ['i', 'j'] })).success).toBe(true);
+  });
+  it('rechaza columnas inexistentes o repetidas', () => {
+    // contract: diseño de la tarea T1: las dos columnas existen y son distintas
+    expect(planeSpecSchema.safeParse(withT({ columns: ['i', 'zzz'] })).success).toBe(false);
+    expect(planeSpecSchema.safeParse(withT({ columns: ['i', 'i'] })).success).toBe(false);
+  });
+  it('rechaza apply inexistente o que nombra una columna', () => {
+    // contract: diseño de la tarea T1: cada id de apply existe y no es columna
+    expect(planeSpecSchema.safeParse(withT({ columns: ['i', 'j'], apply: ['zzz'] })).success).toBe(
+      false,
+    );
+    expect(planeSpecSchema.safeParse(withT({ columns: ['i', 'j'], apply: ['j'] })).success).toBe(
+      false,
+    );
+  });
+  it('matrix y det exigen transform', () => {
+    // contract: diseño de la tarea T1: las lecturas matrix y det requieren transform
+    expect(planeSpecSchema.safeParse({ ...tplane, readouts: ['matrix'] }).success).toBe(false);
+    expect(planeSpecSchema.safeParse({ ...tplane, readouts: ['det'] }).success).toBe(false);
+  });
+  it('las métricas det, img_x e img_y exigen 2, 3 y 3 vectores en una meta', () => {
+    const q = (metric: string, of: string[]) => ({
+      ...manip('m'),
+      plane: tplane,
+      goals: [{ metric, of, target: 1, tol: 0.1 }],
+    });
+    // contract: diseño de la tarea T1: aridades det 2, img_x 3, img_y 3
+    expect(questionSchema.safeParse(q('det', ['i', 'j'])).success).toBe(true);
+    expect(questionSchema.safeParse(q('img_x', ['i', 'j', 'v'])).success).toBe(true);
+    expect(questionSchema.safeParse(q('img_y', ['i', 'j', 'v'])).success).toBe(true);
+    expect(questionSchema.safeParse(q('det', ['i', 'j', 'v'])).success).toBe(false);
+    expect(questionSchema.safeParse(q('img_y', ['i', 'j'])).success).toBe(false);
+  });
+});
+
+describe('respuesta en forma de matriz (juego 2)', () => {
+  const vec = (over: object) => ({
+    ...base('q'),
+    type: 'vector' as const,
+    answer: [1, 2, 3, 4],
+    tol: 0,
+    ...over,
+  });
+  it('admite shape cuyo producto es el número de componentes', () => {
+    // contract: diseño de la tarea T1: shape [filas, columnas], filas·columnas = answer.length
+    expect(questionSchema.safeParse(vec({ shape: [2, 2] })).success).toBe(true);
+    expect(questionSchema.safeParse(vec({ shape: [1, 4] })).success).toBe(true);
+    expect(questionSchema.safeParse(vec({})).success).toBe(true);
+  });
+  it('rechaza shape que no cuadra o no es entero positivo', () => {
+    // contract: diseño de la tarea T1: shape positivo, entero y consistente con answer
+    expect(questionSchema.safeParse(vec({ shape: [2, 3] })).success).toBe(false);
+    expect(questionSchema.safeParse(vec({ shape: [0, 4] })).success).toBe(false);
+    expect(questionSchema.safeParse(vec({ shape: [2, 1.5] })).success).toBe(false);
+  });
+});
