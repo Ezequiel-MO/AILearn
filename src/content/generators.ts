@@ -54,7 +54,15 @@ const vectorQ = (
   body: Pick<VectorQ, 'prompt' | 'hints' | 'explain' | 'solution'>,
   answer: number[],
   tol: number,
-): VectorQ => ({ type: 'vector', id, ...body, answer: answer.map(clean), tol });
+  shape?: [number, number],
+): VectorQ => ({
+  type: 'vector',
+  id,
+  ...body,
+  answer: answer.map(clean),
+  tol,
+  ...(shape ? { shape } : {}),
+});
 
 const numeroQ = (
   id: string,
@@ -581,6 +589,157 @@ const umbral: Generator = {
   },
 };
 
+// ---------- Juego 2: matrices y transformaciones ----------
+
+/** Matriz en LaTeX; `rows` va por filas. */
+const matrixTex = (rows: readonly (readonly (number | string)[])[]): string =>
+  `\\begin{pmatrix}${rows
+    .map((r) => r.map((x) => (typeof x === 'number' ? tex(x) : x)).join(' & '))
+    .join(' \\\\ ')}\\end{pmatrix}`;
+
+/** Matriz 2×2 guardada por filas en cuatro números: `[a, b, c, d]`. */
+const matrix2Tex = (m: readonly number[]): string =>
+  matrixTex([
+    [m[0]!, m[1]!],
+    [m[2]!, m[3]!],
+  ]);
+
+const columnTex = (v: readonly (number | string)[]): string => matrixTex(v.map((x) => [x]));
+
+const draw2x2 = (rng: () => number): number[] => Array.from({ length: 4 }, () => int(rng, -3, 3));
+
+const isIdentity2 = (m: readonly number[]): boolean =>
+  m[0] === 1 && m[1] === 0 && m[2] === 0 && m[3] === 1;
+
+/** Producto de dos matrices 2×2 guardadas por filas. */
+const mul2 = (a: readonly number[], b: readonly number[]): number[] => [
+  a[0]! * b[0]! + a[1]! * b[2]!,
+  a[0]! * b[1]! + a[1]! * b[3]!,
+  a[2]! * b[0]! + a[3]! * b[2]!,
+  a[2]! * b[1]! + a[3]! * b[3]!,
+];
+
+/** `A v` con los pasos escritos, fila por fila: una columna de expresiones `a·x + b·y`. */
+const mulSteps = (m: readonly number[], v: readonly number[]): string =>
+  columnTex([
+    `${paren(m[0]!)}\\cdot ${paren(v[0]!)}+${paren(m[1]!)}\\cdot ${paren(v[1]!)}`,
+    `${paren(m[2]!)}\\cdot ${paren(v[0]!)}+${paren(m[3]!)}\\cdot ${paren(v[1]!)}`,
+  ]);
+
+const matrizVector: Generator = {
+  id: 'matriz-vector',
+  bounds: { min: -18, max: 18 },
+  make(id, _params, rng) {
+    const drawV = (): number[] => [int(rng, -3, 3), int(rng, -3, 3)];
+    let a = draw2x2(rng);
+    while (isZero(a) || isIdentity2(a)) a = draw2x2(rng);
+    let v = drawV();
+    while (isZero(v)) v = drawV();
+    const [x, y] = v as [number, number];
+    const answer = [a[0]! * x + a[1]! * y, a[2]! * x + a[3]! * y].map(clean);
+    const scaled = columnTex([
+      `${tex(x * a[0]!)}+${paren(y * a[1]!)}`,
+      `${tex(x * a[2]!)}+${paren(y * a[3]!)}`,
+    ]);
+    return vectorQ(
+      id,
+      {
+        prompt: `Sean $A=${matrix2Tex(a)}$ y $\\vec{v}=${columnTex(v)}$. Calcula $A\\vec{v}$.`,
+        hints: [
+          '$A\\vec{v}$ es $v_1$ veces la primera columna de $A$ más $v_2$ veces la segunda.',
+          'También puedes calcular cada componente como una fila de $A$ por $\\vec{v}$: multiplica las componentes que ocupan el mismo lugar y suma.',
+        ],
+        explain:
+          'Hay dos formas de ver el mismo producto. Por columnas: $A\\vec{v}=v_1\\,\\vec{c}_1+v_2\\,\\vec{c}_2$, una combinación lineal de las columnas de $A$, que son las imágenes de $\\hat{\\imath}$ y $\\hat{\\jmath}$. Por filas: cada componente es el producto escalar de una fila de $A$ con $\\vec{v}$.',
+        solution: `Por columnas: $A\\vec{v}=${paren(x)}${columnTex([a[0]!, a[2]!])}+${paren(y)}${columnTex([a[1]!, a[3]!])}=${scaled}=${columnTex(answer)}$. Por filas: $A\\vec{v}=${mulSteps(a, v)}=${columnTex(answer)}$.`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+const productoMatrices: Generator = {
+  id: 'producto-matrices',
+  bounds: { min: -18, max: 18 },
+  make(id, _params, rng) {
+    let a = draw2x2(rng);
+    let b = draw2x2(rng);
+    // Se sortea de nuevo hasta que el orden importe: AB ≠ BA (ninguna es nula).
+    const orderMatters = (): boolean => {
+      const ba = mul2(b, a);
+      return !isZero(a) && !isZero(b) && mul2(a, b).some((x, i) => x !== ba[i]);
+    };
+    while (!orderMatters()) {
+      a = draw2x2(rng);
+      b = draw2x2(rng);
+    }
+    const ab = mul2(a, b).map(clean);
+    const ba = mul2(b, a).map(clean);
+    const col = (m: readonly number[], k: number): number[] => [m[k]!, m[2 + k]!];
+    const colSteps = [0, 1]
+      .map((k) => `$A${columnTex(col(b, k))}=${mulSteps(a, col(b, k))}=${columnTex(col(ab, k))}$`)
+      .join(' y ');
+    return vectorQ(
+      id,
+      {
+        prompt: `Sean $A=${matrix2Tex(a)}$ y $B=${matrix2Tex(b)}$. Calcula $AB$, la transformación que resulta de componer las dos: primero se aplica $B$ y después $A$. Escribe la matriz $AB$.`,
+        hints: [
+          'En $AB$ se aplica primero $B$ y después $A$: la primera columna de $AB$ es $A$ por la primera columna de $B$.',
+          'Calcula $A$ por cada una de las dos columnas de $B$, como una matriz por un vector; las dos columnas que salen son las columnas de $AB$.',
+        ],
+        explain:
+          'La columna $k$ de $AB$ es $A$ por la columna $k$ de $B$: dice adónde va cada vector de la base cuando se aplica $B$ y después $A$. El orden importa: en general $AB\\neq BA$.',
+        solution: `Columna 1 y columna 2 de $AB$: ${colSteps}. Así, $AB=${matrix2Tex(ab)}$. Con el orden contrario saldría otra matriz: $BA=${matrix2Tex(ba)}\\neq AB$.`,
+      },
+      ab,
+      0,
+      [2, 2],
+    );
+  },
+};
+
+/** Tamaños realistas de aprendizaje automático, mezclados con tamaños pequeños. */
+const SHAPE_SIZES = [3, 10, 64, 128, 256, 384, 512, 768] as const;
+
+const formaProducto: Generator = {
+  id: 'forma-producto',
+  bounds: { min: 2, max: 800 },
+  make(id, _params, rng) {
+    const size = (): number =>
+      int(rng, 0, 1) === 0 ? SHAPE_SIZES[int(rng, 0, SHAPE_SIZES.length - 1)]! : int(rng, 2, 20);
+    let m = size();
+    let n = size();
+    let p = size();
+    // La dimensión interior distinta de las otras dos: así la respuesta no se adivina por simetría.
+    while (n === m || n === p) {
+      m = size();
+      n = size();
+      p = size();
+    }
+    const layer = int(rng, 0, 1) === 1;
+    const prompt = layer
+      ? `Una capa lineal tiene una matriz de pesos $W$ de forma $(${m}, ${n})$ y recibe un lote de $${p}$ embeddings de dimensión $${n}$, colocados como columnas de una matriz $X$. ¿Qué forma tiene $WX$? Escribe filas y columnas.`
+      : `Se multiplica una matriz $A$ de forma $(${m}, ${n})$ por una matriz $B$ de forma $(${n}, ${p})$. ¿Qué forma tiene $AB$? Escribe filas y columnas.`;
+    return vectorQ(
+      id,
+      {
+        prompt,
+        hints: [
+          'El producto solo se puede hacer si las columnas de la primera matriz coinciden con las filas de la segunda.',
+          'La dimensión que se repite se «consume» en el producto: el resultado tiene las filas de la primera matriz y las columnas de la segunda.',
+        ],
+        explain: layer
+          ? 'Cada columna de $X$ es un embedding y $W$ lo lleva a otro espacio. El producto $WX$ tiene tantas filas como $W$ y tantas columnas como embeddings hay en el lote.'
+          : 'En $(m, n)\\cdot(n, p)$ la dimensión $n$ desaparece: es la longitud de cada producto escalar de una fila por una columna. El resultado tiene la forma $(m, p)$.',
+        solution: `$(${m}, ${n})\\cdot(${n}, ${p})$: coinciden las $${n}$ del medio y desaparecen. La forma del resultado es $(${m}, ${p})$.`,
+      },
+      [m, p],
+      0,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -598,6 +757,9 @@ export const generators: Record<string, Generator> = {
   'mejor-puntuacion': mejorPuntuacion,
   analogia,
   umbral,
+  'matriz-vector': matrizVector,
+  'producto-matrices': productoMatrices,
+  'forma-producto': formaProducto,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */

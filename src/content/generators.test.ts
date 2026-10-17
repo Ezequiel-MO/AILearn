@@ -40,6 +40,9 @@ const IDS = [
   'mejor-puntuacion',
   'analogia',
   'umbral',
+  'matriz-vector',
+  'producto-matrices',
+  'forma-producto',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -104,6 +107,9 @@ describe('bounds declarados', () => {
       'mejor-puntuacion': [-27, 27], // contract: Órbita 3, componentes de -3 a 3 en ℝ³: |d·q| ≤ 3·9
       analogia: [-15, 15], // contract: Órbita 3, componentes de -5 a 5: |a − b + c| ≤ 3·5
       umbral: [0, 5], // contract: Órbita 3, cinco documentos
+      'matriz-vector': [-18, 18], // contract: Órbita 0 de Matrices, entradas de -3 a 3: |a·x + b·y| ≤ 2·9
+      'producto-matrices': [-18, 18], // contract: Órbita 0 de Matrices, entradas de -3 a 3: |Σ a·e| ≤ 2·9
+      'forma-producto': [2, 800], // contract: Órbita 0 de Matrices, tamaños de 2 a 800 (el mayor, 768)
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -471,6 +477,115 @@ describe('oráculo de la Órbita 3: mejor-puntuacion, analogia y umbral (200 sem
     }
     // contract: Órbita 3: «no lo sé» (ninguno pasa) también sale en el examen alguna vez
     expect(zeros).toBeGreaterThan(0);
+  });
+});
+
+/** Matriz 2×2 nula o identidad (por filas). */
+const isZeroOrIdentity = (a: readonly number[]): boolean =>
+  a.every((x) => x === 0) || (a[0] === 1 && a[1] === 0 && a[2] === 0 && a[3] === 1);
+
+/** Los números de cada `pmatrix` del enunciado, en orden y por filas. */
+const matricesOf = (prompt: string): number[][] =>
+  [...prompt.matchAll(/\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}/g)].map((m) =>
+    (m[1]!.match(/-?\d+/g) ?? []).map(Number),
+  );
+
+describe('oráculo de la Órbita 0 de Matrices: matriz-vector, producto-matrices y forma-producto (200 semillas)', () => {
+  it('matriz-vector: A v con A 2×2 y v de ℝ², enteros de -3 a 3, tolerancia 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('matriz-vector'), seed);
+      if (q.type !== 'vector') throw new Error('matriz-vector debe dar un vector');
+      const [a, v] = matricesOf(q.prompt) as [number[], number[]];
+      // contract: Órbita 0 de Matrices: A es 2×2 y v tiene dos componentes
+      expect([a.length, v.length], `semilla ${seed}`).toEqual([4, 2]);
+      // contract: brief: entradas enteras de -3 a 3, A ni nula ni la identidad, v no nulo
+      expect([...a, ...v].every((x) => Math.abs(x) <= 3)).toBe(true);
+      expect(isZeroOrIdentity(a), `semilla ${seed}`).toBe(false);
+      expect(
+        v.some((x) => x !== 0),
+        `semilla ${seed}`,
+      ).toBe(true);
+      // contract: definición Av = v1·col1 + v2·col2 (también fila por vector)
+      expect(q.answer, `semilla ${seed}`).toEqual([
+        a[0]! * v[0]! + a[1]! * v[1]! + 0,
+        a[2]! * v[0]! + a[3]! * v[1]! + 0,
+      ]);
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      expect(q.shape).toBeUndefined(); // contract: brief, la respuesta es un vector de 2, sin forma de matriz
+      // contract: brief: la pista y la solución dan las dos lecturas, por columnas y por filas
+      expect(q.hints[0]).toContain('veces la primera columna');
+      expect(q.solution).toContain('Por columnas');
+      expect(q.solution).toContain('Por filas');
+    }
+  });
+
+  it('producto-matrices: AB con shape [2, 2] por filas, A y B no nulas y AB ≠ BA', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('producto-matrices'), seed);
+      if (q.type !== 'vector') throw new Error('producto-matrices debe dar un vector');
+      const [a, b] = matricesOf(q.prompt) as [number[], number[]];
+      // contract: Órbita 0 de Matrices: A y B son 2×2
+      expect([a.length, b.length], `semilla ${seed}`).toEqual([4, 4]);
+      expect([...a, ...b].every((x) => Math.abs(x) <= 3)).toBe(true); // contract: brief, entradas de -3 a 3
+      const prod = (m: number[], n: number[]): number[] => [
+        m[0]! * n[0]! + m[1]! * n[2]!,
+        m[0]! * n[1]! + m[1]! * n[3]!,
+        m[2]! * n[0]! + m[3]! * n[2]!,
+        m[2]! * n[1]! + m[3]! * n[3]!,
+      ];
+      // contract: columna k de AB = A por la columna k de B (producto fila por columna), por filas
+      expect(q.answer, `semilla ${seed}`).toEqual(prod(a, b).map((x) => x + 0));
+      // contract: brief: se exige AB ≠ BA para que el orden importe
+      expect(prod(a, b), `semilla ${seed}`).not.toEqual(prod(b, a));
+      expect(q.shape).toEqual([2, 2]); // contract: brief, shape [2, 2], respuesta por filas
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      // contract: brief: el enunciado fija el orden de la composición
+      expect(q.prompt).toContain('primero se aplica $B$ y después $A$');
+    }
+  });
+
+  it('forma-producto: (m, n)(n, p) da [m, p], con n distinto de m y de p, sin shape', () => {
+    const variants = new Set<string>();
+    const sizes = new Set<number>();
+    for (const seed of SEEDS) {
+      const q = resolve(call('forma-producto'), seed);
+      if (q.type !== 'vector') throw new Error('forma-producto debe dar un vector');
+      const plain =
+        /matriz \$A\$ de forma \$\((\d+), (\d+)\)\$ por .* \$B\$ de forma \$\((\d+), (\d+)\)\$/.exec(
+          q.prompt,
+        );
+      const layer =
+        /pesos \$W\$ de forma \$\((\d+), (\d+)\)\$ y recibe un lote de \$(\d+)\$ embeddings de dimensión \$(\d+)\$/.exec(
+          q.prompt,
+        );
+      const m = Number((plain ?? layer)?.[1]);
+      const n = Number((plain ?? layer)?.[2]);
+      // contract: producto de (m×n) por (n×p): en la variante de capa, p es el tamaño del lote y n la dimensión
+      const p = plain ? Number(plain[4]) : Number(layer?.[3]);
+      const inner = plain ? Number(plain[3]) : Number(layer?.[4]);
+      variants.add(plain ? 'plain' : 'layer');
+      expect(plain ?? layer, `semilla ${seed}: ${q.prompt}`).not.toBeNull();
+      expect(inner, `semilla ${seed}`).toBe(n); // contract: las dimensiones interiores coinciden, si no el producto no existe
+      expect(q.answer, `semilla ${seed}`).toEqual([m, p]); // contract: (m, n)·(n, p) tiene forma (m, p)
+      expect(n !== m && n !== p, `semilla ${seed}`).toBe(true); // contract: brief, la respuesta no se adivina por simetría
+      expect(q.shape).toBeUndefined(); // contract: brief, vector de longitud 2 sin forma de matriz
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      expect(q.prompt).toContain('Escribe filas y columnas'); // contract: brief
+      sizes.add(m).add(p);
+    }
+    expect([...variants].sort()).toEqual(['layer', 'plain']); // contract: brief, hay variante de capa lineal
+    expect(sizes.has(768)).toBe(true); // contract: brief, tamaños realistas de ML como 768
+    expect(sizes.has(2) || sizes.has(3)).toBe(true); // contract: brief, mezclados con tamaños pequeños
+  });
+
+  it('los textos de las tres no llevan punto decimal', () => {
+    for (const id of ['matriz-vector', 'producto-matrices', 'forma-producto']) {
+      for (const seed of SEEDS.slice(0, 50)) {
+        const q = resolve(call(id), seed);
+        // contract: restricción global, coma decimal (aquí todo son enteros)
+        expect(`${q.prompt}${q.solution}${q.explain}${q.hints.join('')}`).not.toMatch(/\d\.\d/);
+      }
+    }
   });
 });
 
