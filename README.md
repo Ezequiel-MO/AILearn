@@ -2,7 +2,9 @@
 
 Juegos para aprender ingeniería de IA con la matemática como columna vertebral. Cada juego enseña un bloque de matemáticas y lo aplica a un tema de IA. Los niveles tienen un despegue de entrada, órbitas con proyectos de tres ejercicios que se validan con nota 80 y un examen por órbita, con XP y nivel decimal.
 
-Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
+Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings», y el despegue y la órbita 0 («La máquina»: Columnas, Matriz por vector, Componer) del juego 2, «Matrices y transformaciones». Todo el texto visible está en castellano.
+
+Siguientes órbitas previstas del juego 2: «El área» (determinante, inversa, rango), «Direcciones propias» (autovectores) y «Atención y LoRA» (SVD, rango bajo, atención como producto de matrices).
 
 El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`.
 
@@ -46,6 +48,7 @@ src/
   ui/         Marco, plano de vectores, editor, tipos de pregunta, pantallas y textos fijos.
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
     vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, embeddings de juguete.
+    matrices/ Juego 2: Despegue, proyectos de la Órbita 0, su banco de examen y `plane.ts` (plano con î y ĵ como columnas).
 tests/
   content/    Pruebas que recorren el registro de juegos y ayudantes compartidos.
   deps/       Imports declarados en package.json y versión única de KaTeX.
@@ -84,6 +87,12 @@ Tipos de pregunta y qué ejercicio los admite:
 | `revision`  | hojas     | `format` (`codigo` o `texto`), `lines`, `faultyLine` (índice, o `null` si está bien)         |
 
 Los decimales se muestran con coma y se aceptan con coma o con punto. En el texto, los pares con algún decimal se separan con «; ».
+
+Matrices en el plano y en las respuestas:
+
+- `plane.transform: { columns: [idI, idJ], apply? }` convierte el plano en una transformación lineal: la matriz $A$ tiene por columnas las posiciones actuales de esos dos vectores (si son móviles, cambia al arrastrarlos). Se dibuja la rejilla transformada, la imagen del cuadrado unidad (en rojo si $\det A < 0$) y, para cada id de `apply`, la flecha discontinua $A\vec v$. Las lecturas `matrix` y `det` exigen `transform`.
+- Métricas de meta: `det` (dos ids) y `img_x`, `img_y` (tres ids: `[i, j, v]`, las componentes de $A\vec v$).
+- Un `vector` con `shape: [filas, columnas]` pide una matriz: `answer` va fila a fila.
 
 ### Añadir una pregunta
 

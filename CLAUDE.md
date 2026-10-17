@@ -1,6 +1,6 @@
 # AIlearn: guía para el agente
 
-Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria y el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
+Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria, el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3), y el juego 2, «Matrices y transformaciones», con Despegue y Órbita 0 («La máquina»; órbitas previstas en `README.md`). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
 
 ## Cómo comprobar
 
@@ -42,7 +42,8 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `merge.ts` (fusión de dos documentos del mismo jugador), `types.ts`. Un documento ilegible se aparta, no se borra.
 - `src/cloud/`: `firebase.ts` (configuración, sesión con Google, sincronización en Firestore; se carga en diferido) y `store.ts` (envuelve el almacén local: lo local manda y la nube se fusiona al entrar, al cargar y tras cada guardado). Progreso en `users/{uid}/progress/{juego}` como texto JSON; los borradores no suben. Reglas en `firestore.rules`, publicadas a mano en la consola.
 - `src/ui/`: `Layout`, `Account` (inicio de sesión en la cabecera), `VectorPlane`, `CodeEditor`, `ExerciseRunner`, `Md`; `questions/` (un componente por tipo); `screens/` (pantallas y puertas); `dev/` (rutas `#/dev/*`, solo en desarrollo); `strings.ts`.
-- `src/games/index.ts`: registro de juegos; `src/games/vectores/`: contenido del juego 1.
+- `src/games/index.ts`: registro de juegos; `src/games/vectores/`: contenido del juego 1; `src/games/matrices/`: contenido del juego 2 (`plane.ts`: plano de transformación con î y ĵ).
+- Los ids de generador son globales a todos los juegos (`src/content/generators.ts`): uno nuevo no puede repetir id y entra en `IDS` y en la tabla de límites de `generators.test.ts`.
 - `src/App.tsx`: rutas con `HashRouter`: `/`, `/j/:game`, `/j/:game/p/:project`, `/j/:game/estadisticas` (estas cuatro, de la tarea 14), `/j/:game/despegue`, `/j/:game/p/:project/ex/:n`, `/j/:game/p/:project/hoja/:n`, `/j/:game/examen/:c`.
 - `tests/content/`: pruebas que recorren `games` y ayudantes (`python-helpers.ts`, `prose-helpers.ts`). `tests/deps/`, `tests/lint/`, `tests/e2e/`.
 - `docs/superpowers/`: specs y planes.
