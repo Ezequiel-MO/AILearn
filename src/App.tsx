@@ -24,6 +24,9 @@ const ExamScreen = lazy(() =>
 
 // El inicio, el mapa, el panel y las estadísticas leen el contenido del juego: también van en trozos aparte.
 const Hub = lazy(() => import('./ui/screens/Hub').then((m) => ({ default: m.Hub })));
+const RoadmapScreen = lazy(() =>
+  import('./ui/screens/RoadmapScreen').then((m) => ({ default: m.RoadmapScreen })),
+);
 const GameMap = lazy(() => import('./ui/screens/GameMap').then((m) => ({ default: m.GameMap })));
 const ProjectPanel = lazy(() =>
   import('./ui/screens/ProjectPanel').then((m) => ({ default: m.ProjectPanel })),
@@ -41,6 +44,14 @@ export function AppRoutes() {
         element={
           <Suspense fallback={null}>
             <Hub />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/ruta"
+        element={
+          <Suspense fallback={null}>
+            <RoadmapScreen />
           </Suspense>
         }
       />

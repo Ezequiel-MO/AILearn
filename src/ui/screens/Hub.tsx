@@ -7,7 +7,7 @@ import { GamesContext } from '../GamesContext';
 import { Layout } from '../Layout';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
-import { mapPath, useFocusTitle } from './lookup';
+import { mapPath, roadmapPath, useFocusTitle } from './lookup';
 
 /** `/`: una tarjeta por juego registrado, con su nivel y su XP. */
 export function Hub() {
@@ -21,6 +21,11 @@ export function Hub() {
           <HubCard key={game.id} game={game} />
         ))}
       </ul>
+      <p className="hub__roadmap">
+        <Link className="play__action" to={roadmapPath}>
+          {t.hub.roadmapLink}
+        </Link>
+      </p>
     </Layout>
   );
 }

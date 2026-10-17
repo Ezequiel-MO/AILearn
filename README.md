@@ -4,7 +4,7 @@ Juegos para aprender ingeniería de IA con la matemática como columna vertebral
 
 Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings». Todo el texto visible está en castellano.
 
-El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`.
+El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. La ruta completa (los nueve juegos previstos, con sus órbitas y proyectos) vive en `src/games/roadmap.ts` y se ve en `#/ruta`, enlazada desde el inicio; lo que no está construido sale como «Próximamente».
 
 ## Arrancarlo
 
@@ -104,7 +104,7 @@ Los ejercicios y las hojas tienen un número fijo de preguntas: añadir una más
 
 ### Añadir un juego
 
-1. Crea `src/games/<id>/` con un `index.ts` que exporte un `Game`.
+1. Crea `src/games/<id>/` con un `index.ts` que exporte un `Game`, con el mismo `id`, título y nombres de órbitas y proyectos que su entrada en `src/games/roadmap.ts` (lo comprueba `tests/content/roadmap.test.ts`). Al registrarlo, deja de salir como «Próximamente».
 2. Regístralo en la lista `games` de `src/games/index.ts`. Con eso quedan cubiertos por las pruebas genéricas de `tests/content` sin escribir nada por juego.
 3. El id del juego da la clave de progreso (`ailearn:v1:local:<id>`) y la ruta (`#/j/<id>`).
 4. Si hace falta una métrica nueva del plano, se añade en `src/engine/vectors.ts` y en `METRICS` de `src/content/schema.ts`; las reglas del motor no se tocan.
