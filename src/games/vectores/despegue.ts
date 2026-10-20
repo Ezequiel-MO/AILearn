@@ -135,6 +135,10 @@ export const launch: Question[] = [
       'Un array se crea pasando a `np.array` una lista con sus componentes. Si pasas los números sueltos, sin los corchetes, Python da un error.',
     solution:
       'Se escribe `v = np.array([3, 2])`. Los corchetes forman la lista `[3, 2]` y `np.array` la convierte en un array con dos componentes.',
+    requirements: [
+      '`v` existe y es un array de NumPy con 2 componentes, las dos números.',
+      '`v` es el vector que pide el enunciado: la componente $x$ primero y la $y$ después.',
+    ],
     starter: `import numpy as np
 
 # Crea v con las componentes 3 y 2
@@ -160,6 +164,10 @@ check(isinstance(v, np.ndarray) and v.shape == (2,) and np.issubdtype(v.dtype, n
       'Para sacar una componente de un array se escribe su posición entre corchetes, y en Python las posiciones empiezan en 0, no en 1.',
     solution:
       'La primera componente es `v[0]`, que vale $5$, y la segunda es `v[1]`, que vale $-3$. Basta con `x = v[0]` e `y = v[1]`.',
+    requirements: [
+      '`x` e `y` existen y cada una es un único número: ni una lista ni un array de varias componentes.',
+      '`x` es la primera componente de `v` e `y` es la segunda.',
+    ],
     starter: `import numpy as np
 
 v = np.array([5, -3])
@@ -190,6 +198,11 @@ check(_es_numero(y) and np.isclose(y, -3), "y tiene que valer -3, la segunda com
       'La instrucción `plt.quiver(0, 0, v[0], v[1], ...)` dibuja una flecha que sale de $(0, 0)$ y avanza `v[0]` en horizontal y `v[1]` en vertical. Por eso, las componentes de `v` son las del punto al que debe llegar.',
     solution:
       'La flecha debe acabar en $(3, 2)$, así que `v = np.array([3, 2])`. Con eso, `plt.quiver` dibuja una flecha que avanza 3 en horizontal y 2 en vertical desde el origen.',
+    requirements: [
+      '`v` existe y es un array de NumPy con 2 componentes, las dos números.',
+      '`v` es el vector que hace llegar la flecha al punto que pide el enunciado.',
+      'Hay una figura con una flecha dibujada con `plt.quiver` que avanza en horizontal y en vertical lo que dicen las componentes de `v`.',
+    ],
     starter: `import numpy as np
 import matplotlib.pyplot as plt
 

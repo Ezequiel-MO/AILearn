@@ -64,6 +64,11 @@ export const examen3Analogias: BankEntry[] = [
         'El coseno entre dos diferencias necesita las normas de las dos: sin ellas es solo un producto escalar. Comprueba también el sentido: si inviertes una de las dos, el signo cambia.',
       solution:
         'Con `u = vector(b) - vector(a)` y `v = vector(d) - vector(c)`, la función devuelve `u @ v / (np.linalg.norm(u) * np.linalg.norm(v))`. Para «hombre» → «mujer» y «rey» → «reina», `consist_rey` vale $0{,}68$. Una relación idéntica a sí misma da $1$, y si se invierte una de las dos diferencias el signo cambia: $-0{,}68$.',
+      requirements: [
+        '`consistencia` es una función que recibe cuatro palabras `a`, `b`, `c` y `d` y devuelve un número decimal: el coseno entre las dos relaciones, ambas de origen a destino.',
+        'Se prueba con otras parejas de palabras además de la del enunciado, también con una relación comparada consigo misma y con una relación puesta al revés, y no puede dar un error.',
+        '`consist_rey` guarda lo que devuelve `consistencia` para «hombre», «mujer», «rey» y «reina»; se acepta una diferencia de hasta una centésima.',
+      ],
       starter: `import numpy as np
 from embeddings import vector
 

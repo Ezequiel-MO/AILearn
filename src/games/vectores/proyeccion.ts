@@ -248,6 +248,11 @@ export const proyeccion: Project = {
             'Una función entrega su resultado con `return`; si no lo hay, devuelve `None`. La fórmula tiene un producto escalar arriba y una norma abajo: comprueba de qué vector es cada cosa y que no falta ninguna.',
           solution:
             'Se escribe `return (a @ b) / np.linalg.norm(b)`: el producto escalar `a @ b` dividido entre la norma de `b`. Con $\\vec{a}=(2, 6)$ y $\\vec{b}=(3, 4)$ da $\\dfrac{30}{5}=6$. Es un número, positivo o negativo, no una flecha.',
+          requirements: [
+            '`proyeccion_escalar` es una función que recibe dos vectores `a` y `b` y devuelve un único número, no una flecha.',
+            'La función se prueba con varios pares de vectores de 2 componentes, sin que dé error con ninguno.',
+            'El número conserva el signo: sale negativo cuando la sombra de `a` cae en sentido contrario a `b`.',
+          ],
           starter: `import numpy as np
 
 def proyeccion_escalar(a, b):
@@ -296,6 +301,11 @@ def proyeccion_escalar(a, b):
             'La proyección vectorial es un vector de la recta de `b`, así que es un número multiplicado por `b`. Ese vector ya trae su propia longitud: piensa qué debe tener el número para que no se cuente dos veces.',
           solution:
             'Se escribe `return (a @ b) / (b @ b) * b`: el cociente $\\dfrac{\\vec{a}\\cdot\\vec{b}}{\\vec{b}\\cdot\\vec{b}}$ multiplica a `b`. Con $\\vec{a}=(2, 6)$ y $\\vec{b}=(3, 4)$ el cociente es $\\dfrac{30}{25}=1{,}2$ y la sombra es $1{,}2\\,(3, 4)=(3{,}6;\\ 4{,}8)$. Dividir entre la norma en vez de entre `b @ b` daría una flecha 5 veces demasiado larga.',
+          requirements: [
+            '`proyeccion` es una función que recibe dos vectores `a` y `b` y devuelve la flecha de la sombra: un array de NumPy con 2 componentes, números, no un número suelto.',
+            'La función se prueba con varios pares de vectores de 2 componentes, sin que dé error con ninguno.',
+            'La flecha tiene la dirección de `b`, con su sentido o el contrario según el signo del producto escalar, y no cambia si se alarga `b` sin cambiar su dirección.',
+          ],
           starter: `import numpy as np
 
 def proyeccion(a, b):
@@ -347,6 +357,12 @@ def proyeccion(a, b):
             'La función tiene que dar dos partes que sumen `a`: una sobre la recta de `b` y otra que forme un ángulo recto con ella. Si `perpendicular` no sale ortogonal a `b`, revisa cómo has calculado la paralela. Para `ortogonal`, decide qué valor del producto escalar significa «ortogonal» y compáralo.',
           solution:
             'La paralela es `(a @ b) / (b @ b) * b` y la perpendicular, `a - paralela`; se devuelven con `return paralela, perpendicular`. Con $\\vec{a}=(3, 4)$ y $\\vec{b}=(2, 1)$ el cociente es $\\dfrac{10}{5}=2$, la parte paralela es $(4, 2)$ y la perpendicular es $(3-4,\\ 4-2)=(-1, 2)$, con producto escalar $-1\\cdot 2+2\\cdot 1=0$. Por eso `ortogonal = np.isclose(perpendicular @ b, 0)` vale `True`.',
+          requirements: [
+            '`descomponer` es una función que recibe dos vectores `a` y `b` y devuelve una pareja de arrays de NumPy con 2 componentes cada uno: primero la parte paralela y después la perpendicular.',
+            'Con varios pares de vectores de 2 componentes, la parte paralela está sobre la recta de `b`, la perpendicular es ortogonal a `b` y las dos suman `a`.',
+            '`ortogonal` es `True` o `False`, no el producto escalar en sí.',
+            '`ortogonal` coincide con lo que dicen los números de `perpendicular` y `b`: es `True` si su producto escalar vale 0, salvo un redondeo.',
+          ],
           starter: `import numpy as np
 
 def descomponer(a, b):
@@ -413,6 +429,11 @@ ortogonal = np.isclose(perpendicular @ b, 0)
             'Cada fila pierde su propia proyección sobre `d`, y cada proyección es un número multiplicado por `d`. Piensa qué matriz de partes que se quitan tienes que restar a `E` y comprueba que el resultado tiene la misma forma que `E` y que cada fila queda ortogonal a `d`.',
           solution:
             'Se escribe `return E - np.outer((E @ d) / (d @ d), d)`: `E @ d` da el producto escalar de cada fila con `d`; dividido entre `d @ d`, dice cuántas veces `d` hay que restar a cada fila; `np.outer` coloca esos múltiplos de `d` fila a fila, y la resta quita la proyección. Con $\\vec{d}=(-1, -1)$, «coche» y «bici» quedan ambos en $(-2{,}5;\\ 2{,}5)$, «camión» en $(-1{,}5;\\ 1{,}5)$ y «tractor» en $(0, 0)$. Tras quitar esa dirección, «coche» y «bici» ya no se distinguen.',
+          requirements: [
+            '`limpios` existe y es una matriz de NumPy con 4 filas y 2 columnas, la misma forma que `E`, con números.',
+            'Cada fila de `limpios` es la fila de `E` sin su componente en `d`, no la parte que se quita: todas quedan ortogonales a `d`.',
+            '`quitar_componente` se prueba también con otras matrices de `E`, con otro número de componentes y con direcciones `d` que no miden 1; devuelve siempre una matriz del mismo tamaño que la recibida, sin dar error.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila:
@@ -493,6 +514,12 @@ limpios = quitar_componente(E, d)
             'Cuando las tres flechas estén dibujadas, `p` debe quedar sobre la recta de `b`, y el segmento que une la punta de `p` con la de `a` debe formar un ángulo recto con `b`. Cada flecha necesita su propia llamada a `plt.quiver`, con las componentes del vector que dibuja.',
           solution:
             'Primero se calcula `p = (a @ b) / (b @ b) * b`: el cociente es $\\dfrac{16}{8}=2$, así que $\\vec{p}=2\\,(2, 2)=(4, 4)$. Después, una llamada por flecha: `plt.quiver(0, 0, a[0], a[1], angles="xy", scale_units="xy", scale=1)`, otra igual con `b[0], b[1]` y otra con `p[0], p[1]`. La flecha de `p` queda sobre la de `b`, más larga, y el segmento de su punta a la de `a` es perpendicular a `b`: $\\vec{a}-\\vec{p}=(2, -2)$ y $(2, -2)\\cdot(2, 2)=0$.',
+          requirements: [
+            '`p` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`p` es la proyección vectorial de `a` sobre `b`: la flecha de la sombra, no un solo número.',
+            'Hay una figura con tres flechas dibujadas con `plt.quiver`, una con las componentes de `a`, otra con las de `b` y otra con las de `p`.',
+            'Todas las flechas están a escala, con las opciones `angles`, `scale_units` y `scale` que da el enunciado, sin cambiar sus valores.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 

@@ -236,6 +236,10 @@ export const componentes: Project = {
             'Un vector de NumPy se crea con `np.array` y una lista de componentes. Los números van dentro de unos corchetes, no sueltos.',
           solution:
             'Se escribe `v = np.array([4, 3])`: la lista `[4, 3]` tiene las dos componentes y `np.array` la convierte en un array.',
+          requirements: [
+            '`v` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`v` es el vector que pide el enunciado: la componente $x$ primero y la $y$ después.',
+          ],
           starter: `import numpy as np
 
 # Crea v con las componentes 4 y 3
@@ -261,6 +265,10 @@ check(isinstance(v, np.ndarray) and v.shape == (2,) and np.issubdtype(v.dtype, n
             'Las dimensiones de un vector son sus componentes. En NumPy, `v.ndim` no sirve: un vector siempre tiene un solo eje, sea cual sea su longitud.',
           solution:
             'El vector tiene 5 componentes, así que `dim` debe valer $5$. Se puede obtener con `dim = v.size`, con `dim = len(v)` o con `dim = v.shape[0]`.',
+          requirements: [
+            '`dim` existe y es un único número: ni una tupla ni una lista.',
+            '`dim` es el número de componentes de `v`.',
+          ],
           starter: `import numpy as np
 
 v = np.array([1, 0, -2, 5, 3])
@@ -286,6 +294,10 @@ check(_ent and dim == 5, "\`dim\` tiene que valer 5, las componentes de \`v\`. S
             'Con arrays, la resta se hace componente a componente en una sola operación. Importa el orden: llegada menos salida; al revés sale el vector opuesto.',
           solution:
             'El vector de $A$ a $B$ es $B-A=(3, 4)$. En Python, `d = B - A`: NumPy resta cada componente con su pareja.',
+          requirements: [
+            '`d` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`d` es el vector que va de $A$ a $B$: lo que hay que avanzar en $x$ y en $y$ para llegar de uno a otro.',
+          ],
           starter: `import numpy as np
 
 A = np.array([1, 2])
@@ -316,6 +328,10 @@ check(_num and np.allclose(d, [3, 4]), "\`d\` tiene que valer (3, 4): lo que hay
             'Cada valor de `emb` es un array, así que se le aplica todo lo que ya sabes: se consulta por clave y después se indexa por posición, empezando en 0.',
           solution:
             'Primero `v = emb["perro"]`, que es el array $(4, 3)$. Su primera componente es `v[0]`, es decir, `primera = v[0]`, que vale $4$.',
+          requirements: [
+            '`v` existe y es un array de NumPy con 2 componentes, las dos números: el embedding de «perro».',
+            '`primera` existe y es un único número, no un array: la primera componente del embedding de «perro».',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 dimensiones
@@ -363,6 +379,10 @@ primera = v[0]
             'Un mapa de embeddings es solo una nube de puntos: cada palabra es un punto cuyas coordenadas son las componentes de su vector. A `plt.scatter` hay que darle la $x$ y la $y$ de cada palabra, y las dos están dentro de su array, cada una en su posición.',
           solution:
             'Se dibuja un punto por palabra, con su primera componente como $x$ y la segunda como $y$: `plt.scatter(emb["gato"][0], emb["gato"][1])`, y lo mismo con «perro», «coche» y «bici», en cuatro llamadas. Más corto, con un bucle: `for p in emb.values(): plt.scatter(p[0], p[1])`, que repite la llamada con cada embedding de `emb`.',
+          requirements: [
+            'Hay una figura con exactamente 4 puntos dibujados con `plt.scatter`: uno por palabra de `emb`, ni más ni menos.',
+            'Cada punto tiene como $x$ la primera componente de un embedding de `emb` y como $y$ la segunda.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 

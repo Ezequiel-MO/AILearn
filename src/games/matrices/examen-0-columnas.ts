@@ -66,6 +66,11 @@ export const examen0Columnas: BankEntry[] = [
         'Cada columna es el efecto de una característica de entrada sobre las dos salidas, y el número de columnas es el de características. Cuida el orden de la tupla de la forma: primero las filas.',
       solution:
         '`ultima = A[:, -1]` vale $(1, 3)$. Hay 3 columnas, así que `entradas = A.shape[1]` vale $3$. El valor 2, que es `A.shape[0]`, es el número de salidas.',
+      requirements: [
+        '`ultima` existe y es un array de NumPy con 2 componentes, las dos números, una por salida.',
+        '`ultima` es la última columna de `A`, de arriba abajo, y no su última fila.',
+        '`entradas` existe y es un número entero: cuántas características de entrada tiene la capa.',
+      ],
       starter: `import numpy as np
 
 # Pesos: 2 salidas (filas) y 3 características de entrada (columnas)

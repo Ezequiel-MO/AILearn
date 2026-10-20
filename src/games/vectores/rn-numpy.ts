@@ -261,6 +261,10 @@ export const rnNumpy: Project = {
             'Cada documento tiene que quedar en su propia fila: la matriz tiene tantas filas como documentos y tantas columnas como componentes. Si el `.shape` no coincide con esas cuentas, mira cómo se han agrupado los vectores.',
           solution:
             '`E = np.array([a, b, c])` apila los tres vectores como filas: tres documentos y cuatro componentes, así que `forma = E.shape` vale `(3, 4)`. Si en vez de apilarlos los pegaras uno tras otro con `np.concatenate`, saldría un solo vector de 12 números, de `.shape` `(12,)`.',
+          requirements: [
+            '`E` existe y es una matriz de NumPy de números, con una fila por documento y los documentos en el orden `a`, `b`, `c`.',
+            '`forma` es una tupla (o una lista) de dos números enteros: las filas y las columnas de `E`.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 4 componentes), uno por documento
@@ -304,6 +308,11 @@ forma = E.shape
             'La puntuación de un documento es el producto escalar de su fila con `q`, y `E @ q` junta las de todas las filas. Que el valor mayor sea el que gana no significa que `mejor` sea ese valor: es la posición en la que está.',
           solution:
             '`punt = E @ q` da `[5, 10, 8, 4]`: por ejemplo, la segunda fila vale $0\\cdot1+3\\cdot3+1\\cdot1=10$. La mayor puntuación es $10$, que está en la posición `1`, así que `mejor = np.argmax(punt)` vale `1`. Es el documento que devolvería la búsqueda.',
+          requirements: [
+            '`punt` existe y es un array de NumPy de números, una sola lista con una puntuación por documento, no una matriz.',
+            'Cada puntuación es el producto escalar de la fila del documento con `q`, en el orden de las filas de `E`.',
+            '`mejor` es un número entero: la posición del documento que más puntúa, contando desde 0, no su puntuación.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 componentes), uno por documento
@@ -347,6 +356,10 @@ mejor = np.argmax(punt)
             'Las normas de las cuatro filas van juntas en un array. Si te sale un solo número, o tres, el `axis` no recorre lo que debe. Después, `larga` es una posición, no una norma.',
           solution:
             'Las normas son $\\sqrt{9+16+0}=5$, $\\sqrt{1+4+4}=3$, $\\sqrt{4+9+36}=7$ y $\\sqrt{0+0+1}=1$. Con `normas = np.linalg.norm(E, axis=1)` salen `[5, 3, 7, 1]`, y la mayor está en la posición `2`, así que `larga = np.argmax(normas)` vale `2`. Con `axis=0` saldrían tres números, uno por columna.',
+          requirements: [
+            '`normas` existe y es un array de NumPy de números con una norma por documento, en el orden de las filas de `E`: ni un solo número para toda la matriz ni una norma por columna.',
+            '`larga` es un número entero: la posición del documento de mayor norma, contando desde 0, no la norma.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 componentes), uno por documento
@@ -388,6 +401,11 @@ larga = np.argmax(normas)
             'La distancia de un documento es la norma de la fila correspondiente de la diferencia, no la de toda la matriz. Para elegir, recuerda que una distancia pequeña significa un documento cercano.',
           solution:
             'Con `E - q` las filas son $(0, 4, 0)$, $(2, 2, 1)$, $(0, 1, 0)$ y $(2, 3, 6)$, y sus normas son $4$, $3$, $1$ y $7$: `dist = np.linalg.norm(E - q, axis=1)` da `[4, 3, 1, 7]`. El menor es $1$, que está en la posición `2`, así que `cercana = np.argmin(dist)` vale `2`.',
+          requirements: [
+            '`dist` existe y es un array de NumPy de números con una distancia por documento, en el orden de las filas de `E`: ni un solo número para toda la matriz ni una distancia por columna.',
+            'Cada distancia es la longitud del vector que va de `q` al documento, sin elevarla al cuadrado.',
+            '`cercana` es un número entero: la posición del documento más cercano a `q`, contando desde 0, no su distancia.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 componentes), uno por documento
@@ -433,6 +451,11 @@ cercana = np.argmin(dist)
             'Las posiciones de los documentos que más puntúan salen de ordenar las puntuaciones, pero `np.argsort` entrega posiciones y de menor a mayor. Mira en tu gráfica cuáles son las barras más altas y comprueba que `top2` las nombra en ese orden.',
           solution:
             'Las puntuaciones son `[4, 7, 8, 5, 3]`; por ejemplo, la del tercer documento es $2\\cdot2+2\\cdot1+2\\cdot1=8$. `np.argsort(punt)` da `[4, 0, 3, 1, 2]`; con `[::-1]` queda `[2, 1, 3, 0, 4]` y con `[:2]`, `top2 = [2, 1]`: el tercer documento, con $8$, y el segundo, con $7$. Son las dos barras más altas de la gráfica. Sin `[::-1]`, `[:2]` habría tomado los dos que menos puntúan.',
+          requirements: [
+            '`punt` existe y es un array de NumPy de números con una puntuación por documento, en el orden de las filas de `E`.',
+            'Hay una figura con una barra por documento dibujada con `plt.bar`, en el orden de las filas de `E`, y la altura de cada barra es la puntuación de su documento.',
+            '`top2` es un array de NumPy o una lista con 2 posiciones, números enteros, no puntuaciones: primero la del documento que más puntúa y después la del siguiente.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 

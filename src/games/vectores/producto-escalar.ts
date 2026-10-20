@@ -248,6 +248,10 @@ export const productoEscalar: Project = {
             'El producto escalar multiplica las componentes que se corresponden y suma los productos, así que da un solo número. Si te sale un array con varios números, falta el paso de sumar.',
           solution:
             'Se escribe `p = np.dot(a, b)` (o `p = a @ b`): NumPy calcula $1\\cdot4+2\\cdot(-5)+3\\cdot6=4-10+18=12$.',
+          requirements: [
+            '`p` existe y es un único número: ni un array ni una lista.',
+            '`p` es el producto escalar de `a` y `b`.',
+          ],
           starter: `import numpy as np
 
 a = np.array([1, 2, 3])
@@ -280,6 +284,11 @@ check((not _escalar) or np.isclose(p, 12), "\`p\` tiene que valer 12: multiplica
             'La función debe valer para cualquier número de componentes, así que no puede nombrar `a[0]`, `a[1]`... una a una. Piensa en recorrer las parejas de componentes y en cuándo se devuelve el resultado: cuando ya has recorrido todas.',
           solution:
             'Una solución es empezar con `total = 0`, recorrer las parejas con `for x, y in zip(a, b)`, sumar `x * y` a `total` en cada vuelta y, **después** del bucle, hacer `return total`. Con $(1, 2, 3)$ y $(4, -5, 6)$ da $12$, y con cualquier otro número de componentes funciona igual.',
+          requirements: [
+            '`producto` existe y es una función que recibe dos arrays y devuelve con `return` un único número.',
+            'Devuelve el producto escalar de los dos arrays no solo con los vectores del enunciado: también con otros de distinto número de componentes, desde una sola componente hasta varias.',
+            'La función no da error con ninguno de esos vectores.',
+          ],
           starter: `import numpy as np
 
 def producto(a, b):
@@ -332,6 +341,11 @@ def producto(a, b):
             'La condición de ortogonalidad es que el producto escalar valga 0, pero con decimales no basta con preguntar si es exactamente 0. Piensa con qué se compara y cómo se compara.',
           solution:
             'Se calcula el producto escalar y se compara con 0 con tolerancia: `np.isclose(a @ b, 0)` da `True` si el producto escalar es 0 o está a una distancia minúscula de 0 (por defecto, menos de $10^{-8}$) y `False` si no. Con `==`, vectores como $(0{,}1;\\ 0{,}2;\\ 0{,}3)$ y $(0{,}7;\\ -0{,}2;\\ -0{,}1)$ darían `False` por los errores de redondeo, aunque su producto escalar valga 0. Una tolerancia grande tampoco sirve, porque aceptaría vectores que no son ortogonales.',
+          requirements: [
+            '`ortogonales` existe y es una función que recibe dos arrays y devuelve con `return` `True` o `False`, no un número.',
+            'Con vectores ortogonales devuelve `True`, también cuando tienen decimales y el cálculo arrastra un error de redondeo.',
+            'Con vectores que no son ortogonales devuelve `False`, incluso si su producto escalar es muy pequeño: la tolerancia que admite es minúscula.',
+          ],
           starter: `import numpy as np
 
 def ortogonales(a, b):
@@ -380,6 +394,10 @@ def ortogonales(a, b):
             'El producto escalar de `v` consigo mismo da el cuadrado de la norma, no la norma. Piensa qué operación hace falta para pasar de una a otra.',
           solution:
             'Se escribe `cuadrado = v @ v`, que da $9+16+144=169$, y `norma = np.sqrt(cuadrado)`, que da $13$. Así la norma sale del producto escalar: $\\lVert\\vec{v}\\rVert=\\sqrt{\\vec{v}\\cdot\\vec{v}}$.',
+          requirements: [
+            '`cuadrado` existe y es un único número: el producto escalar de `v` consigo mismo.',
+            '`norma` existe y es un único número: la norma de `v`, no su cuadrado.',
+          ],
           starter: `import numpy as np
 
 v = np.array([3, -4, 12])
@@ -420,6 +438,10 @@ norma = np.sqrt(cuadrado)
             'Cada documento necesita una puntuación, un solo número: comprueba cuántos números tiene `puntuaciones`. Y `mejor` pregunta dónde está el máximo, no cuánto vale.',
           solution:
             'Se escribe `puntuaciones = M @ q`, que da $(-1, 4, 24, 6, -3)$, y `mejor = np.argmax(puntuaciones)`, que da `2`: el documento de la posición 2 es «perro», el que mejor responde a la consulta «gato». Tiene sentido: los dos comparten zona del mapa (seres vivos y domésticos).',
+          requirements: [
+            '`puntuaciones` existe y es un array de NumPy con 5 números, uno por documento: cada uno es el producto escalar de la consulta con ese documento.',
+            '`mejor` existe y es un único número: la posición, contando desde 0, del documento que puntúa más; no su puntuación.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila:

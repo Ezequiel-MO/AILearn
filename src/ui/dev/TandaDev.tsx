@@ -69,6 +69,7 @@ const revision: RevisionQ = {
 const codigo: CodigoQ = {
   id: 'dev-codigo',
   type: 'codigo',
+  requirements: ['`x` vale 3.'],
   prompt: 'Asigna `x = 3` e imprímelo.',
   hints: ['Una asignación basta.'],
   explain: 'Falta asignar `x`.',

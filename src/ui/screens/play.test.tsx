@@ -89,6 +89,7 @@ const num = (id: string): NumeroQ => ({
 const code = (id: string): CodigoQ => ({
   id,
   type: 'codigo',
+  requirements: ['r'],
   prompt: `Escribe código ${id}`,
   hints: [],
   explain: 'Falta asignar.',

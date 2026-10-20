@@ -65,6 +65,11 @@ export const examen3FallosRag: BankEntry[] = [
         'Los documentos que no cumplen el filtro no pueden ganar, pero el resultado tiene que seguir siendo una posición de los 16. Mira qué sale si buscas el máximo solo entre los válidos, que son pocos.',
       solution:
         '`validos = capacidad >= 250` solo es verdadero en el documento `4`, la sala Mediterráneo. `cosenos = D @ Q[2]` da `0,64` para d12 y `0,61` para d5, que serían los ganadores sin filtro, y `0,54` para d4. Con `np.where(validos, cosenos, -1)` los no válidos quedan en `-1` y `elegido = np.argmax(np.where(validos, cosenos, -1))` vale `4`: la sala de 300 personas.',
+      requirements: [
+        '`validos` es un array de NumPy de verdadero y falso con 16 valores, uno por documento, verdadero solo en los de 250 personas o más.',
+        '`cosenos` es un array de NumPy con 16 números decimales, uno por documento: el coseno de la consulta 2 con cada uno.',
+        '`elegido` es un número entero: la posición, entre los 16 documentos, del documento válido de mayor coseno.',
+      ],
       starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 

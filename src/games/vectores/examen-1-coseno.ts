@@ -64,6 +64,10 @@ export const examen1Coseno: BankEntry[] = [
         'El coseno divide el producto escalar entre el producto de las dos normas. Si falta alguna de las normas, el resultado se sale del intervalo de $-1$ a $1$.',
       solution:
         'El producto escalar es $1\\cdot4+2\\cdot2=8$, y las normas son $\\sqrt5$ y $\\sqrt{20}$, cuyo producto vale $10$. Así que `sim` vale $\\dfrac{8}{10}=0{,}8$.',
+      requirements: [
+        '`sim` existe y es un único número, no un array.',
+        '`sim` es la similitud coseno entre `q` y `d`, un valor entre -1 y 1.',
+      ],
       starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 dimensiones

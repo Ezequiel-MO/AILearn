@@ -63,6 +63,10 @@ export const examen1ProductoEscalar: BankEntry[] = [
         'El ángulo es agudo cuando el producto escalar es positivo. Piensa qué comparación da un `True` o un `False` en vez de un número.',
       solution:
         'El producto escalar es $2\\cdot1+(-1)\\cdot4+3\\cdot2=2-4+6=4$, positivo. Se escribe `agudo = a @ b > 0`, que da `True`: el ángulo es agudo.',
+      requirements: [
+        '`agudo` es `True` o `False`, el resultado de una comparación, no un número.',
+        '`agudo` dice si el ángulo entre `a` y `b` es agudo, según el signo de su producto escalar.',
+      ],
       starter: `import numpy as np
 
 a = np.array([2, -1, 3])

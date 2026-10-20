@@ -220,6 +220,11 @@ export const determinante: Project = {
             'NumPy calcula el determinante con una factorización en decimales, y el resultado suele arrastrar un error de redondeo en las últimas cifras. Por eso se compara con tolerancia y no con una igualdad exacta; y si se espera un entero, se redondea.',
           solution:
             '`d = np.linalg.det(A)` vale `-2.0000000000000004`, no `-2`. Con `d == -2` saldría `False`; con `np.isclose(d, -2)` sale `True`, y `round` devuelve `-2`. Es la misma razón por la que un determinante casi cero no se compara con `== 0`.',
+          requirements: [
+            '`d` es un número: el determinante de `A`, que se acepta con el pequeño error de redondeo de los decimales.',
+            '`bien` es un solo `True` o `False`, y dice que `d` coincide con el valor exacto del determinante aunque lleve un error de redondeo.',
+            '`d_int` es un número: el determinante redondeado al entero más cercano.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [3, 4]])
@@ -255,6 +260,12 @@ check((not _e) or d_int == -2, "\`d_int\` tiene que valer -2: el determinante re
             'El determinante de los dos lados es el área del paralelogramo, con signo, y el triángulo ocupa la mitad. El signo depende del orden en que se dan los vértices, y un área no puede ser negativa.',
           solution:
             'Se arma una matriz con `b - a` y `c - a`, y se devuelve el valor absoluto de su determinante dividido entre 2. Con los vértices del enunciado, `b - a` es $(1, 3)$ y `c - a` es $(4, 1)$: $\\det=1\\cdot 1-3\\cdot 4=-11$, y el área es $11/2=5{,}5$. Con otro orden de vértices cambia el signo del determinante, y el área no.',
+          requirements: [
+            '`area_triangulo` es una función que recibe tres arrays de NumPy con 2 números, los vértices, y devuelve un solo número: el área del triángulo.',
+            'Se llama a la función con otros vértices además de los del enunciado, entre ellos los mismos vértices en otro orden y tres vértices alineados; no debe dar error.',
+            'El área devuelta nunca es negativa, no depende del orden de los vértices y vale cero si los tres están alineados. Es la del triángulo, no la del paralelogramo.',
+            '`area` es un número: lo que devuelve `area_triangulo` con los vértices del enunciado.',
+          ],
           starter: `import numpy as np
 
 
@@ -310,6 +321,12 @@ area = area_triangulo(np.array([1, 1]), np.array([2, 4]), np.array([5, 2]))
             'El determinante de `b - a` y `c - a` es positivo si el giro de `b - a` hacia `c - a` es antihorario, y negativo si es horario. Vale $0$ cuando los tres puntos están alineados, y estar alineado no es estar a la izquierda.',
           solution:
             'Se calcula el determinante de la matriz con `b - a` y `c - a`, y se devuelve si es mayor que cero. Con los datos, `b - a` es $(4, 1)$ y `c - a` es $(1, 3)$: $\\det=4\\cdot 3-1\\cdot 1=11>0$, luego `c` queda a la izquierda. Con la condición «menor que cero» se contestaría al revés, y con «mayor o igual que cero» un punto sobre la recta contaría como izquierda. Este test es la base de muchos algoritmos de geometría, como el cierre convexo.',
+          requirements: [
+            '`a_la_izquierda` es una función que recibe tres arrays de NumPy con 2 números, `a`, `b` y `c`, y devuelve un solo `True` o `False`.',
+            'Se llama a la función con otros puntos además de los del enunciado: a la izquierda, a la derecha y sobre la recta, y también recorriendo la recta en sentido contrario; no debe dar error.',
+            'Un punto sobre la recta no cuenta como estar a la izquierda: la función da `True` solo si está estrictamente a la izquierda.',
+            '`lado` es un solo `True` o `False`: lo que devuelve la función con los puntos del enunciado.',
+          ],
           starter: `import numpy as np
 
 
@@ -365,6 +382,12 @@ lado = a_la_izquierda(np.array([0, 0]), np.array([4, 1]), np.array([1, 3]))
             'En matemáticas las dos rutas dan el mismo número, pero NumPy las calcula con redondeos distintos y pueden diferir en la última cifra. Por eso se compara con tolerancia. Si sale un número muy distinto, comprueba que multiplicas los determinantes en lugar de sumarlos.',
           solution:
             '`dAB = np.linalg.det(A @ B)` y `dA_dB = np.linalg.det(A) * np.linalg.det(B)` valen $10$ salvo el redondeo: $\\det A=5$, $\\det B=2$, y $AB=\\begin{pmatrix}4&-2\\\\7&-1\\end{pmatrix}$ tiene $\\det=-4+14=10$. Con `np.isclose` en `coincide` sale `True`; una igualdad exacta daría `False`, por `9.999999999999998` frente a `10.000000000000002`.',
+          requirements: [
+            '`dAB` es un número: el determinante del producto de `A` por `B`.',
+            '`dA_dB` es un número: el determinante de `A` multiplicado por el de `B`, calculados por separado.',
+            '`coincide` es un solo `True` o `False`, y dice que los dos valores son iguales salvo el error de redondeo.',
+            'Los dos números se aceptan con una diferencia diminuta de redondeo.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[2, 1], [1, 3]])
@@ -401,6 +424,11 @@ check((not _3) or bool(coincide), "\`coincide\` vale \`False\`: los dos valores 
             'Una matriz que casi aplasta el plano tiene un factor de área casi nulo, y eso depende del tamaño del determinante, no de su signo. Los ceros calculados con decimales no son exactos, así que «casi cero» se mide con un umbral y no con una igualdad. Un determinante negativo da la vuelta al plano, pero no lo aplasta.',
           solution:
             'Se compara `np.abs(np.linalg.det(pesos))` con `1e-6`. Los determinantes son $0{,}5$; del orden de $10^{-17}$ (las filas de la segunda matriz son proporcionales, pero el redondeo no deja un cero exacto); del orden de $10^{-9}$; $-1$; y $0{,}005$. Colapsan la segunda y la tercera, así que `cuantas` vale 2. Con una igualdad exacta con cero no se detecta ninguna; sin el valor absoluto, la cuarta, un espejo que no pierde nada, contaría como colapso; y con un umbral demasiado grande entraría la quinta. Una capa así no tiene inversa fiable: los dos proyectos siguientes de esta órbita, la inversa y el rango, explican por qué.',
+          requirements: [
+            '`colapsan` es un array de NumPy con 5 valores `True` o `False`, uno por cada matriz de `pesos` y en el mismo orden.',
+            '`colapsan` vale `True` solo en las matrices cuyo determinante, en valor absoluto, es menor que el umbral del enunciado: una matriz que solo da la vuelta al plano no cuenta.',
+            '`cuantas` es un número entero: cuántas matrices marca `colapsan`.',
+          ],
           starter: `import numpy as np
 
 pesos = np.array([

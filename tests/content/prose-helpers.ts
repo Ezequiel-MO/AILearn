@@ -32,6 +32,9 @@ export const proseTexts = (q: Question): ProseText[] => [
   { field: 'solution', text: q.solution },
   ...(q.type === 'opcion' ? q.options.map((text, i) => ({ field: `option[${i}]`, text })) : []),
   ...(q.type === 'revision' ? q.lines.map((text, i) => ({ field: `line[${i}]`, text })) : []),
+  ...(q.type === 'codigo'
+    ? q.requirements.map((text, i) => ({ field: `requirement[${i}]`, text }))
+    : []),
 ];
 
 const squash = (s: string): string => s.replace(/\s+/g, ' ').trim();
@@ -348,6 +351,29 @@ export const proseRules: ProseRule[] = [
       return axes
         .filter((n) => new RegExp(`axis\\s*=\\s*${n}|\\beje ${n}\\b`).test(q.explain))
         .map((n) => `${q.id} explain: nombra el eje ${n}, que es la decisión de la pregunta`);
+    },
+  },
+  {
+    name: 'lo que se comprueba (`requirements`) no da la respuesta: ni la última línea, ni la última asignación, ni el eje',
+    contract: 'petición de Oliver 2026-10-20: decir qué se comprueba sin resolver la pregunta',
+    problems: (q) => {
+      if (q.type !== 'codigo') return [];
+      const last = lastLine(q.reference);
+      const rhs = lastAssignmentRhs(q.reference);
+      const axes = [...q.reference.matchAll(/axis\s*=\s*(-?\d)/g)].map((m) => m[1]!);
+      return q.requirements.flatMap((text, i) => {
+        const flat = squash(text);
+        const leaks = [last, rhs]
+          .filter((s): s is string => s !== undefined && mentions(flat, squash(s)))
+          .map((s) => `${q.id} requirement[${i}]: contiene «${s}», que es la respuesta`);
+        const axisLeaks = axes
+          .filter((n) => new RegExp(`axis\\s*=\\s*${n}|\\beje ${n}\\b`).test(text))
+          .map(
+            (n) =>
+              `${q.id} requirement[${i}]: nombra el eje ${n}, que es la decisión de la pregunta`,
+          );
+        return [...leaks, ...axisLeaks];
+      });
     },
   },
   {

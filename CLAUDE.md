@@ -37,7 +37,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 ## Dónde vive cada cosa
 
 - `src/engine/`: reglas (`progression.ts`: nota, validación, puertas, examen, XP, nivel; `vectors.ts`: métricas del plano, también producto escalar, coseno, ángulo en grados y proyección; `rng.ts`; `session.ts`; `types.ts`).
-- `src/content/`: `schema.ts` (esquema Zod de pregunta, proyecto, órbita y juego), `validate.ts` (`gameProblems`), `generators.ts`, `grade.ts`, `exam.ts` (sorteo del examen).
+- `src/content/`: `schema.ts` (esquema Zod de pregunta, proyecto, órbita y juego), `validate.ts` (`gameProblems`), `generators.ts`, `grade.ts`, `exam.ts` (sorteo del examen), `python-guide.ts` (guía de Python para quien no programa: fichas y glosario que cada pregunta de código elige solos a partir de su código; en examen, solo del `starter`).
 - `src/python/`: `worker.ts`, `runner.ts` (la interfaz que usa la interfaz), `core.ts` y `harness.ts` (ejecución y comprobaciones), `node.ts` (Pyodide en Node para las pruebas), `config.ts`, `modules.ts` (módulos de Python del juego, escritos en Pyodide al arrancar) y `embeddings.py` (embeddings reales precalculados de la Órbita 3; lo genera `scripts/embeddings.py`, no se edita a mano).
 - `src/storage/`: `local.ts` (sobre `localStorage`), `migrate.ts`, `merge.ts` (fusión de dos documentos del mismo jugador), `types.ts`. Un documento ilegible se aparta, no se borra.
 - `src/cloud/`: `firebase.ts` (configuración, sesión con Google, sincronización en Firestore; se carga en diferido) y `store.ts` (envuelve el almacén local: lo local manda y la nube se fusiona al entrar, al cargar y tras cada guardado). Progreso en `users/{uid}/progress/{juego}` como texto JSON; los borradores no suben. Reglas en `firestore.rules`, publicadas a mano en la consola.
@@ -52,6 +52,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 
 - Añadir un juego: exportar un `Game` y registrarlo en `src/games/index.ts`. Las pruebas genéricas lo recorren solas (esquema, ids únicos, metas de `manipular` alcanzables y no resueltas al inicio, banco con 3 exámenes distintos, generadores y respuestas declaradas, opciones no repetidas; en las de código, `reference` pasa, `starter` no y hay `check(`).
 - Lo que NO se descubre solo y hay que cablear por proyecto: `defineProseTests(...)` (reglas de prosa) y las pruebas `*.python.test.ts` de soluciones alternativas y errores típicos de cada pregunta de código. Un proyecto nuevo sin ellas pasa `npm test` pero queda sin revisar.
+- Toda pregunta de código lleva `requirements`: lo que miran sus `checks`, dicho para quien no programa (se enseña antes de entregar, también en examen). Sin valor esperado, sin código de la solución y sin el eje que decide la pregunta (regla de prosa). Una función de NumPy nueva en una referencia necesita su entrada en el glosario de `python-guide.ts` (`tests/content/python-guide.test.ts`).
 - Un `manipular` admite como mucho 2 vectores móviles.
 - Toda expectativa de una prueba lleva un comentario `// contract:` con su procedencia. No cambies una expectativa existente para que pase: arregla el código o el contenido.
 - En el Pyodide del juego, `np.linalg.inv` de una matriz singular devuelve `nan` en vez de lanzar `LinAlgError`: una pregunta no puede depender de esa excepción.

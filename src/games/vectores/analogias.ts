@@ -281,6 +281,11 @@ export const analogias: Project = {
             'Normalizar es dividir un vector entre su norma. El coseno de `w` con «reina» no cambia si antes normalizas `w`, así que `w_unit` te da el mismo número que la fórmula completa. Comprueba que `cos_reina` no es el producto escalar sin normalizar.',
           solution:
             '`w = vector("rey") - vector("hombre") + vector("mujer")` mide aproximadamente $1{,}07$, no $1$. `w_unit = w / np.linalg.norm(w)` lo normaliza, y `cos_reina = w_unit @ vector("reina")` vale $0{,}82$: «reina» es la palabra más parecida al resultado. Sin normalizar, `w @ vector("reina")` daría $0{,}88$, que no es un coseno.',
+          requirements: [
+            '`w` existe y es un array de NumPy con 384 números decimales: el vector de «rey» menos el de «hombre» más el de «mujer»; se acepta una diferencia de hasta una diezmilésima en cada componente.',
+            '`w_unit` existe y es un array de NumPy con 384 números decimales: mide $1$ y apunta en la misma dirección que `w`.',
+            '`cos_reina` es un número decimal: el coseno entre `w` y el vector de «reina», no su producto escalar sin dividir; se acepta una diferencia de hasta una milésima.',
+          ],
           starter: `import numpy as np
 from embeddings import vector
 
@@ -334,6 +339,12 @@ cos_reina = w_unit @ vector("reina")
             'La función tiene que devolver una palabra, no una posición: `palabras[i]` convierte una posición en palabra. Comprueba con «Roma», «Italia» y «Alemania»: si te devuelve una de ellas, falta dejar las entradas fuera de la búsqueda.',
           solution:
             'Se calcula `w = vector(a) - vector(b) + vector(c)`, se puntúa con `P @ w` y se recorren las posiciones de `np.argsort(P @ w)[::-1]`, de la más parecida a la menos, hasta la primera palabra que no está en `(a, b, c)`. Para «rey», «hombre» y «mujer» devuelve «reina». Sin la exclusión, con «Roma», «Italia» y «Alemania» ganaría «Alemania», una entrada; con ella gana «Berlín». Y con «París», «Francia» y «España» devuelve «Lisboa»: la búsqueda funciona y el modelo falla.',
+          requirements: [
+            '`analogia` es una función que recibe tres palabras `a`, `b` y `c` y devuelve una sola palabra (un texto) de `palabras`, no su posición.',
+            'La palabra devuelta es la de mayor coseno con `vector(a) - vector(b) + vector(c)`, sin contar `a`, `b` ni `c`, aunque el resultado no sea el que esperaría una persona.',
+            'Se prueba con otras tres palabras de las 32 de `embeddings`, también con analogías que el modelo no resuelve bien, y no puede dar un error.',
+            '`sale_rey` guarda lo que devuelve `analogia` para «rey», «hombre» y «mujer».',
+          ],
           starter: `import numpy as np
 from embeddings import palabras, P, vector
 
@@ -401,6 +412,11 @@ sale_rey = analogia("rey", "hombre", "mujer")
             '`np.argmax` da una posición y `palabras` la convierte en palabra. Para el recuento necesitas, de cada caso, su ganadora y sus tres entradas a la vez: `zip` los junta.',
           solution:
             'Las ganadoras son «reina», «Alemania», «París», «España», «Madrid» y «gato». «Reina» y «París» no son entradas de su caso (París sí lo es del cuarto, pero gana en el tercero); «Alemania» y «España» son la `c` de su analogía, y «Madrid» y «gato», la `a`. Son 4 de 6: en la mayoría de los casos, sin excluir, la búsqueda devuelve una de las palabras que acabas de dar como entrada.',
+          requirements: [
+            '`ganadoras` es una lista de seis palabras (textos, no posiciones), una por cada caso de `lista_casos` y en su mismo orden.',
+            'Cada palabra es la de mayor coseno con el resultado de su caso, sin excluir nada, ni siquiera las entradas.',
+            '`n_entradas` es un número entero: en cuántos casos la ganadora es una de las tres entradas de ese mismo caso, no de otro.',
+          ],
           starter: `import numpy as np
 from embeddings import palabras, P, vector
 
@@ -472,6 +488,12 @@ n_entradas = sum(g in caso for g, caso in zip(ganadoras, lista_casos))
             'Los cuatro cosenos cuentan lo parecida que es cada relación a «hombre» → «mujer». Compara el valor de `cos_otra` con los de `cos_rel` para ver qué es un coseno alto y qué es uno bajo, y mira qué pareja de género destaca por lo bajo.',
           solution:
             'Con `d = vector("mujer") - vector("hombre")`, `cos_rel` vale $0{,}68$ para «rey» → «reina», $0{,}79$ para «padre» → «madre», $0{,}73$ para «príncipe» → «princesa» y solo $0{,}18$ para «hijo» → «hija»: `floja` es esa última. Eso ayuda a explicar que hijo − hombre + mujer no dé «hija». Para `otra` («Italia» → «Roma»), `cos_otra` vale $0{,}05$: una relación distinta casi no se parece: es casi perpendicular a la de género.',
+          requirements: [
+            '`cos_rel` es una lista o un array de NumPy con cuatro números, uno por cada pareja de `lista_pares` y en su orden: el coseno entre la relación de referencia y la de la pareja.',
+            'Las dos relaciones van en el mismo sentido, del origen al destino, y el resultado es un coseno, no un producto escalar; se acepta una diferencia de hasta dos centésimas.',
+            '`floja` es una de las parejas de `lista_pares` (origen y destino, no su posición): la de coseno más bajo.',
+            '`cos_otra` es un número decimal: el coseno entre la relación de referencia y la de `otra`; se acepta una diferencia de hasta dos centésimas.',
+          ],
           starter: `import numpy as np
 from embeddings import vector
 
@@ -549,6 +571,11 @@ cos_otra = coseno(ref, vector(otra[1]) - vector(otra[0]))
             'Los puestos cuentan desde 1, y las barras te dejan ver de un vistazo cuántos casos fallan y por cuánto. Comprueba que `n_aciertos` es un número de casos, no una proporción.',
           solution:
             'Los puestos son `[1, 1, 1, 5, 1, 1, 2, 1, 1, 1, 27]`: la esperada es la primera en 8 casos, así que `n_aciertos` vale 8 de 11. Los tres fallos son hijo − hombre + mujer («hija» es la quinta), París − Francia + España («Madrid» es la segunda) y coche − camión + tren («bici» es la 27.ª). Una analogía no es una propiedad del modelo que siempre se cumple: es una tasa de aciertos que se mide.',
+          requirements: [
+            '`lista_puestos` es una lista o un array de NumPy con 11 números, uno por cada caso de `lista_casos` y en su orden: el puesto de la palabra esperada en el ranking de ese caso, contando desde $1$.',
+            '`n_aciertos` es un número entero: cuántos casos tienen la palabra esperada en el puesto $1$; no es una proporción.',
+            'Hay una figura con 11 barras, una por caso y en el orden de `lista_casos`, cada una con la altura del puesto de su palabra esperada.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 from embeddings import palabras, P, vector

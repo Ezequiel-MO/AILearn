@@ -292,6 +292,11 @@ export const vecinos: Project = {
             'La puntuación de cada documento es el producto escalar de su fila con `q`, y la matriz entera los calcula todos de una vez. Después, `mejor` es una posición, no una puntuación: mira en qué lugar de `punt` está el valor mayor.',
           solution:
             '`punt = D @ q` da 16 cosenos, y `mejor = np.argmax(punt)` vale `1`: el documento «El hotel admite mascotas de menos de 10 kilos con un suplemento de 20 euros por noche.». Su coseno es solo $0{,}33$, bajo en valor absoluto, pero el siguiente (la prohibición de fumar en las habitaciones) llega a $0{,}17$: para un top-$k$ cuenta el orden, no que la puntuación sea alta.',
+          requirements: [
+            '`punt` existe y es un array de NumPy con 16 números, uno por documento, en el orden de las filas de `D`.',
+            '`punt` contiene la puntuación de cada documento con la consulta `q`; se acepta una diferencia de hasta una milésima.',
+            '`mejor` existe y es un número entero: la posición del documento que más puntúa, contando desde $0$.',
+          ],
           starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 
@@ -336,6 +341,11 @@ mejor = np.argmax(punt)
             'Las posiciones de los mejores salen de ordenar las puntuaciones, pero `np.argsort` empieza por los peores. Si tu función devuelve los `k` peores, o los mejores en orden contrario, la mitad del trabajo ya está: falta el extremo correcto.',
           solution:
             '`return np.argsort(-(M @ q))[:k]`: `M @ q` puntúa todas las filas, el signo menos invierte el orden y `[:k]` se queda con las `k` primeras posiciones. Por ejemplo, con los documentos reales y la consulta «¿Cuánto cuesta aparcar el coche?», `top_k(D, Q[6], 3)` da `[3, 9, 1]`. Con `np.argsort(M @ q)[::-1][:k]` sale lo mismo.',
+          requirements: [
+            '`top_k` es una función que recibe una matriz `M`, una consulta `q` y un número `k`, y devuelve una lista o un array de NumPy de posiciones enteras.',
+            'Devuelve exactamente `k` posiciones, de la fila que más puntúa a la que menos, y no las puntuaciones.',
+            'Se prueba con otras matrices y consultas, también con los embeddings reales de `embeddings`, y con otros valores de `k`, desde $1$ hasta el número total de filas: usa el `k` que recibe, sin dar nunca un error.',
+          ],
           starter: `import numpy as np
 
 
@@ -397,6 +407,12 @@ def top_k(M, q, k):
             'Las posiciones de los documentos más parecidos salen de ordenar las puntuaciones, y sus frases, de buscar cada posición en la lista de textos. Mira en tu gráfica cuáles son las barras más altas y comprueba que `mejores` las nombra en ese orden.',
           solution:
             '`punt = D @ q`; `plt.bar(range(16), punt)` dibuja las 16 barras; `mejores = top_k(D, q, 3)` vale `[3, 9, 1]` y `textos` recoge las frases de esas posiciones. Los tres más parecidos son el aparcamiento (coseno $0{,}59$), el aeropuerto ($0{,}30$) y las mascotas ($0{,}28$): el primero se separa claramente de los demás, y el tercero ya tiene poco que ver con la pregunta. En la gráfica hay una barra alta y el resto bajas.',
+          requirements: [
+            '`punt` existe y es un array de NumPy con 16 números, uno por documento, con la puntuación de cada uno con `q`; se acepta una diferencia de hasta una milésima.',
+            '`mejores` es una lista o un array de NumPy con 3 posiciones enteras, de 0 a 15: las de los 3 documentos más parecidos a la consulta, el que más puntúa primero.',
+            '`textos` es una lista de 3 frases (textos, no posiciones), tomadas de `documentos`, que corresponden a esos 3 documentos y en el mismo orden.',
+            'Hay una figura con 16 barras, una por documento y en el orden de las filas de `D`, cada una con la altura de la puntuación de su documento; se acepta una diferencia de hasta una milésima.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 from embeddings import D, Q, documentos, consultas
@@ -469,6 +485,10 @@ textos = [documentos[j] for j in mejores]
             'Una palabra es su propio vecino más cercano, así que sin quitarla aparece la primera. Y `top_k` entrega posiciones: cada una se convierte en palabra mirando en la lista `palabras`.',
           solution:
             "`top_k(P, q, 4)` empieza por «Lisboa», con coseno $1$; sin ella, `vecinos` vale `['Portugal', 'París', 'España']`, con cosenos $0{,}87$, $0{,}76$ y $0{,}73$. Se obtiene con `[palabras[j] for j in top_k(P, q, 4)[1:]]`. Con palabras sueltas, algunas aparecen como vecinas de casi todo: «hombre» está entre los 5 vecinos de 14 de las otras 31 palabras, aunque no tenga nada que ver con ellas. Por eso en un buscador real conviene embeber frases con contexto y no palabras aisladas.",
+          requirements: [
+            '`vecinos` existe y es una lista de exactamente 3 palabras (textos, no posiciones).',
+            'Son las 3 palabras de mayor coseno con «Lisboa», de la más parecida a la menos, y entre ellas no está la propia «Lisboa».',
+          ],
           starter: `import numpy as np
 from embeddings import P, palabras
 
@@ -525,6 +545,11 @@ vecinos = [palabras[j] for j in top_k(P, q, 4)[1:]]
             'Si el país se cuenta a sí mismo, ocupa el primer puesto y con `k = 1` ningún país encuentra su capital. Y el recall es una fracción de los países, no un recuento: comprueba que lo que devuelves está entre 0 y 1.',
           solution:
             'Con `recall(k)`, `r1 = recall(1)` vale $0{,}8$ y `r5 = recall(5)` vale $1$. La capital es el vecino más cercano de cuatro países, pero no de España: su vecino más cercano es «Lisboa» ($0{,}73$), y «Madrid» ($0{,}72$) es solo el quinto. El recall sube con $k$ porque se aceptan más resultados, a costa de devolver más ruido: con $k=1$ se pierde la capital de España, con $k=5$ se encuentran las cinco.',
+          requirements: [
+            '`recall` es una función que recibe un número `k` y devuelve un número: la fracción de los 5 países de `pares` cuya capital está entre las `k` palabras más parecidas al país, sin contar el propio país.',
+            'Se prueba con varios valores de `k`, no solo con $1$ y $5$, y no puede dar un error.',
+            '`r1` y `r5` son números: lo que devuelve `recall` con `k = 1` y con `k = 5`.',
+          ],
           starter: `import numpy as np
 from embeddings import P, palabras
 

@@ -64,6 +64,10 @@ export const examen1Determinante: BankEntry[] = [
         'El signo del determinante es la orientación: negativo, volteada; positivo, conservada; cero, aplastada, sin orientación que conservar ni que voltear. Cuenta solo los negativos.',
       solution:
         'Los siete determinantes son $-2$, $6$, $-1$, $0$, $2$, $1$ y $2$. Son negativos el primero y el tercero, luego `volteadas` vale 2. Con la condición «menor o igual que cero» entraría también la cuarta capa, que no voltea el plano sino que lo aplasta.',
+      requirements: [
+        '`volteadas` es un número entero: cuántas de las siete capas de `Ws` tienen el determinante negativo.',
+        'Las capas de determinante cero o positivo no cuentan.',
+      ],
       starter: `import numpy as np
 
 Ws = np.array([

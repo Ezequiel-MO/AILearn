@@ -75,6 +75,10 @@ export const examen0: BankEntry[] = [
         'El embedding de una palabra es un array: se consulta por clave y después se indexa por posición, contando desde 0. Fíjate en que eliges la palabra y la posición adecuadas.',
       solution:
         'Se escribe `y = emb["bici"][1]`: `emb["bici"]` es el array $(-2, 3)$ y la posición 1 es su segunda componente, así que `y` vale $3$.',
+      requirements: [
+        '`y` existe y es un único número: no un array con varias componentes.',
+        '`y` es la segunda componente del embedding de «bici».',
+      ],
       starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 dimensiones
@@ -142,6 +146,11 @@ y = emb["bici"][1]
         'La media de varios vectores se hace componente a componente, y cada columna de `E` guarda una componente de todos los animales. Piensa si necesitas una media por fila o una por columna, y cuántos números debe tener el resultado: eso decide el eje.',
       solution:
         'Se escribe `centroide = np.mean(E, axis=0)`. NumPy recorre las filas (eje 0) y da una media por columna: $\\left(\\dfrac{3+4+4+3}{4},\\ \\dfrac{4+3-2-3}{4}\\right)=(3{,}5;\\ 0{,}5)$. Con `axis=1` saldrían cuatro números, uno por animal, que no son el centroide.',
+      requirements: [
+        '`centroide` existe y es un array de NumPy con 2 componentes, las dos números: ni un solo número ni un número por animal.',
+        '`centroide` es el vector medio de las cuatro filas de `E`: su primera componente es la media de las $x$ y la segunda, la media de las $y$.',
+        'Como sale con decimales, se acepta una diferencia de hasta una centésima.',
+      ],
       starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila:

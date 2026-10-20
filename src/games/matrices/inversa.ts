@@ -240,6 +240,10 @@ export const inversa: Project = {
             'El producto de `A` por su inversa es la identidad solo salvo errores de redondeo, del orden de $10^{-16}$. Comparar con `==` exige igualdad exacta y puede dar `False` aunque la inversa sea correcta, y además da un array de valores, no uno solo.',
           solution:
             'Se escribe `Ainv = np.linalg.inv(A)`, que vale $\\begin{pmatrix}1&-3\\\\-1&4\\end{pmatrix}$, y `es_inversa = np.allclose(A @ Ainv, np.eye(2))`, que da `True`. Con `1 / A` se obtendría el inverso de cada entrada por separado, que no es la inversa de la matriz.',
+          requirements: [
+            '`Ainv` es un array de NumPy con 2 filas y 2 columnas de números: la matriz que, multiplicada por `A`, da la identidad. Se acepta con un pequeño error de redondeo.',
+            '`es_inversa` es un solo `True` o `False` (no una matriz de valores), y dice que el producto de `A` por `Ainv` es la identidad salvo el redondeo.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[4, 3], [1, 1]])
@@ -272,6 +276,10 @@ check((not _b) or (not _good) or bool(es_inversa), "\`es_inversa\` vale \`False\
             'La matriz va primero y el vector de la derecha después. La comprobación multiplica la matriz por la solución: si no sale `b`, la solución es otra.',
           solution:
             'Se escribe `x = np.linalg.solve(A, b)`, que vale $(1, 3)$, y `coincide = np.allclose(A @ x, b)`, que da `True`. Es lo mismo que $A^{-1}\\vec{b}$ sin construir la inversa entera. Con `np.linalg.inv(A) @ b` sale el mismo vector, pero con un paso más y algo más de error de redondeo.',
+          requirements: [
+            '`x` es un array de NumPy con 2 números: el vector que `A` lleva hasta `b`, es decir, el que cumple $A\\vec{x}=\\vec{b}$.',
+            '`coincide` es un solo `True` o `False` (no una matriz de valores), y dice que `A @ x` es igual a `b` salvo el redondeo.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[2, 1], [1, 3]])
@@ -304,6 +312,12 @@ check((not _b) or (not _good) or bool(coincide), "\`coincide\` vale \`False\`, p
             'Hay que mirar el determinante antes de invertir: pedir la inversa de una matriz singular no da una inversa, sino que lanza un error o devuelve `nan`. Comparar el determinante con `== 0` es frágil, porque el redondeo puede dejar un valor diminuto en lugar de cero.',
           solution:
             'Se calcula el determinante `d = np.linalg.det(M)`; si `np.isclose(d, 0)`, se devuelve `None`, y si no, `np.linalg.inv(M)`. Para `A` el determinante vale $1\\cdot 7-2\\cdot 3=1$ y `Ainv` es $\\begin{pmatrix}7&-2\\\\-3&1\\end{pmatrix}$. Para $\\begin{pmatrix}2&4\\\\1&2\\end{pmatrix}$, de columnas paralelas, la función devuelve `None`.',
+          requirements: [
+            '`inversa_segura` es una función que recibe una matriz de $2\\times 2$ y devuelve su inversa, un array de NumPy de 2 filas y 2 columnas, si la tiene.',
+            'Se llama a la función con otras matrices de $2\\times 2$, varias con inversa y alguna sin ella; la inversa devuelta, multiplicada por la matriz, da la identidad.',
+            'Con una matriz singular la función no lanza un error ni devuelve una matriz de `nan`: devuelve `None`.',
+            '`Ainv` es un array de NumPy con 2 filas y 2 columnas de números: lo que devuelve `inversa_segura` para `A`.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [3, 7]])
@@ -369,6 +383,10 @@ Ainv = inversa_segura(A)
             'La entrada pasó por `A` y después por `B`; para volver hay que deshacer `B` y luego `A`. La inversa de `B` actúa primero sobre `y`, así que va a la derecha del producto. Con las inversas en el otro orden sale un vector distinto.',
           solution:
             'Se escribe `x = np.linalg.inv(A) @ np.linalg.inv(B) @ y`: la inversa de `B` actúa primero sobre `y` y da $(4, 1)$, y la de `A` da $(2, 1)$. Equivale a $(BA)^{-1}\\vec{y}$, es decir, a `np.linalg.solve(B @ A, y)`. Con las inversas en el orden `inv(B) @ inv(A)` saldría $(-6, 11)$, que no es la entrada.',
+          requirements: [
+            '`x` es un array de NumPy con 2 números: la entrada que, pasada por la capa `A` y después por la capa `B`, da la salida `y`.',
+            'El orden importa: se deshace primero la última capa que actuó y después la primera. Deshacerlas en el mismo orden en que actuaron da otro vector.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [0, 1]])
@@ -399,6 +417,11 @@ check((not _x) or _rev or np.allclose(x, [2, 1]), "\`x\` tiene que valer (2, 1):
             'El sesgo se suma después de multiplicar, así que se resta antes de deshacer la multiplicación. Si se resuelve con `y` sin más, el sesgo se cuela en la entrada recuperada; y restarlo al final tampoco vale, porque la inversa de `W` ya lo ha multiplicado.',
           solution:
             'Se escribe `x = np.linalg.solve(W, y - b)`, que vale $(1, 2, 3)$, y `reconstruye = np.allclose(W @ x + b, y)`, que da `True`. Si $\\det W=0$, la capa aplasta el espacio: varias entradas dan la misma salida y no hay forma de recuperar la entrada (`solve` no podría darte una solución válida). Por eso la mayoría de las capas de una red real no se pueden deshacer: pasan de muchas componentes a pocas.',
+          requirements: [
+            '`x` es un array de NumPy con 3 números: la entrada que, pasada por la capa de `W` y `b`, produce la salida `y`.',
+            'El sesgo `b` se tiene en cuenta: al pasar `x` por la capa, con el sesgo sumado al final, tiene que salir `y`.',
+            '`reconstruye` es un solo `True` o `False` (no un array de valores), y dice que al volver a pasar `x` por la capa sale `y`, salvo el redondeo.',
+          ],
           starter: `import numpy as np
 
 W = np.array([[2, 0, 1], [1, 1, 0], [0, 1, 1]])

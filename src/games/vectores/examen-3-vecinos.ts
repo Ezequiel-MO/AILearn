@@ -64,6 +64,10 @@ export const examen3Vecinos: BankEntry[] = [
         'Sin quitarla, «Berlín» aparece la primera de su propia lista. Y las posiciones que da `top_k` no son palabras: cada una se busca en `palabras`.',
       solution:
         "`top_k(P, q, 3)` empieza por «Berlín»; quitada la primera, `vecinos2` vale `['Alemania', 'París']`, con cosenos $0{,}79$ y $0{,}67$. Se obtiene con `[palabras[j] for j in top_k(P, q, 3)[1:]]`.",
+      requirements: [
+        '`vecinos2` existe y es una lista de exactamente 2 palabras (textos, no posiciones).',
+        'Son las 2 palabras de mayor coseno con «Berlín», de la más parecida a la menos, y entre ellas no está la propia «Berlín».',
+      ],
       starter: `import numpy as np
 from embeddings import P, palabras
 

@@ -81,6 +81,35 @@ export const t = {
         : `${passed} de ${total} comprobaciones superadas`,
     figuresLabel: 'Figuras',
     figureAlt: (n: number) => `Figura ${n}`,
+    // Ayuda para quien no programa: qué se comprueba, una ejecución muda y qué hacer tras un fallo.
+    requirementsLabel: 'Qué se comprueba al entregar',
+    // Sin la palabra «comprobaciones»: en el examen no se habla de ellas (prueba de humo 8).
+    requirementsNote:
+      'Al entregar se mira lo que valen tus variables (o lo que devuelven tus funciones) cuando el código termina, no cómo lo has escrito, y tiene que cumplirse cada punto. «Ejecutar» no cuenta como intento: úsalo para probar.',
+    silentRun:
+      'Tu código se ha ejecutado sin errores, pero no ha escrito nada. Para ver lo que vale una variable, añade una línea `print(nombre)` y vuelve a pulsar «Ejecutar».',
+    checksAll: 'Para que la respuesta cuente como correcta tienen que pasar todas.',
+    nextLabel: 'Cómo seguir',
+    nextError:
+      'Tu código se ha parado en un error antes de terminar, así que las comprobaciones no han podido mirar nada. Arréglalo primero: el texto de «Error» dice qué ha pasado y en qué línea.',
+    nextChecks:
+      'Empieza por la primera comprobación fallida: dice qué hay en tu variable y qué se esperaba.',
+    nextPrint:
+      'Añade `print(...)` con tus variables y pulsa «Ejecutar» para ver qué valen. No cuenta como intento.',
+    nextRequirements:
+      'Vuelve a leer «Qué se comprueba al entregar»: tu respuesta tiene que cumplir cada punto.',
+    nextReview: 'Repasa en la guía de Python:',
+  },
+
+  // --- Guía de Python de la pregunta de código ---
+  guide: {
+    label: 'Python para esta pregunta',
+    count: (n: number) => (n === 1 ? '1 ficha sobre su código' : `${n} fichas sobre su código`),
+    here: 'Lo que usa esta pregunta',
+    basics: 'Lo básico',
+    rest: 'El resto de la guía',
+    glossaryHere: 'Funciones de esta pregunta',
+    glossaryAll: 'Todas las funciones',
   },
 
   // --- Ejecutor de tandas (tarea 12) ---

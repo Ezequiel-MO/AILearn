@@ -64,6 +64,10 @@ export const examen1Inversa: BankEntry[] = [
         '`invertible` tiene que valer `True` cuando la matriz sí tiene inversa, es decir, cuando el determinante no es casi cero. Una condición escrita al revés da el valor contrario al que se pide.',
       solution:
         'Se escribe `x = np.linalg.solve(A, b)`, que vale $(1, 2)$, y `invertible = not np.isclose(np.linalg.det(A), 0)`. El determinante es $3\\cdot 2-1\\cdot 1=5$, distinto de $0$, así que `invertible` es `True`. Con una matriz singular, `solve` no daría una solución válida: conviene mirar el determinante antes.',
+      requirements: [
+        '`x` es un array de NumPy con 2 números: el vector que `A` lleva hasta `b`, con un pequeño margen por el redondeo.',
+        '`invertible` es un solo `True` o `False` (no el valor del determinante), y dice si `A` tiene inversa.',
+      ],
       starter: `import numpy as np
 
 A = np.array([[3, 1], [1, 2]])

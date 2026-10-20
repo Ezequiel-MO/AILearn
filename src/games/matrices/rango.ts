@@ -255,6 +255,10 @@ export const rango: Project = {
             'La función cuenta las direcciones independientes de las columnas. El determinante de una matriz con columnas dependientes sale $0$, que no es su rango.',
           solution:
             'Se escribe `rA = np.linalg.matrix_rank(A)` y `rB = np.linalg.matrix_rank(B)`. `A` tiene la segunda columna igual al doble de la primera, y su rango es $1$. `B` tiene la tercera columna igual a la suma de las dos primeras, y su rango es $2$, no $3$.',
+          requirements: [
+            '`rA` es un número entero: el rango de `A`.',
+            '`rB` es un número entero: el rango de `B`.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [2, 4]])
@@ -290,6 +294,11 @@ check((not _b) or rB in (2, 3), "\`rB\` tiene que valer 2: hay dos columnas inde
             'Cada columna se prueba por separado: se quita, se calcula el rango y se compara con el de la matriz entera. Una columna que sobra porque se calcula con otras dos no es la única que se puede quitar: mira cuáles son las tres implicadas.',
           solution:
             'El rango de `X` es $3$. Las columnas 0, 1 y 2 están relacionadas, porque la 2 es la suma de la 0 y la 1, y quitar cualquiera de las tres deja el rango en $3$: `quitables` es `[0, 1, 2]`. La columna 3 apunta a una dirección que no tiene ninguna otra, y al quitarla el rango baja a $2$. Las tres se pueden quitar de una en una, pero no a la vez: la dependencia es de las tres juntas, no de una sola.',
+          requirements: [
+            '`r` es un número entero: el rango de `X`.',
+            '`quitables` es una lista de índices de columna de `X`, contados desde $0$, sin repetir y en cualquier orden.',
+            '`quitables` contiene todas las columnas que se pueden quitar sin que baje el rango, cada una probada por separado, y ninguna que lo haga bajar.',
+          ],
           starter: `import numpy as np
 
 X = np.array([[1, 0, 1, 1], [0, 1, 1, 0], [1, 1, 2, 0], [2, 1, 3, 1], [0, 0, 0, 1]])
@@ -328,6 +337,10 @@ check((_q is None) or _q in ([2], [0, 1, 2, 3], [0, 1, 2]), "\`quitables\` tiene
             'Todas las filas de un producto exterior son múltiplos de una misma fila, la de `v`. Por eso sale rango $1$ por muchas filas que tenga. Si `M` sale de 3 filas y 4 columnas, el orden de `u` y `v` está cambiado.',
           solution:
             'Se escribe `M = np.outer(u, v)` y `r = np.linalg.matrix_rank(M)`. `M` es de 4 filas y 3 columnas, y todas sus filas son múltiplos de `v`: $1$, $-1$, $2$ y $0$ veces $(3, 1, 2)$. El rango es $1$.',
+          requirements: [
+            '`M` es un array de NumPy de 4 filas y 3 columnas: la fila $i$ y la columna $j$ contienen el producto del número $i$ de `u` por el número $j$ de `v`.',
+            '`r` es un número entero: el rango de `M`.',
+          ],
           starter: `import numpy as np
 
 u = np.array([1, -1, 2, 0])
@@ -362,6 +375,11 @@ check((not _r) or r == 1, "\`r\` tiene que valer 1: todas las filas de \`M\` son
             'Todo lo que sale de `W` pasó antes por un espacio de 2 números, así que no puede ocupar más de 2 direcciones, aunque `W` sea de 5 por 5. Para decidir la inversa, compara el rango con el tamaño en vez de fiarte del determinante calculado en coma flotante.',
           solution:
             'Se escribe `W = B @ A`, `r = np.linalg.matrix_rank(W)` y `invertible = r == 5`. `W` es de $5\\times 5$ pero su rango es $2$: no se puede invertir y la capa comprime la información, porque 5 números entran y solo 2 direcciones sobreviven. Cualquier `B @ A` por un cuello de 2 números tiene rango $2$ como mucho.',
+          requirements: [
+            '`W` es un array de NumPy con 5 filas y 5 columnas: la matriz que equivale a aplicar a una entrada primero la capa `A` y después la `B`.',
+            '`r` es un número entero: el rango de `W`.',
+            '`invertible` es un solo `True` o `False`, coherente con el rango de `W`: una matriz cuadrada tiene inversa solo si su rango llega a su tamaño.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 0, 2, 1, 0], [0, 1, 1, 0, 1]])
@@ -401,6 +419,11 @@ check((not _b) or not bool(invertible), "\`invertible\` vale \`True\`, pero \`W\
             'Hay que sumar los números de las dos matrices pequeñas, no quedarse con una. Y la razón pedida es la de la matriz entera frente a las dos pequeñas, y no al revés.',
           solution:
             'La matriz entera tiene `d * d` $=589824$ números. `B` y `A` juntas tienen `d * r + r * d` $=98304$. La razón es $6$: guardar la matriz de rango bajo ocupa seis veces menos. Es la idea que permite ajustar modelos enormes con muy pocos números, y que se verá más adelante.',
+          requirements: [
+            '`n_densa` es un número: cuántos números tiene la matriz entera de $768\\times 768$.',
+            '`n_baja` es un número: cuántos números tienen `B` y `A` juntas.',
+            '`razon` es un número: el cociente de `n_densa` entre `n_baja`, y no al revés.',
+          ],
           starter: `import numpy as np
 
 d = 768  # tamaño de la entrada y de la salida

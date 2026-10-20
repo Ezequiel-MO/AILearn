@@ -83,7 +83,7 @@ Tipos de pregunta y qué ejercicio los admite:
 | `numero`    | calcular  | `answer`, `tol`, `plane` opcional                                                            |
 | `vector`    | calcular  | `answer` (lista), `tol`, `plane` opcional                                                    |
 | `opcion`    | calcular  | `options`, `correct` (índice), `plane` opcional                                              |
-| `codigo`    | programar | `starter`, `checks`, `reference`                                                             |
+| `codigo`    | programar | `starter`, `checks`, `reference`, `requirements`                                             |
 | `revision`  | hojas     | `format` (`codigo` o `texto`), `lines`, `faultyLine` (índice, o `null` si está bien)         |
 
 Los decimales se muestran con coma y se aceptan con coma o con punto. En el texto, los pares con algún decimal se separan con «; ».
@@ -98,7 +98,7 @@ Matrices en el plano y en las respuestas:
 
 1. Escríbela en el fichero de su proyecto (`src/games/vectores/<proyecto>.ts`) con el tipo que admita su ejercicio. Id con el patrón del proyecto: `<proyecto>.ex0N.<n>` para ejercicios y `<proyecto>.hoja.<n>` para hojas; `despegue.<n>` en el despegue.
 2. `manipular`: la meta debe ser alcanzable desde el plano y no cumplirse en la posición inicial. Como mucho 2 vectores móviles (la comprobación de alcanzabilidad recorre todas las colocaciones de la rejilla).
-3. `codigo`: `reference` es una solución que pasa `checks`; `starter` no los pasa. `checks` llama a `check(condición, "mensaje")`, y cada mensaje debe orientar al jugador. Se comprueban resultados (variables, funciones, figuras), nunca el texto del código.
+3. `codigo`: `reference` es una solución que pasa `checks`; `starter` no los pasa. `checks` llama a `check(condición, "mensaje")`, y cada mensaje debe orientar al jugador. Se comprueban resultados (variables, funciones, figuras), nunca el texto del código. `requirements` (de 1 a 6 frases) dice, antes de entregar, qué miran las comprobaciones: nombre, tipo y forma de cada variable, con qué otros datos se prueba una función, el orden, la tolerancia. Nunca da el valor esperado, el código de la solución ni el eje (`axis`) que decide la pregunta. La guía de Python que acompaña a cada pregunta (`src/content/python-guide.ts`) se elige sola a partir del código: una función de NumPy nueva necesita su entrada en el glosario.
 4. Un número variable en el examen se escribe como entrada `generada` del banco, que nombra un generador de `src/content/generators.ts` (con sus límites `bounds`) y no lleva la función.
 5. Lanza `npm test`.
 

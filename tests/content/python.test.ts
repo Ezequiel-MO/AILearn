@@ -22,6 +22,7 @@ beforeAll(async () => {
 const question = (over: Partial<CodigoQ>): CodigoQ => ({
   id: 'q',
   type: 'codigo',
+  requirements: ['r'],
   prompt: 'p',
   hints: [],
   explain: 'e',

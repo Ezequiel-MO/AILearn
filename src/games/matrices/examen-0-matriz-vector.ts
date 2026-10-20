@@ -64,6 +64,12 @@ export const examen0MatrizVector: BankEntry[] = [
         'El lote se calcula con la matriz traspuesta porque los vectores están en filas, y el sesgo se suma después de multiplicar. El sesgo puede cambiar qué clase gana: sin él, el primer texto saldría de otra clase.',
       solution:
         'Se escribe `Y = X @ W.T + b`, que vale `[[1, 2], [-4, 4], [1, 0]]`, y `clases = np.argmax(Y, axis=1)`, que da `[1, 1, 0]`. Sin el sesgo, `Y` valdría `[[3, 1], [-2, 3], [3, -1]]` y la primera clase saldría 0 en lugar de 1.',
+      requirements: [
+        '`Y` existe y es un array de NumPy con números, de 3 filas y 2 columnas: una fila por texto, con la puntuación de cada clase.',
+        '`Y` incluye el sesgo `b`: se le suma a la salida de cada texto.',
+        '`clases` existe y es una lista o un array de 3 números, uno por texto, no uno por clase.',
+        '`clases` dice, para cada texto, qué clase tiene la mayor puntuación en `Y`.',
+      ],
       starter: `import numpy as np
 
 W = np.array([[1, 0, -1, 2], [0, 1, 1, -1]])

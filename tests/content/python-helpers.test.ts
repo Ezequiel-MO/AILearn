@@ -5,6 +5,7 @@ import { hasCheckCall } from './python-helpers';
 const withChecks = (checks: string): CodigoQ => ({
   id: 'q',
   type: 'codigo',
+  requirements: ['r'],
   prompt: 'p',
   hints: [],
   explain: 'e',

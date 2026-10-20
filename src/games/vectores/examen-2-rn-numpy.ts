@@ -64,6 +64,10 @@ export const examen2RnNumpy: BankEntry[] = [
         'Una distancia pequeña significa un documento cercano, y `np.argsort` ordena de menor a mayor y entrega posiciones. Comprueba que `cerca2` empieza por el documento más cercano.',
       solution:
         'Las distancias a `q` son $2{,}83$, $3{,}16$, $1$, $3{,}61$ y $2$. Ordenadas de menor a mayor, las posiciones son `[2, 4, 0, 1, 3]`, así que `cerca2` vale `[2, 4]`: el documento 2, a distancia $1$, y el 4, a distancia $2$. Se calcula con `np.argsort(np.linalg.norm(E - q, axis=1))[:2]`.',
+      requirements: [
+        '`cerca2` es un array de NumPy o una lista con 2 posiciones, números enteros, no distancias.',
+        'Son las posiciones de los dos documentos a menor distancia euclídea de `q`, empezando por el más cercano; no se ordenan por producto escalar.',
+      ],
       starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 componentes, uno por documento

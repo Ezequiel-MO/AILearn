@@ -24,6 +24,7 @@ const SNIPPETS: { label: string; code: string }[] = [
 const question: CodigoQ = {
   id: 'dev-codigo',
   type: 'codigo',
+  requirements: ['`x` vale 3.'],
   prompt: 'Calcula `x = 3` e imprímelo. Las **comprobaciones** miran que `x` valga 3.',
   hints: [],
   explain: 'Explicación de prueba.',

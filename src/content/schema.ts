@@ -229,6 +229,11 @@ export const codigoQSchema = z.strictObject({
   starter: z.string(),
   checks: z.string(),
   reference: z.string(),
+  /**
+   * Lo que miran las comprobaciones, en palabras del jugador: se enseña antes de entregar. Describe qué
+   * se pide (nombre, tipo, forma, casos que se prueban), nunca el valor esperado ni el código.
+   */
+  requirements: z.array(md).min(1).max(6),
 });
 
 export const revisionQSchema = z

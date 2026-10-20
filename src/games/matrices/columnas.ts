@@ -231,6 +231,10 @@ export const columnas: Project = {
             'Si metes `img_i` e `img_j` en una lista de listas, cada una queda como una fila, y la matriz sale traspuesta: la imagen de $\\hat{\\imath}$ acaba en la primera fila y no en la primera columna. Hay que colocarlas como columnas.',
           solution:
             'Se puede escribir `A = np.column_stack([img_i, img_j])`, que apila los vectores como columnas, o `A = np.array([img_i, img_j]).T`, que los apila como filas y traspone. El resultado es $\\begin{pmatrix}2&-1\\\\1&3\\end{pmatrix}$.',
+          requirements: [
+            '`A` existe y es un array de NumPy con números, de 2 filas y 2 columnas.',
+            'La primera columna de `A` es `img_i`, la imagen de î, y la segunda es `img_j`, la de ĵ: las imágenes van en las columnas y no en las filas.',
+          ],
           starter: `import numpy as np
 
 # Adónde van î y ĵ
@@ -262,6 +266,11 @@ check((not _ok) or _bien or _filas, "\`A\` no tiene las columnas pedidas: la pri
             'La imagen de cada flecha es una columna, y para elegir una columna hay que dejar libre la primera posición, la de las filas, y poner el número de columna en la segunda. Con un solo número se elige una fila.',
           solution:
             '`col_i = A[:, 0]` vale $(3, 2)$ y `col_j = A[:, 1]` vale $(-1, 4)$. Con `A[0]` y `A[1]` se obtienen las filas $(3, -1)$ y $(2, 4)$, que son otra cosa.',
+          requirements: [
+            '`col_i` y `col_j` existen y son arrays de NumPy con 2 componentes, todas números.',
+            '`col_i` es la imagen de î, la primera columna de `A` de arriba abajo, y no la primera fila.',
+            '`col_j` es la imagen de ĵ, la segunda columna de `A` de arriba abajo, y no la segunda fila.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[3, -1], [2, 4]])
@@ -295,6 +304,11 @@ check((not _vec(col_j)) or np.allclose(col_j, [2, 4]) or np.allclose(col_j, [-1,
             'La identidad tiene unos en la diagonal y ceros fuera de ella, y por eso cada columna es una de las flechas de partida. Multiplicar por ella no cambia ningún vector.',
           solution:
             'Se escribe `I = np.eye(2)`, que vale $\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}$, y `w = I @ v`. El resultado es $(3, -2)$, el mismo `v`: la identidad no mueve nada. Una matriz de unos o la de `np.eye(3)` no sirven: la primera mueve los puntos y la segunda tiene otro tamaño.',
+          requirements: [
+            '`I` existe y es un array de NumPy con números, de 2 filas y 2 columnas: ni de otro tamaño ni una matriz con unos también fuera de la diagonal.',
+            '`I` es la identidad: sus columnas son (1, 0), la imagen de î, y (0, 1), la de ĵ.',
+            '`w` existe y es un array de NumPy con 2 componentes, las dos números: el resultado de multiplicar `I` por `v`.',
+          ],
           starter: `import numpy as np
 
 v = np.array([3, -2])
@@ -325,6 +339,11 @@ check((not _w) or np.allclose(w, [3, -2]), "\`w\` tiene que valer (3, -2), el mi
             'Es la misma construcción de antes, ahora guardada para usarla con cualquier pareja de imágenes. Si la función devuelve las imágenes en filas, el resultado sale traspuesto.',
           solution:
             'El cuerpo de la función es `return np.column_stack([img_i, img_j])`. Con `img_i = (1, 2)` e `img_j = (3, 4)` devuelve $\\begin{pmatrix}1&3\\\\2&4\\end{pmatrix}$. Con `np.array([img_i, img_j])` saldría la traspuesta, $\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$.',
+          requirements: [
+            '`matriz_desde` existe y es una función que recibe dos vectores de 2 componentes, las imágenes de î y de ĵ.',
+            'La función devuelve un array de NumPy con números, de 2 filas y 2 columnas, cuya primera columna es la imagen de î y cuya segunda columna es la de ĵ.',
+            'Se prueba con otros pares de imágenes además del ejemplo del enunciado, y la función no puede dar ningún error con ellos.',
+          ],
           starter: `import numpy as np
 
 
@@ -374,6 +393,11 @@ def matriz_desde(img_i, img_j):
             'Cada columna de `W` es el efecto de una característica sobre todas las salidas. Para saber a cuál empuja más, se busca la posición del peso mayor dentro de esa columna.',
           solution:
             '`col = W[:, 2]` vale $(-2, 1, 6)$: la característica empuja hacia abajo la primera salida y hacia arriba las otras dos. El peso mayor es $6$, que está en la posición 2, así que `posicion = np.argmax(col)` vale $2$, la salida «negativa». Si tomas la fila `W[2]` en lugar de la columna, buscas otra cosa: cómo reciben las cuatro características a una sola salida.',
+          requirements: [
+            '`col` existe y es un array de NumPy con 3 componentes, todas números, una por salida.',
+            '`col` es la columna de la característica 2 de `W`, de arriba abajo, y no una de sus filas.',
+            '`posicion` existe y es un número entero: el lugar que ocupa dentro de `col` la salida a la que más empuja la característica, y no el valor de ese peso.',
+          ],
           starter: `import numpy as np
 
 # Pesos: 3 salidas (filas) y 4 características de entrada (columnas)

@@ -64,6 +64,11 @@ export const examen2DimensionAlta: BankEntry[] = [
         'Se compara el tamaño del coseno, sin importar su signo, con un umbral que depende del ruido y, por tanto, de la dimensión. Un coseno de $-0{,}9$ también es señal, aunque sea negativo.',
       solution:
         'El ruido es `1 / np.sqrt(d)` y la función devuelve `abs(c) > 3 * ruido`. Con `d = 768`, el ruido es $\\dfrac{1}{\\sqrt{768}}\\approx0{,}036$ y el umbral, $0{,}108$: `es_senal(-0.12, 768)` es `True` y `es_senal(0.09, 768)` es `False`. Sin el valor absoluto, un coseno de $-0{,}12$ pasaría por ruido y se perdería una relación real, solo que opuesta. Con otra dimensión cambia el umbral: en `d = 100` es $0{,}3$.',
+      requirements: [
+        '`es_senal` es una función que recibe un coseno `c` y una dimensión `d` y devuelve `True` o `False`, el resultado de una comparación, no un número.',
+        'La función se prueba con cosenos positivos y negativos y con distintas dimensiones, sin que dé error con ninguno.',
+        'Un coseno negativo de valor absoluto grande también cuenta como señal: se compara su tamaño, sin importar el signo.',
+      ],
       starter: `import numpy as np
 
 

@@ -245,6 +245,10 @@ export const sumaEscala: Project = {
             'Las operaciones aritméticas de NumPy actúan componente a componente: sumar dos arrays del mismo tamaño da otro array con la suma de cada pareja. No hace falta ningún paso más.',
           solution:
             'Se escribe `s = u + v`: NumPy suma la primera componente con la primera y la segunda con la segunda, y da `[5, 3]`, es decir, $(5, 3)$.',
+          requirements: [
+            '`s` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`s` es la suma de `u` y `v`: cada componente de `s` suma las de `u` y `v` que ocupan su misma posición.',
+          ],
           starter: `import numpy as np
 
 u = np.array([2, 1])
@@ -278,6 +282,10 @@ check((not _num) or np.allclose(s, [5, 3]), "\`s\` tiene que valer (5, 3): la pr
             'Multiplicar un array por un número lo escala componente a componente: el signo menos da la vuelta a la flecha y el factor $0{,}5$ la deja a la mitad. En Python el separador decimal es el punto.',
           solution:
             'Se escribe `w = -0.5 * u`: NumPy multiplica cada componente de `u` por $-0{,}5$ y da `[-2, -1]`, es decir, $(-2, -1)$.',
+          requirements: [
+            '`w` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`w` es el vector $-0{,}5\\,\\vec{u}$: cada componente de `u` multiplicada por $-0{,}5$, con el signo menos incluido.',
+          ],
           starter: `import numpy as np
 
 u = np.array([4, 2])
@@ -311,6 +319,10 @@ check((not _num) or _coma or np.allclose(w, [-2, -1]), "\`w\` tiene que valer (-
             'Escalar y restar caben en una sola expresión. Cuida que el factor afecte solo a un vector y el orden de la resta: $2\\vec{u}-\\vec{v}$ no es lo mismo que $\\vec{v}-2\\vec{u}$, que es su opuesto.',
           solution:
             '$2\\vec{u}-\\vec{v}=(2, 6)-(4, -2)=(-2, 8)$. En Python, `c = 2 * u - v`: primero se multiplica `u` por 2 y después se resta `v`.',
+          requirements: [
+            '`c` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`c` es el vector $2\\vec{u}-\\vec{v}$, con la resta en ese orden: $\\vec{v}-2\\vec{u}$ no vale.',
+          ],
           starter: `import numpy as np
 
 u = np.array([1, 3])
@@ -343,6 +355,11 @@ check((not _num) or np.allclose(c, [-2, 8]), "\`c\` tiene que valer (-2, 8): el 
             'La media de varios vectores se hace componente a componente. Con un embedding por fila, piensa si necesitas una media por fila o una por columna, y cuántos números debe tener el resultado: eso decide el eje.',
           solution:
             'Se escribe `centroide = np.mean(E, axis=0)`. NumPy recorre las filas (eje 0) y da una media por columna: $\\left(\\dfrac{-3-2-4}{3},\\ \\dfrac{2+3-1}{3}\\right)\\approx(-3;\\ 1{,}33)$. Con `axis=1` saldrían tres números, uno por palabra, que no es el centroide.',
+          requirements: [
+            '`centroide` existe y es un array de NumPy con 2 componentes, las dos números: ni un solo número ni un número por palabra.',
+            '`centroide` es el vector medio de las tres filas de `E`: su primera componente es la media de las $x$ y la segunda, la media de las $y$.',
+            'Como sale con decimales, se acepta una diferencia de hasta una centésima.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila:
@@ -389,6 +406,11 @@ centroide = np.mean(E, axis=0)
             'Al dibujar las tres flechas se ve que la de la suma llega al mismo punto que si recorres $\\vec{u}$ y después $\\vec{v}$. Cada flecha necesita su propia llamada a `plt.quiver`, con las componentes del vector que dibuja.',
           solution:
             'Primero `s = u + v`, que vale $(5, 3)$. Después una llamada por flecha: `plt.quiver(0, 0, u[0], u[1], angles="xy", scale_units="xy", scale=1)`, otra igual con `v[0], v[1]` y otra con `s[0], s[1]`. La flecha de `s` es la diagonal del paralelogramo que forman `u` y `v`.',
+          requirements: [
+            '`s` existe y es un array de NumPy con 2 componentes, las dos números: la suma de `u` y `v`.',
+            'Hay una figura con flechas dibujadas con `plt.quiver`, y todas a escala: cada llamada lleva las opciones `angles="xy", scale_units="xy", scale=1`.',
+            'Entre las flechas hay una que avanza lo mismo que `u`, otra lo mismo que `v` y otra lo mismo que la suma: se mira cuánto avanza cada una en horizontal y en vertical.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 

@@ -30,6 +30,7 @@ const manip = (id: string) => ({
 const code = (id: string) => ({
   ...base(id),
   type: 'codigo' as const,
+  requirements: ['r'],
   starter: 'x = 1',
   checks: 'assert True',
   reference: 'x = 1',

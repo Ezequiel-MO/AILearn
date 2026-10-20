@@ -247,6 +247,11 @@ export const coseno: Project = {
             'El coseno es un cociente: arriba, el producto escalar; abajo, el producto de las dos normas. Pruébalo con un caso que conozcas, como dos vectores perpendiculares, que tienen que dar $0$.',
           solution:
             'El cuerpo de la función es `return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))`. Con `a = np.array([3, 4])` y `b = np.array([4, 3])`, el producto escalar es $24$ y las dos normas valen $5$, así que devuelve $0{,}96$. Los paréntesis agrupan las dos normas en el denominador.',
+          requirements: [
+            '`coseno` existe y es una función que recibe dos arrays y devuelve con `return` un único número.',
+            'Devuelve el coseno del ángulo entre los dos vectores, también con otros pares de vectores de 2 componentes que los del enunciado, entre ellos perpendiculares y de sentido opuesto.',
+            'La función no da error con ninguno de esos vectores.',
+          ],
           starter: `import numpy as np
 
 
@@ -302,6 +307,12 @@ def coseno(a, b):
             'El ángulo sale del coseno en tres pasos: asegurar que el valor está en el rango válido, aplicar la función inversa y convertir de radianes a grados. Si te sale `nan` con vectores paralelos u opuestos, el coseno se ha pasado de 1 por redondeo.',
           solution:
             'El cuerpo es `return np.degrees(np.arccos(np.clip(coseno(a, b), -1, 1)))`: se calcula el coseno, se recorta a $[-1, 1]$, el arcocoseno da el ángulo en radianes y `np.degrees` lo pasa a grados. Con $(1, 2)$ y $(2, 1)$ el coseno es $0{,}8$ y el ángulo, $\\approx36{,}87^\\circ$. Sin el recorte, vectores paralelos como $(2, 5)$ y $(6, 15)$ darían `nan`.',
+          requirements: [
+            '`angulo` existe y es una función que recibe dos arrays y devuelve con `return` un único número.',
+            'Devuelve el ángulo entre los dos vectores en grados, también con otros pares de vectores que los del enunciado, entre ellos paralelos y de sentido opuesto.',
+            'Nunca devuelve `nan` ni da error con esos vectores.',
+            'Se acepta una diferencia de hasta una milésima de grado.',
+          ],
           starter: `import numpy as np
 
 
@@ -362,6 +373,11 @@ def angulo(a, b):
             'Un vector dividido entre su norma conserva la dirección y pasa a medir $1$. Con los dos unitarios, el denominador del coseno vale $1$ y solo queda el producto escalar. Comprueba que `c` coincide con el coseno que da la fórmula completa.',
           solution:
             '`ua = a / np.linalg.norm(a)` y `ub = b / np.linalg.norm(b)` dan $\\left(\\dfrac{2}{\\sqrt5},\\ \\dfrac{1}{\\sqrt5}\\right)\\approx(0{,}89;\\ 0{,}45)$ y $\\left(\\dfrac{1}{\\sqrt{10}},\\ \\dfrac{3}{\\sqrt{10}}\\right)\\approx(0{,}32;\\ 0{,}95)$. Su producto escalar, `c = np.dot(ua, ub)`, es $0{,}89\\cdot0{,}32+0{,}45\\cdot0{,}95\\approx0{,}71$: el mismo coseno que da la fórmula completa, $\\dfrac{5}{\\sqrt5\\cdot\\sqrt{10}}=\\dfrac{1}{\\sqrt2}\\approx0{,}71$.',
+          requirements: [
+            '`ua` y `ub` existen y cada una es un array de NumPy con 2 componentes, las dos números.',
+            '`ua` es el vector unitario de `a` y `ub`, el de `b`: cada uno apunta como el suyo y tiene norma 1.',
+            '`c` existe y es un único número: el producto escalar de `ua` y `ub`, que es el coseno del ángulo entre `a` y `b`.',
+          ],
           starter: `import numpy as np
 
 a = np.array([2, 1])
@@ -413,6 +429,11 @@ c = np.dot(ua, ub)
             'El coseno de cada documento necesita su propio producto escalar y su propia norma, y la norma de `q` es común a todos. Después, `np.argsort` ordena de menor a mayor y entrega posiciones, no valores: piensa en qué extremo de la lista está el documento más parecido.',
           solution:
             'Las similitudes son: documento 0 («crónica de fútbol»), $\\dfrac{10}{\\sqrt{65}\\cdot\\sqrt5}\\approx0{,}55$; documento 1 («receta de paella»), $\\dfrac{11}{\\sqrt{26}\\cdot\\sqrt5}\\approx0{,}96$; documento 2 («menú del tenista»), $\\dfrac{9}{\\sqrt{18}\\cdot\\sqrt5}\\approx0{,}95$; documento 3 («resultados de liga»), $\\dfrac{4}{4\\cdot\\sqrt5}\\approx0{,}45$. En código: `sim = (D @ q) / (np.linalg.norm(D, axis=1) * np.linalg.norm(q))`. `np.argsort(sim)` da `[3, 0, 2, 1]`, de menos a más parecido; con `[::-1]` queda `orden = [1, 2, 0, 3]`. Sin dividir entre las normas, el producto escalar pondría antes la crónica de fútbol, solo porque es más larga.',
+          requirements: [
+            '`sim` existe y es un array de NumPy con 4 números, uno por documento: el coseno de `q` con la fila de `D` que corresponde.',
+            '`orden` existe y es una lista o un array con 4 posiciones, números enteros del 0 al 3: no los cosenos, sino los documentos que ocupan cada lugar.',
+            '`orden` va de más a menos similar a `q` por coseno: el primer lugar es el del documento de mayor coseno y el último, el del de menor.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila:
@@ -461,6 +482,12 @@ orden = np.argsort(sim)[::-1]
             'Más parecido no es lo mismo que más cercano: el coseno premia el valor mayor y la distancia, el menor. Comprueba que cada nombre sale de elegir con la función adecuada sobre la medida adecuada.',
           solution:
             'Los cosenos con `q` son $0{,}89$ («apunte»), $1$ («tratado») y $0{,}32$ («ensayo»): gana el «tratado», que apunta justo como la consulta. Las distancias son $2$, $\\sqrt{160}\\approx12{,}65$ y $\\sqrt{18}\\approx4{,}24$: gana el «apunte». En código: `sim = (D @ q) / (np.linalg.norm(D, axis=1) * np.linalg.norm(q))` y `dist = np.linalg.norm(D - q, axis=1)`; después `nombres[np.argmax(sim)]` da «tratado» y `nombres[np.argmin(dist)]`, «apunte». El tratado es largo, y la distancia lo castiga por ello.',
+          requirements: [
+            '`por_coseno` existe y es un texto: uno de los nombres de `nombres`, no su posición.',
+            '`por_coseno` es el nombre del documento con mayor similitud coseno con `q`.',
+            '`por_distancia` existe y es un texto: uno de los nombres de `nombres`, no su posición.',
+            '`por_distancia` es el nombre del documento a menor distancia euclídea de `q`.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 2 dimensiones), uno por fila.

@@ -281,6 +281,11 @@ export const fallosRag: Project = {
             'Cada consulta elige el documento de mayor coseno de su fila. Si te salen 16 números en vez de 10, la búsqueda del mayor recorre el eje que no toca. Después, no confundas la posición con el valor.',
           solution:
             '`S = Q @ D.T` tiene forma `(10, 16)`. `mejor = np.argmax(S, axis=1)` da `[0, 1, 12, 5, 14, 13, 3, 3, 15, 9]` y `punt = np.max(S, axis=1)`, los cosenos `[0,77; 0,33; 0,64; 0,70; 0,62; 0,86; 0,59; 0,41; 0,72; 0,56]`. Ya se ven dos problemas: q2 devuelve d12 en vez de la sala de 300 personas (d4), y q5, que pide un código que no existe, devuelve d13 con $0{,}86$, el coseno más alto de toda la tabla.',
+          requirements: [
+            '`S` existe y es un array de NumPy con números: 10 filas, una por consulta, y 16 columnas, una por documento. Cada elemento es el coseno de una consulta con un documento.',
+            '`mejor` es una lista o un array de NumPy con 10 posiciones enteras, de 0 a 15, una por consulta: la del documento de mayor coseno.',
+            '`punt` es una lista o un array de NumPy con 10 números, uno por consulta: el mayor coseno de esa consulta, no su posición.',
+          ],
           starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 
@@ -338,6 +343,11 @@ punt = np.max(S, axis=1)
             'Cada consulta se decide por separado comparando su coseno con el umbral. Si te salen respuestas donde el coseno es bajo y `None` donde es alto, la condición está al revés. Y una posición `0` es una respuesta válida: no es lo mismo que `None`.',
           solution:
             'Con el umbral $0{,}58$ quedan en «no lo sé» q1 ($0{,}33$), q7 ($0{,}41$) y q9 ($0{,}56$): `respuestas = [int(m) if p >= umbral else None for m, p in zip(mejor, punt)]` da `[0, None, 12, 5, 14, 13, 3, None, 15, None]` y `sin_respuesta = respuestas.count(None)` vale `3`. Un umbral que calla a q7, que no tiene respuesta, calla también a q1 y a q9, que sí la tienen.',
+          requirements: [
+            '`respuestas` es una lista de 10 elementos, uno por consulta, y cada uno es un número entero o `None`.',
+            'Si el coseno de la consulta alcanza el umbral, su elemento es la posición del documento más parecido; si no lo alcanza, es `None`, y no un número como `0` o `-1`.',
+            '`sin_respuesta` es un número entero: cuántas consultas se quedan sin respuesta, es decir, con `None`.',
+          ],
           starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 
@@ -401,6 +411,11 @@ sin_respuesta = respuestas.count(None)
             'Los tres resultados salen de comparar cada respuesta con su etiqueta. Una consulta mal contestada puede serlo de tres maneras distintas: el documento equivocado, un documento donde no había respuesta, o ninguno donde sí la había. Aquí solo se apartan dos de ellas.',
           solution:
             '`aciertos = sum(r == c for r, c in zip(respuestas, correctas))` da `6`: q0, q3, q4, q6, q7 y q8 (q7 acierta porque las dos valen `None`). `falsos = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c is None and r is not None]` da `[5]`: q5 recibe d13, pero la base no tiene el código CONG-2025. `perdidas`, con la condición contraria, da `[1, 9]`: q1 y q9 tenían respuesta y el umbral las calla. Falta la cuarta consulta que falla, q2, que recibe un documento equivocado: $6+1+2+1=10$.',
+          requirements: [
+            '`aciertos` es un número entero: cuántas consultas tienen una respuesta igual a su etiqueta, contando también las que valen `None` en las dos.',
+            '`falsos` es una lista de posiciones de consulta (números enteros, contando desde $0$): las que no tienen respuesta en la base y a las que el sistema devuelve un documento.',
+            '`perdidas` es una lista de posiciones de consulta (números enteros, contando desde $0$): las que sí tienen respuesta en la base y a las que el sistema devuelve `None`.',
+          ],
           starter: `import numpy as np
 
 # Respuesta del sistema a cada consulta con umbral 0.58 (None: «no lo sé»)
@@ -460,6 +475,12 @@ perdidas = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c is not
             'La línea muestra cómo cambian los aciertos al mover el umbral. Mira su altura máxima: fíjate en si llega a $10$ y si el umbral mejora algo a no poner ninguno (el umbral $0$).',
           solution:
             'Las respuestas de cada umbral `u` son `[int(m) if p >= u else None for m, p in zip(mejor, punt)]` y los aciertos son los elementos que coinciden con `correctas`. Con `aciertos = np.array(...)`, `plt.plot(umbrales, aciertos)` dibuja la curva y `techo = aciertos.max()` vale `7`. Con el umbral $0$ ya se aciertan $7$; la curva baja a $6$ entre $0{,}33$ y $0{,}40$, vuelve a $7$ entre $0{,}41$ y $0{,}56$ y cae después. Nunca llega a $8$: q2 y q5 fallan con cualquier umbral, porque su error no es de confianza, sino de contenido.',
+          requirements: [
+            '`aciertos` es una lista o un array de NumPy con 101 números, uno por umbral: las consultas bien contestadas con ese umbral, de $0$ a $10$ (un recuento, no una fracción).',
+            'Una consulta se contesta bien cuando su respuesta coincide con su etiqueta, incluida la que vale `None` en las dos.',
+            '`techo` es un número: el mayor valor de `aciertos`, no el lugar donde se alcanza.',
+            'Hay una figura con una línea de 101 puntos, uno por umbral, cuya altura es el número de consultas bien contestadas con ese umbral.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 from embeddings import D, Q, documentos, consultas
@@ -532,6 +553,12 @@ techo = aciertos.max()
             'La regla solo actúa sobre las consultas con código; las demás quedan como estaban. Después, `aciertos` se cuenta igual que antes. Mira qué consulta cambia de respuesta y cuáles siguen mal, aunque la regla no las toque.',
           solution:
             'Para q5, `re.findall(patron, consultas[5])` da `["CONG-2025"]`, que no está en d13 («…es CONG-2026.»): la respuesta pasa a ser `None`, que es lo correcto. Las demás consultas no traen código y se quedan como estaban: `respuestas = [0, 1, 12, 5, 14, None, 3, 3, 15, 9]` y `aciertos` vale `8`. Sigue habiendo dos fallos: q2, que necesita un filtro por metadatos (capacidad $\\ge 250$), y q7, una pregunta sin respuesta cuyo mejor coseno ($0{,}41$) no se puede separar del de q1 ($0{,}33$).',
+          requirements: [
+            '`respuestas` es una lista de 10 elementos, uno por consulta, y cada uno es un número entero o `None`.',
+            'Cada elemento es el documento de `mejor` o `None`: nunca otro documento, y `None` solo si la consulta trae un código que ese documento no contiene tal cual.',
+            'Una consulta sin ningún código conserva el documento de `mejor`.',
+            '`aciertos` es un número entero: cuántas consultas tienen una respuesta igual a su etiqueta, incluidas las que valen `None` en las dos.',
+          ],
           starter: `import re
 import numpy as np
 from embeddings import D, Q, documentos, consultas

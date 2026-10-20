@@ -65,6 +65,11 @@ export const examen0Componer: BankEntry[] = [
         'Con tres capas, la primera queda en el extremo derecho y la última en el izquierdo. Si inviertes el orden, sale otra matriz distinta.',
       solution:
         'Se escribe `W = W3 @ W2 @ W1`, que vale $\\begin{pmatrix}0&2\\\\1&2\\end{pmatrix}$, y `y` vale $(2, 3)$: la misma salida que pasar `x` por las tres capas, una a una. En el orden contrario, `W1 @ W2 @ W3`, saldría $\\begin{pmatrix}4&1\\\\2&0\\end{pmatrix}$, que es otra red.',
+      requirements: [
+        '`W` existe y es un array de NumPy con números, de 2 filas y 2 columnas.',
+        '`W` equivale a las tres capas: `W1` actúa primero, `W2` después y `W3` al final.',
+        '`y` existe y es un array de NumPy con 2 componentes, las dos números: la salida de la capa única `W` para `x`.',
+      ],
       starter: `import numpy as np
 
 W1 = np.array([[1, 2], [0, 1]])

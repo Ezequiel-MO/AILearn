@@ -133,6 +133,10 @@ export const launch: Question[] = [
       'Una matriz tiene tantas filas como listas interiores y tantas columnas como elementos tiene cada una. Si la forma no sale `(2, 3)`, revisa cómo has agrupado los números.',
     solution:
       'Se escribe `A = np.array([[2, 0, 1], [1, 3, -1]])` y `forma = A.shape`, que vale `(2, 3)`: dos filas y tres columnas.',
+    requirements: [
+      '`A` existe y es un array de NumPy con números, de 2 filas y 3 columnas: la matriz del enunciado, con sus números en el orden de las filas.',
+      '`forma` existe y es una tupla (o una lista) de dos números enteros: el número de filas y el de columnas de `A`.',
+    ],
     starter: `import numpy as np
 
 # Crea A con dos filas y tres columnas, y guarda en forma su .shape
@@ -164,6 +168,10 @@ check((not _f) or tuple(forma) == (2, 3), "\`forma\` tiene que valer (2, 3): dos
       'El operador `@` hace el producto de una matriz por un vector, con la matriz a la izquierda. El resultado es un vector nuevo, con una componente por cada fila de la matriz.',
     solution:
       'Se escribe `w = A @ v`. El resultado es el vector $(4, 6)$: la primera componente sale de la primera fila de `A` y la segunda, de la segunda fila.',
+    requirements: [
+      '`w` existe y es un array de NumPy con 2 componentes, las dos números.',
+      '`w` es el resultado de multiplicar la matriz `A` por el vector `v`, con la matriz a la izquierda: multiplicar `v` por `A` o multiplicar componente a componente no sirve.',
+    ],
     starter: `import numpy as np
 
 A = np.array([[2, 1], [0, 3]])
@@ -194,6 +202,11 @@ check((not _ok) or not np.allclose(w, [2, 7]), "\`w\` vale (2, 7): has multiplic
       'Multiplicar una matriz por $(1, 0)$ selecciona su primera columna: la columna es el sitio al que va $\\hat{\\imath}$. Y para coger una columna, el `:` en el primer sitio significa «todas las filas».',
     solution:
       'La primera columna es `A[:, 0]`, que vale $(3, 2)$. Multiplicar `A` por $\\hat{\\imath}$ con `A @ np.array([1, 0])` da el mismo vector: la primera columna de una matriz es adónde va $\\hat{\\imath}$. Si pones `A[0]` obtienes la primera fila, $(3, 1)$, que es otra cosa.',
+    requirements: [
+      '`col` existe y es un array de NumPy con 2 componentes, las dos números.',
+      '`col` es la primera columna de `A`, de arriba abajo, y no su primera fila.',
+      '`imagen_i` existe y es un array de NumPy con 2 componentes, las dos números: adónde manda `A` al vector $(1, 0)$, con la matriz a la izquierda.',
+    ],
     starter: `import numpy as np
 
 A = np.array([[3, 1], [2, 4]])

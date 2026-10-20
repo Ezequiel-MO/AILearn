@@ -50,6 +50,7 @@ const five = (): Question[] => [1, 2, 3, 4, 5].map((n) => numero(n));
 const codigo = (): CodigoQ => ({
   id: 'c1',
   type: 'codigo',
+  requirements: ['r'],
   prompt: 'Escribe código',
   hints: [],
   explain: 'EXPLICACION c1',

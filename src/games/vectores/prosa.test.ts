@@ -196,6 +196,7 @@ describe('prose-helpers: retoques de la 18 (puntos 1 a 6)', () => {
       hints: [],
       explain: 'e',
       solution: 's',
+      requirements: ['r'],
       starter: 'import numpy as np\n',
       reference: 'import numpy as np\n',
       checks: 'check(True, "ok")\n',
@@ -519,6 +520,7 @@ describe('juego vectores: lo que ninguna regla por pregunta ve', () => {
         hints: [],
         explain: 'e',
         solution: 's',
+        requirements: ['r'],
         starter: '',
         reference: '',
         checks: `check(False, "${message}")`,
@@ -564,5 +566,39 @@ describe('juego vectores: lo que ninguna regla por pregunta ve', () => {
       expect.arrayContaining(['examen-0.bici-y', 'examen-0.centroide-animales']),
     );
     for (const c of codes) expect(checkMessages(c).length, c.id).toBeGreaterThan(0);
+  });
+});
+
+describe('prose-helpers: lo que se comprueba no da la respuesta', () => {
+  const rule = proseRules.find((r) => r.name.includes('`requirements`'))!;
+  const q = (requirements: string[]): Question =>
+    ({
+      id: 'x.1',
+      type: 'codigo',
+      prompt: 'p',
+      hints: [],
+      explain: 'e',
+      solution: 's',
+      requirements,
+      starter: 'import numpy as np\nE = np.array([[1, 2], [3, 4]])\nm = None\n',
+      reference: 'import numpy as np\nE = np.array([[1, 2], [3, 4]])\nm = np.mean(E, axis=0)\n',
+      checks: 'check(True, "ok")\n',
+    }) as Question;
+
+  it('muerde con la expresión de la referencia o con su eje, y deja pasar una descripción', () => {
+    // contract: petición de Oliver 2026-10-20: decir qué se comprueba sin resolver la pregunta
+    // (la última asignación y el eje; la línea entera, `m = …`, no está)
+    expect(ruleProblems(rule, [q(['`m` es `np.mean(E, axis=0)`.'])])).toHaveLength(2);
+    // contract: la decisión del eje no se nombra (como en el `explain`, review-16 I2)
+    expect(ruleProblems(rule, [q(['`m` se calcula por el eje 0.'])])).toHaveLength(1);
+    expect(
+      ruleProblems(rule, [q(['`m` es un array con la media de cada columna de `E`.'])]),
+    ).toEqual([]);
+  });
+
+  it('los `requirements` pasan por las reglas de prosa como el resto de textos', () => {
+    const texts = allTexts(q(['`m` vale 0.5.']));
+    // contract: proseTexts incluye `requirement[i]` (punto decimal, KaTeX, vocabulario…)
+    expect(texts.map((t) => t.field)).toContain('requirement[0]');
   });
 });

@@ -270,6 +270,11 @@ export const normalizar: Project = {
             'Normalizar es dividir el vector entre su norma. Una vez escrita, comprueba que la función sirve con dos y con tres componentes, y que el resultado mide $1$.',
           solution:
             'El cuerpo de la función es `return v / np.linalg.norm(v)`. Con `v = np.array([3, 4])`, la norma es $5$ y devuelve $(0{,}6;\\ 0{,}8)$. Con `np.array([1, 2, 2])` la norma es $3$ y devuelve $\\left(\\dfrac13,\\ \\dfrac23,\\ \\dfrac23\\right)$. Dividir entre el cuadrado de la norma, o entre la suma de las componentes, no deja el vector con norma $1$.',
+          requirements: [
+            '`normalizar` es una función que recibe un vector `v` y devuelve un array de NumPy de números con las mismas componentes que `v`.',
+            'La función se prueba con otros vectores de 2, 3 y 4 componentes, algunos con componentes nulas o negativas, sin que dé error con ninguno.',
+            'Lo que devuelve es el vector unitario con la misma dirección que `v`: apunta igual y mide 1.',
+          ],
           starter: `import numpy as np
 
 
@@ -323,6 +328,10 @@ def normalizar(v):
             'Cada fila se divide entre su propia norma, y para eso el array de normas tiene que alinearse con las filas y no con las columnas. Como `E` es cuadrada, un alineamiento equivocado no da error: sale una matriz de aspecto razonable pero incorrecta. Comprueba que cada fila de `En` mide $1$.',
           solution:
             'Las normas de las filas son $5$, $3$ y $13$. En código: `En = E / np.linalg.norm(E, axis=1, keepdims=True)`. Sin `keepdims=True` el array `(3,)` se alinea con el último eje de `E`, el de las columnas, y como `E` es cuadrada no hay error, solo un resultado incorrecto. Con una matriz de 4 filas y 3 columnas habría fallado con un error de forma. Queda `En` con filas $(0{,}6;\\ 0;\\ 0{,}8)$, $\\left(\\dfrac13,\\ \\dfrac23,\\ \\dfrac23\\right)$ y $\\left(0,\\ \\dfrac{5}{13},\\ \\dfrac{12}{13}\\right)$.',
+          requirements: [
+            '`En` existe y es un array de NumPy con 3 filas y 3 columnas, todo números.',
+            'Cada fila de `En` es la fila de `E` dividida entre su propia norma, así que todas las filas miden 1: no se normalizan las columnas ni se divide toda la matriz entre una sola norma.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 dimensiones), uno por fila
@@ -364,6 +373,11 @@ En = E / np.linalg.norm(E, axis=1, keepdims=True)
             'Las filas con norma distinta de cero se dividen entre su norma, y las nulas no deben dividirse entre cero. Lo más sencillo es cambiar, solo en las normas que valen cero, el divisor por otro número que no altere la fila: ¿cuál?',
           solution:
             'Una versión: `n = np.linalg.norm(E, axis=1, keepdims=True)`, después `n = np.where(n == 0, 1, n)` y `return E / n`. La fila nula se divide entre `1` y se queda en ceros; las demás, entre su norma. También vale `np.divide(E, n, out=np.zeros(E.shape), where=n > 0)`. Con `[[3, 0, 4], [0, 0, 0], [0, 5, 12]]` queda `[[0.6, 0, 0.8], [0, 0, 0], [0, 5/13, 12/13]]`. Un vector nulo no tiene dirección: devolver ceros es una decisión práctica, no una normalización.',
+          requirements: [
+            '`normalizar_filas` es una función que recibe una matriz y devuelve un array de NumPy de números con las mismas filas y columnas que la matriz recibida.',
+            'La función se prueba con otras matrices, de distinto número de filas y de columnas, entre ellas algunas con una o varias filas de ceros; no da error con ninguna.',
+            'Cada fila que no es nula queda dividida entre su propia norma y mide 1; cada fila de ceros se queda en ceros, sin ningún `nan` en el resultado.',
+          ],
           starter: `import numpy as np
 
 
@@ -428,6 +442,11 @@ def normalizar_filas(E):
             'Al normalizar tanto los documentos como la consulta, el denominador del coseno vale $1$ y solo queda el producto escalar. Si `sim` no coincide con `cos_largo`, mira si has normalizado las dos cosas: las filas ya están normalizadas en `En`, pero la consulta no.',
           solution:
             '`qn = q / np.linalg.norm(q)` da $\\left(\\dfrac23,\\ \\dfrac13,\\ \\dfrac23\\right)$, porque la norma de $(2, 1, 2)$ es $3$. Después, `sim = En @ qn` da los cosenos $(0{,}93;\\ 0{,}89;\\ 0{,}74;\\ 0{,}90;\\ 0{,}95)$, y `coinciden = np.allclose(sim, cos_largo)` es `True`: es el mismo coseno, con el trabajo de las normas hecho de antemano. Es lo que explica por qué los buscadores guardan los vectores normalizados: cada consulta es solo un producto de matriz.',
+          requirements: [
+            '`qn` existe y es un array de NumPy con 3 números: la consulta `q` con la misma dirección y norma 1.',
+            '`sim` es un array de NumPy con 5 números, el coseno de la consulta con cada documento, calculado con las filas normalizadas y con la consulta normalizada.',
+            '`coinciden` es un único valor, `True` o `False`; como `sim` y `cos_largo` son el mismo coseno salvo redondeos, tiene que valer `True`.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 dimensiones), uno por fila
@@ -494,6 +513,12 @@ coinciden = np.allclose(sim, cos_largo)
             'Las dos listas ordenan los mismos documentos con criterios opuestos: la distancia, de menos a más, y el producto escalar, de más a menos. Si no coinciden, revisa qué extremo de cada lista debe ser el primero y con qué vectores calculas cada medida.',
           solution:
             'Las distancias de `qn` a los documentos son $(0{,}26;\\ 0{,}33;\\ 0{,}72;\\ 0{,}31;\\ 0{,}22)$, y los productos escalares, $(0{,}93;\\ 0{,}89;\\ 0{,}74;\\ 0{,}90;\\ 0{,}95)$: la distancia crece justo cuando baja el producto escalar. Por eso `np.argsort(dist)` y `np.argsort(En @ qn)[::-1]` dan lo mismo, `[4, 0, 3, 1, 2]`, y `mismo` es `True`. Con los vectores sin normalizar no sería así: por producto escalar sin normalizar, el documento 2, el más largo, saldría el primero, y por distancia, el último.',
+          requirements: [
+            '`dist` es un array de NumPy con 5 números, la distancia de `qn` a cada documento, medida con los vectores normalizados y sin elevarla al cuadrado.',
+            '`orden_dist` y `orden_cos` son listas o arrays de NumPy con 5 posiciones, números enteros del 0 al 4, una por documento.',
+            '`orden_dist` va del documento más cercano al más lejano de `qn`, y `orden_cos` del mayor al menor producto escalar con `qn`; los dos se calculan con los vectores normalizados.',
+            '`mismo` es un único valor, `True` o `False`: vale `True` cuando los dos órdenes son la misma lista.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 dimensiones), uno por fila

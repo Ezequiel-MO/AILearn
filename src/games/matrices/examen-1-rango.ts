@@ -63,6 +63,10 @@ export const examen1Rango: BankEntry[] = [
         'La columna nueva es una combinación de las dos que ya había, así que no aporta una dirección nueva. Si el rango de `X2` te sale más alto que el de `X`, la columna nueva no se ha calculado con las otras.',
       solution:
         'Se escribe `X2 = np.column_stack([X, 2 * X[:, 0] - X[:, 1]])`, `r0 = np.linalg.matrix_rank(X)` y `r1 = np.linalg.matrix_rank(X2)`. Los dos rangos valen $2$: la columna añadida es $(2, -1, 1, 3)$ y no abre una dirección nueva. Una característica redundante agranda la matriz, pero no su rango.',
+      requirements: [
+        '`X2` es un array de NumPy de 4 filas y 3 columnas de números: las dos columnas de `X`, sin cambiarlas, y la columna nueva del enunciado al final.',
+        '`r0` y `r1` son números enteros: el rango de `X` y el de `X2`.',
+      ],
       starter: `import numpy as np
 
 X = np.array([[1, 0], [0, 1], [1, 1], [2, 1]])

@@ -254,6 +254,10 @@ export const matrizVector: Project = {
             'El operador `@` hace el producto de una matriz por un vector. Con `*` no sale lo mismo: multiplica elemento a elemento, sin sumar nada, y deja una matriz.',
           solution:
             'Se escribe `w = A @ v`. El resultado es `[2, 3, -5]`: la primera componente es $1\\cdot 2+0\\cdot(-1)=2$, la segunda $2\\cdot 2+1\\cdot(-1)=3$ y la tercera $-1\\cdot 2+3\\cdot(-1)=-5$.',
+          requirements: [
+            '`w` existe y es un array de NumPy con números, con una componente por cada fila de `A`.',
+            '`w` es la imagen de `v` por `A`: el producto de la matriz por el vector, no el producto componente a componente.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 0], [2, 1], [-1, 3]])
@@ -284,6 +288,12 @@ check((not _ok) or np.allclose(w, [2, 3, -5]), "\`w\` tiene que valer (2, 3, -5)
             'El resultado es una suma con tantos términos como columnas tiene `A`, y cada término es una columna multiplicada por su componente de `v`. Con un bucle sobre las columnas sirve para cualquier forma de matriz.',
           solution:
             'Se acumulan las columnas: `w = np.zeros(A.shape[0])`, y para cada `k` en `range(len(v))`, `w = w + v[k] * A[:, k]`. Al final se devuelve `w`. Con `A` de 2 filas y 2 columnas y `v = (1, 1)`, suma las dos columnas enteras. Un bucle fijo de dos vueltas fallaría con una matriz de 3 columnas.',
+          requirements: [
+            '`aplicar` existe y es una función que recibe una matriz `A` y un vector `v`.',
+            'La función devuelve un array de NumPy con números y con una componente por cada fila de `A`: el producto de `A` por `v`.',
+            'Se prueba con otras matrices y vectores además del ejemplo del enunciado, entre ellas matrices con 3 filas y matrices con 3 columnas, y la función no puede dar ningún error con ellas.',
+            'La función no usa `@`, `np.dot` ni ninguna otra forma ya hecha del producto de matrices: el resultado se construye sumando columnas.',
+          ],
           starter: `import numpy as np
 
 
@@ -361,6 +371,11 @@ def aplicar(A, v):
             'Cada componente del resultado es un producto escalar, y un producto escalar es un solo número. Cuidado con `*`: multiplica sin sumar y deja un vector, no un número.',
           solution:
             'Se escribe `c0 = np.dot(A[0], v)` y `c1 = np.dot(A[1], v)`, que valen $1\\cdot 2+2\\cdot 1+0\\cdot(-1)=4$ y $3\\cdot 2+(-1)\\cdot 1+2\\cdot(-1)=3$. El resultado, `w`, es `[4, 3]`: los dos números, uno por fila de `A`, metidos en un array.',
+          requirements: [
+            '`c0` y `c1` existen y cada una es un solo número, no un vector: el producto escalar de una fila de `A` con `v`.',
+            '`c0` es el de la primera fila de `A` y `c1`, el de la segunda, sin intercambiarlos.',
+            '`w` existe y es un array de NumPy con 2 componentes, las dos números: `c0` y `c1`, en ese orden.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2, 0], [3, -1, 2]])
@@ -411,6 +426,10 @@ check((not _w) or _cambio or np.allclose(w, [4, 3]), "\`w\` tiene que valer (4, 
             'Cada fila de `X` es un vector que se transforma con `A`. Para hacerlo todo con una sola multiplicación, `A` tiene que ir a la derecha y traspuesta, porque así cada fila de `X` se empareja con las columnas de la traspuesta, que son las filas de `A`.',
           solution:
             'Se escribe `Y = X @ A.T`. Las filas de `Y` son `[2, 0]`, `[1, 3]`, `[7, 9]` y `[-1, 3]`: por ejemplo, la imagen de $(2, 3)$ es $2\\cdot(2, 0)+3\\cdot(1, 3)=(7, 9)$. Con `X @ A` saldrían las imágenes por la traspuesta de `A`: `[2, 1]`, `[0, 3]`, `[4, 11]` y `[-2, 2]`, que es otra transformación.',
+          requirements: [
+            '`Y` existe y es un array de NumPy con números, de 4 filas y 2 columnas: una fila por cada vector de `X`.',
+            'La fila `k` de `Y` es la imagen por `A` de la fila `k` de `X`; no vale dejar una columna por vector ni transformar con las filas de `A` tomadas como columnas.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[2, 1], [0, 3]])
@@ -448,6 +467,13 @@ check((not _ok) or _sinT or np.allclose(Y, _bien), "\`Y\` no tiene los valores e
             'La capa para un vector y la capa para un lote hacen el mismo cálculo: el lote se escribe con la matriz traspuesta porque sus vectores están en filas. Fíjate en que el sesgo se suma después de multiplicar, no antes.',
           solution:
             'La función es `return W @ x + b`. Con $(1, 2, 1)$: $W\\vec{x}=(0, 6)$ y, sumando $\\vec{b}=(0, -2)$, `y` vale `[0, 4]`. Para el lote, `Y = X @ W.T + b`: las filas de `Y` son `[0, 4]`, `[-1, -1]` y `[6, -2]`. La primera coincide con `y`, que es lo esperado: es el mismo cálculo hecho de golpe. Si te olvidas del sesgo, `Y` sale con la columna 2 más grande en 2 unidades.',
+          requirements: [
+            '`capa` existe y es una función que recibe `W`, `b` y un vector `x`.',
+            'La función devuelve un array de NumPy con números y con una componente por cada fila de `W`: el producto de `W` por `x` más el sesgo `b`.',
+            'Se prueba con otras capas y otras entradas además del ejemplo del enunciado, de otros tamaños y con otros sesgos, y la función no puede dar ningún error con ellas.',
+            '`y` existe y es un array de NumPy con 2 componentes, las dos números: la salida de la capa para el vector $(1, 2, 1)$.',
+            '`Y` existe y es un array de NumPy con números, de 3 filas y 2 columnas: una fila por cada vector de `X`, con el sesgo `b` ya sumado a cada una.',
+          ],
           starter: `import numpy as np
 
 

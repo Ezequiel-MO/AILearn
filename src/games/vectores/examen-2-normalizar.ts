@@ -64,6 +64,10 @@ export const examen2Normalizar: BankEntry[] = [
         'Cada fila se divide entre su propia norma. Si divides entre un array de normas sin más, NumPy lo alinea con las columnas, y como `M` es cuadrada no avisa: sale un resultado incorrecto. Comprueba que cada fila de `Mn` mide $1$.',
       solution:
         'Las normas de las filas son $7$, $9$ y $9$. En código: `Mn = M / np.linalg.norm(M, axis=1, keepdims=True)`. Sin `keepdims=True` el array de tres normas se alinea con las columnas y cada columna se divide entre la norma de una fila distinta. Queda la primera fila $\\left(\\dfrac27,\\ \\dfrac37,\\ \\dfrac67\\right)\\approx(0{,}29;\\ 0{,}43;\\ 0{,}86)$.',
+      requirements: [
+        '`Mn` existe y es un array de NumPy de números con 3 filas y 3 columnas, como `M`.',
+        'Cada fila de `Mn` es la fila de `M` dividida entre su propia norma, así que todas miden 1: no se normalizan las columnas ni se divide toda la matriz entre una sola norma.',
+      ],
       starter: `import numpy as np
 
 # Embeddings de juguete (inventados y de 3 dimensiones), uno por fila

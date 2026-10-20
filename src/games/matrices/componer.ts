@@ -207,6 +207,10 @@ export const componer: Project = {
             'El operador `@` entre matrices calcula el producto, con el orden de la escritura matemática: la matriz de la derecha actúa primero. Si sale una matriz con los productos entrada a entrada, se ha usado otra operación.',
           solution:
             'Se escribe `C = A @ B`, que vale $\\begin{pmatrix}4&6\\\\1&3\\end{pmatrix}$ y aplica primero `B` y después `A`. Con `A * B` se multiplicaría entrada a entrada y saldría $\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$, que no es la composición.',
+          requirements: [
+            '`C` existe y es un array de NumPy con números, de 2 filas y 2 columnas.',
+            '`C` es el producto de matrices de `A` por `B`, que aplica primero `B` y después `A`: no vale el producto entrada a entrada ni el producto en el orden contrario.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [0, 1]])
@@ -240,6 +244,11 @@ check((not _ok) or _elem or _rev or np.allclose(C, [[4, 6], [1, 3]]), "\`C\` tie
             'Cada columna de `C` es la imagen por `A` de una columna de `B`. Al juntarlas tienen que quedar como columnas, no como filas.',
           solution:
             'Se escribe `col0 = A @ B[:, 0]`, `col1 = A @ B[:, 1]` y `C = np.column_stack([col0, col1])`. Con los datos, `col0` vale $(7, 6)$ y `col1` vale $(2, 6)$, y `C` es $\\begin{pmatrix}7&2\\\\6&6\\end{pmatrix}$, igual que el producto completo. Si las juntas con `np.array([col0, col1])`, salen como filas y la matriz queda traspuesta.',
+          requirements: [
+            '`col0` y `col1` existen y son arrays de NumPy con 2 componentes, todas números.',
+            '`col0` y `col1` son la primera y la segunda columna de $AB$, cada una calculada con una columna de `B` y no con una fila.',
+            '`C` existe y es un array de NumPy con números, de 2 filas y 2 columnas, que tiene `col0` como primera columna y `col1` como segunda: no vale ponerlas como filas.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 2], [3, 1]])
@@ -277,6 +286,12 @@ check((not _m) or np.allclose(C, [[7, 6], [2, 6]]) or np.allclose(C, [[7, 2], [6
             'Cada matriz nueva actúa después de las anteriores, así que se coloca a la izquierda de lo que ya hay. Si se coloca a la derecha, la composición sale en el orden contrario.',
           solution:
             'Se parte de la identidad y, para cada matriz `N` de la lista, se hace `M = N @ M`: la nueva queda a la izquierda. Con `[R, S]` sale `S @ R`, es decir $\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$. Con `M = M @ N` la composición saldría al revés, como `R @ S`, que es $\\begin{pmatrix}0&-1\\\\2&0\\end{pmatrix}$.',
+          requirements: [
+            '`componer` existe y es una función que recibe una lista de matrices de $2\\times 2$.',
+            'La función devuelve un array de NumPy con números, de 2 filas y 2 columnas, que aplica las matrices de la lista en el orden dado: la primera de la lista actúa primero.',
+            'Se prueba con otras listas además de `[R, S]`, entre ellas la misma en el orden contrario y una con tres matrices, y la función no puede dar ningún error con ellas.',
+            '`C` es lo que devuelve `componer` para la lista de `R` y `S`.',
+          ],
           starter: `import numpy as np
 
 R = np.array([[0, -1], [1, 0]])
@@ -343,6 +358,10 @@ C = componer([R, S])
             'Los dos productos usan los mismos factores en distinto orden: se calcula cada uno por separado y se comparan al final. Para obtener un único valor, hay que comparar con una función y no con el operador de igualdad.',
           solution:
             '`AB = A @ B` vale $\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$ y `BA = B @ A` vale $\\begin{pmatrix}2&2\\\\0&1\\end{pmatrix}$. Se comparan con `np.allclose(AB, BA)`, que da `False`. Estirar y después inclinar ($AB$) no es lo mismo que inclinar y después estirar ($BA$).',
+          requirements: [
+            '`AB` y `BA` existen y son arrays de NumPy con números, de 2 filas y 2 columnas: el producto de `A` por `B` y el de `B` por `A`, cada uno en su orden.',
+            '`iguales` existe y es un solo `True` o `False`, no una matriz de valores: dice si `AB` y `BA` son iguales.',
+          ],
           starter: `import numpy as np
 
 A = np.array([[1, 1], [0, 1]])
@@ -381,6 +400,11 @@ check((not _b) or not bool(iguales), "\`iguales\` vale \`True\`, pero \`AB\` y \
             'La capa que actúa después va a la izquierda del producto. Comprueba los tamaños: la matriz única tiene que llevar la entrada de 2 componentes a una salida de 2, y si sale de $3\\times 3$ las capas están al revés.',
           solution:
             'Se escribe `W = W2 @ W1`, de tamaño $2\\times 2$: $\\begin{pmatrix}1&5\\\\1&1\\end{pmatrix}$. Con `x` en $(1, 2)$, `y` vale $(11, 3)$, igual que la salida de las dos capas por separado. Con `W1 @ W2` saldría una matriz de $3\\times 3$ que no sirve para `x`. Por eso hace falta una activación no lineal entre capas: sin ella, apilar capas lineales no aprende más que una sola.',
+          requirements: [
+            '`W` existe y es un array de NumPy con números, de 2 filas y 2 columnas: lleva una entrada de 2 componentes a una salida de 2.',
+            '`W` equivale a las dos capas: la primera, `W1`, actúa primero y la segunda, `W2`, después.',
+            '`y` existe y es un array de NumPy con 2 componentes, las dos números: la salida de la capa única `W` para `x`.',
+          ],
           starter: `import numpy as np
 
 W1 = np.array([[1, 2], [0, 1], [-1, 1]])

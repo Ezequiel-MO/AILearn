@@ -40,6 +40,7 @@ const numero = (id: string, answer = 1): NumeroQ => ({
 const codigo = (id: string): CodigoQ => ({
   ...base(id),
   type: 'codigo',
+  requirements: ['r'],
   starter: 'v = None',
   checks: 'check(v == 1, "v vale 1")',
   reference: 'v = 1',

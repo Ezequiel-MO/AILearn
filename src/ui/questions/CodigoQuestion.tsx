@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { GUIDE_CARDS, pythonGuide, type GuideCard } from '../../content/python-guide';
 import type { CodigoQ } from '../../content/schema';
 import type { RunResult } from '../../python/core';
 import { getRunner, PythonLoadError, type PythonRunner } from '../../python/runner';
@@ -6,6 +7,10 @@ import { CodeEditor, type CodeEditorHandle } from '../CodeEditor';
 import { Md } from '../Md';
 import { t } from '../strings';
 import { Stem, useSubmit, type QuestionProps } from './parts';
+import { PythonGuide, type PythonGuideHandle } from './PythonGuide';
+
+/** Fichas que «Cómo seguir» propone repasar, como mucho. */
+const MAX_REVIEW_CARDS = 4;
 
 /** Espera máxima entre dos guardados del borrador mientras el jugador escribe. */
 export const DRAFT_INTERVAL_MS = 500;
@@ -38,6 +43,14 @@ export function CodigoQuestion({
 
   const [code, setCode] = useState(draft ?? question.starter);
   const [result, setResult] = useState<RunResult | null>(null);
+  // Si el resultado a la vista viene de «Entregar» (con comprobaciones) o de «Ejecutar».
+  const [resultMode, setResultMode] = useState<Mode | null>(null);
+  // En examen la guía sale solo del código inicial: la referencia no puede insinuar la respuesta.
+  const guide = useMemo(
+    () => pythonGuide(hideChecks ? question.starter : `${question.starter}\n${question.reference}`),
+    [hideChecks, question.starter, question.reference],
+  );
+  const guideRef = useRef<PythonGuideHandle>(null);
   const [harnessFailed, setHarnessFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -95,10 +108,12 @@ export function CodigoQuestion({
           : await runner.run(source);
       if (!alive.current) return;
       setResult(outcome);
+      setResultMode(mode);
       if (mode === 'submit') submit(outcome.timedOut ? false : outcome.passed);
     } catch (e) {
       if (!alive.current) return;
       setResult(null);
+      setResultMode(null);
       // PythonLoadError: el estado `failed` ya muestra el aviso. Otro Error: fallo del arnés, no una respuesta.
       if (!(e instanceof PythonLoadError)) setHarnessFailed(true);
     } finally {
@@ -113,6 +128,7 @@ export function CodigoQuestion({
     setConfirming(false);
     // Vuelve a la pantalla inicial: nada de la ejecución anterior queda a la vista.
     setResult(null);
+    setResultMode(null);
     setHarnessFailed(false);
     dirty.current = false;
     flushDraft(true);
@@ -126,10 +142,33 @@ export function CodigoQuestion({
   // `disabled` queda para lo que la tanda gestiona: «Entregar» bloqueada o en espera.
   const inactive = unavailable || busy;
   const figures = result?.figures ?? [];
+  // «Cómo seguir»: tras una entrega fallida que todavía se puede repetir, fuera del examen.
+  const failedSubmit =
+    resultMode === 'submit' &&
+    !hideChecks &&
+    !locked &&
+    result !== null &&
+    !result.timedOut &&
+    !result.passed;
+  const reviewCards = failedSubmit ? cardsToReview(guide.cards, result.error !== null) : [];
 
   return (
     <div className="question code">
       <Stem prompt={question.prompt} />
+      {question.requirements.length > 0 ? (
+        <section className="code__requirements">
+          <h3 className="code__label">{t.code.requirementsLabel}</h3>
+          <ul className="code__requirements-list">
+            {question.requirements.map((r, i) => (
+              <li key={i}>
+                <Md inline>{r}</Md>
+              </li>
+            ))}
+          </ul>
+          <p className="code__requirements-note">{t.code.requirementsNote}</p>
+        </section>
+      ) : null}
+      <PythonGuide guide={guide} ref={guideRef} />
       <div className={`code__work${figures.length > 0 ? ' code__work--figures' : ''}`}>
         <div className="code__main">
           <CodeEditor
@@ -214,7 +253,15 @@ export function CodigoQuestion({
           {/* Región viva (siempre presente, para que se anuncie lo que entra): salida, traza y comprobaciones. */}
           <div className="code__results" role="status" aria-label={t.code.resultsLabel}>
             {result && !result.timedOut ? (
-              <Outcome result={result} hideChecks={hideChecks} />
+              <Outcome result={result} hideChecks={hideChecks} silentNote={figures.length === 0} />
+            ) : null}
+            {failedSubmit ? (
+              <NextSteps
+                error={result.error !== null}
+                hasRequirements={question.requirements.length > 0}
+                cards={reviewCards}
+                onOpen={(id) => guideRef.current?.open(id)}
+              />
             ) : null}
           </div>
         </div>
@@ -231,8 +278,83 @@ export function CodigoQuestion({
   );
 }
 
-function Outcome({ result, hideChecks }: { result: RunResult; hideChecks: boolean }) {
+/** Fichas que casi toda pregunta usa: en «Cómo seguir» solo salen si no hay otras. */
+const GENERIC_CARDS = new Set(['importar', 'listas', 'arrays']);
+
+/**
+ * Fichas para «Cómo seguir»: las de lo que usa la pregunta, de la más concreta a la más general (la guía
+ * va de lo general a lo concreto) y, si el código se paró en un error, primero la de los errores.
+ */
+function cardsToReview(cards: readonly GuideCard[], error: boolean): GuideCard[] {
+  const errores = GUIDE_CARDS.find((c) => c.id === 'errores');
+  const concrete = [...cards].reverse();
+  const preferred = concrete.filter((c) => !GENERIC_CARDS.has(c.id));
+  const picked = preferred.length > 0 ? preferred : concrete;
+  return (error && errores ? [errores, ...picked] : picked).slice(0, MAX_REVIEW_CARDS);
+}
+
+function NextSteps({
+  error,
+  hasRequirements,
+  cards,
+  onOpen,
+}: {
+  error: boolean;
+  hasRequirements: boolean;
+  cards: readonly GuideCard[];
+  onOpen: (cardId: string) => void;
+}) {
+  return (
+    <section className="code__next">
+      <h3 className="code__label">{t.code.nextLabel}</h3>
+      <ul className="code__next-list">
+        <li>{error ? t.code.nextError : t.code.nextChecks}</li>
+        <li>
+          <Md inline>{t.code.nextPrint}</Md>
+        </li>
+        {hasRequirements ? <li>{t.code.nextRequirements}</li> : null}
+        {cards.length > 0 ? (
+          <li>
+            {t.code.nextReview}{' '}
+            {cards.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className="code__next-card"
+                onClick={() => onOpen(c.id)}
+              >
+                {c.title}
+              </button>
+            ))}
+          </li>
+        ) : null}
+      </ul>
+    </section>
+  );
+}
+
+function Outcome({
+  result,
+  hideChecks,
+  silentNote,
+}: {
+  result: RunResult;
+  hideChecks: boolean;
+  /** «Ejecutar» sin salida, sin error y sin figuras: se explica cómo ver los valores. */
+  silentNote: boolean;
+}) {
   const showChecks = !hideChecks && result.checks !== null && result.checks.length > 0;
+  const silent =
+    silentNote && result.checks === null && result.stdout === '' && result.error === null;
+  if (silent) {
+    return (
+      <div className="code__result">
+        <p className="code__silent">
+          <Md inline>{t.code.silentRun}</Md>
+        </p>
+      </div>
+    );
+  }
   // Sin nada que enseñar (examen sin salida ni errores) no hay contenedor: la región viva sigue vacía.
   if (result.stdout === '' && result.error === null && !showChecks) return null;
   return (
@@ -258,6 +380,9 @@ function Outcome({ result, hideChecks }: { result: RunResult; hideChecks: boolea
               result.checks.length,
             )}
           </p>
+          {result.checks.some((c) => !c.passed) ? (
+            <p className="code__summary-note">{t.code.checksAll}</p>
+          ) : null}
           {/* R44: una comprobación superada nunca enseña su mensaje (es un diagnóstico de fallo). */}
           {result.checks.some((c) => !c.passed) ? (
             <ul className="code__checks">

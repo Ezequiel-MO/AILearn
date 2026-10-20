@@ -261,6 +261,11 @@ export const dimensionAlta: Project = {
             'Cada pareja necesita vectores nuevos: si los creas fuera del bucle, los `n` cosenos serán el mismo número. Y los números al azar tienen que poder ser negativos, porque si todos son positivos, los vectores apuntan al mismo lado y el coseno no sale cerca de $0$.',
           solution:
             'Dentro del bucle, `a = rng.normal(size=d)` y `b = rng.normal(size=d)` crean la pareja, y `res.append(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))` guarda su coseno; al final, `return np.array(res)`, con `res = []` antes del bucle. Con `d = 2`, los cosenos se reparten por todo el intervalo de $-1$ a $1$; con `d = 100`, casi todos quedan entre $-0{,}2$ y $0{,}2$.',
+          requirements: [
+            '`cosenos` es una función que recibe `d` y `n` y devuelve un array de NumPy con `n` números, uno por pareja; se prueba con otros valores de `d` y de `n` y no da error.',
+            'Cada número es el coseno de una pareja de vectores de `d` componentes, y por eso queda entre -1 y 1.',
+            'Los vectores se hacen con números al azar positivos y negativos, y cada pareja es nueva: los cosenos salen repartidos en torno a 0 con la dispersión propia de esa dimensión. No se comprueba ningún valor concreto.',
+          ],
           starter: `import numpy as np
 
 rng = np.random.default_rng(0)
@@ -322,6 +327,11 @@ def cosenos(d, n):
             'Los dos arrays tienen que parecerse mucho. Si no es así, o has dividido entre $d$ en lugar de entre su raíz en `teoria`, o `sd` sale de pocos cosenos. Con $d=2$, la teoría da $0{,}71$.',
           solution:
             '`sd = np.array([np.std(cosenos(d, 2000)) for d in dims])` y `teoria = 1 / np.sqrt(dims)`. La teoría vale $0{,}71$; $0{,}32$; $0{,}10$ y $0{,}032$, y lo medido casi coincide: $0{,}71$; $0{,}32$; $0{,}099$ y $0{,}031$. Cada vez que $d$ se multiplica por $10$, la desviación típica se divide entre $\\sqrt{10}\\approx3{,}16$.',
+          requirements: [
+            '`sd` y `teoria` son cada una una lista o un array de NumPy con 4 números, uno por cada valor de `dims`, en el mismo orden.',
+            '`teoria` contiene el valor $\\dfrac{1}{\\sqrt{d}}$ de cada `d`.',
+            '`sd` contiene la desviación típica medida con muchos cosenos para cada `d`, no con uno solo. Como es una medida y no un cálculo exacto, se acepta una diferencia pequeña respecto a `teoria`.',
+          ],
           starter: `import numpy as np
 
 rng = np.random.default_rng(0)
@@ -397,6 +407,10 @@ teoria = 1 / np.sqrt(dims)
             'Compara las dos formas: con $d=2$ los cosenos se reparten por todo el intervalo, y con $d=1000$ se amontonan junto a $0$. Si solo ves un histograma, o los dos iguales, revisa los datos que le pasas a cada llamada.',
           solution:
             '`plt.hist(cosenos(2, 2000), bins=40, range=(-1, 1), alpha=0.6, label="d = 2")` y otra igual con `cosenos(1000, 2000)` y `label="d = 1000"`, más los títulos de los ejes y la leyenda. El de $d=2$ es casi plano, con más altura en los extremos, porque un ángulo al azar da cosenos de todos los tamaños. El de $d=1000$ es una campana estrecha de desviación típica $0{,}032$: casi todos los cosenos están entre $-0{,}1$ y $0{,}1$. En dimensión alta, dos direcciones al azar son casi siempre casi perpendiculares.',
+          requirements: [
+            'Hay una figura con al menos dos histogramas dibujados con `plt.hist`.',
+            'Uno es de cosenos de vectores de $\\mathbb{R}^2$ y otro, de cosenos de vectores de $\\mathbb{R}^{1000}$: se reconocen por la forma, uno repartido por todo el intervalo de $-1$ a $1$ y el otro amontonado cerca de $0$.',
+          ],
           starter: `import numpy as np
 import matplotlib.pyplot as plt
 
@@ -470,6 +484,11 @@ plt.legend()
             'Cada `d` necesita sus propios puntos y su propia consulta, porque sus vectores tienen otro tamaño. Mira cómo cambia la razón al crecer `d`: es justo lo que quieres medir.',
           solution:
             'Con `razon = []` antes del bucle y, en cada vuelta, `P = rng.normal(size=(500, d))`, `q = rng.normal(size=d)`, `dist = np.linalg.norm(P - q, axis=1)` y `razon.append(dist.max() / dist.min())`. Con la semilla `0` salen unas razones de $104$; $3{,}6$; $1{,}4$ y $1{,}12$. En el plano, el punto más cercano está pegado y el más lejano, lejos. En $d=1000$, los `500` puntos están casi a la misma distancia de la consulta, y el «más cercano» apenas se distingue: un pequeño ruido en los datos cambia quién gana. Es la **maldición de la dimensión** para los índices vectoriales.',
+          requirements: [
+            '`razon` es una lista o un array de NumPy con 4 números, uno por cada valor de `dims`, en ese orden.',
+            'Cada razón es la mayor de las distancias de la consulta a los puntos dividida entre la menor, por lo que nunca baja de 1.',
+            'Cada `d` usa sus propios 500 puntos y su propia consulta, de `d` componentes. No se comprueban los valores exactos, sino cómo se comportan las cuatro razones al crecer `d`.',
+          ],
           starter: `import numpy as np
 
 rng = np.random.default_rng(0)
@@ -525,6 +544,11 @@ for d in dims:
             'Hay que contar parejas con un coseno cerca de $0$ por los dos lados, así que se compara el valor absoluto. Y se pide una fracción entre $0$ y $1$, no un recuento: mira que el resultado crece con `d`.',
           solution:
             'Con `frac = []` antes del bucle y, en cada vuelta, `E = rng.normal(size=(300, d))`, `E = E / np.linalg.norm(E, axis=1, keepdims=True)`, `C = E @ E.T`, `i, j = np.triu_indices(300, k=1)` y `frac.append(np.mean(np.abs(C[i, j]) < 0.2))`. Con la semilla `0` salen unas fracciones de $0{,}13$; $0{,}44$; $0{,}84$ y $1$. En el plano, solo el $13\\,\\%$ de las parejas son casi perpendiculares. Con $d=500$ lo son todas. Por eso los embeddings tienen cientos o miles de dimensiones: hay sitio para muchísimos conceptos casi independientes, aunque solo $d$ sean exactamente perpendiculares.',
+          requirements: [
+            '`frac` es una lista o un array de NumPy con 4 números, uno por cada valor de `dims`, en ese orden.',
+            'Cada número es una fracción, entre 0 y 1, de las parejas distintas de vectores normalizados cuyo coseno tiene un valor absoluto menor que $0{,}2$.',
+            'Como depende del azar, se acepta una diferencia de hasta cinco centésimas con cada fracción esperada.',
+          ],
           starter: `import numpy as np
 
 rng = np.random.default_rng(0)

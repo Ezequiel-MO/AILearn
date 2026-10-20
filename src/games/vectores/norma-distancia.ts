@@ -232,6 +232,10 @@ export const normaDistancia: Project = {
             'La función aplica la fórmula entera de la norma: eleva al cuadrado, suma y hace la raíz. Por eso se le pasa el vector completo y no cada componente por separado.',
           solution:
             'Se escribe `n = np.linalg.norm(v)`. NumPy calcula $\\sqrt{3^2+4^2}=5$, así que `n` vale $5$.',
+          requirements: [
+            '`n` existe y es un único número: ni un array ni una lista.',
+            '`n` es la norma de `v`.',
+          ],
           starter: `import numpy as np
 
 v = np.array([3, 4])
@@ -258,6 +262,10 @@ check(_num and np.isclose(n, 5), "\`n\` tiene que valer 5, la norma de (3, 4).")
             'La norma es una cadena de tres operaciones y el orden importa: primero los cuadrados, luego la suma y la raíz al final. Si falta la raíz sale la suma de cuadrados; si faltan los cuadrados, sale la suma de las componentes.',
           solution:
             'Los cuadrados de las componentes son $(1, 4, 4)$, su suma es $9$ y la raíz de $9$ es $3$. En Python: `n = np.sqrt(np.sum(v ** 2))`. Da lo mismo que `np.linalg.norm(v)`, que hace justo este cálculo.',
+          requirements: [
+            '`n` existe y es un único número: ni un array ni una lista.',
+            '`n` es la norma de `v`: la raíz de la suma de los cuadrados de sus componentes.',
+          ],
           starter: `import numpy as np
 
 v = np.array([1, -2, 2])
@@ -286,6 +294,11 @@ check(_num and np.isclose(n, 3), "\`n\` tiene que valer 3, la norma de (1, -2, 2
             'La distancia es la norma de la resta de los dos embeddings, no la resta de sus normas: dos puntos muy distintos pueden tener normas casi iguales.',
           solution:
             'La resta es $(3-4,\\ 4-(-2))=(-1,\\ 6)$ y su norma es $\\sqrt{37}\\approx 6{,}08$. En Python: `d = np.linalg.norm(gato - lobo)`. Restar las normas daría $5-4{,}47=0{,}53$, que no es la distancia.',
+          requirements: [
+            '`d` existe y es un único número: la longitud de un vector, no el vector mismo.',
+            '`d` es la distancia entre «gato» y «lobo»: la norma del vector que va de uno a otro, no la diferencia entre sus normas.',
+            'Como sale con decimales, se acepta una diferencia de hasta una centésima.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 dimensiones
@@ -323,6 +336,10 @@ d = np.linalg.norm(gato - lobo)
             'Dividir entre la norma deja la longitud en 1 y no cambia la dirección. Se divide siempre entre la norma, no entre su cuadrado ni entre la suma de las componentes.',
           solution:
             'La norma de `v` es $5$ y `u = v / np.linalg.norm(v)` divide cada componente entre ella: $(3/5,\\ 4/5)=(0{,}6;\\ 0{,}8)$. La norma de `u` es $1$.',
+          requirements: [
+            '`u` existe y es un array de NumPy con 2 componentes, las dos números.',
+            '`u` apunta en la misma dirección que `v` y su norma es 1.',
+          ],
           starter: `import numpy as np
 
 v = np.array([3, 4])
@@ -353,6 +370,10 @@ check(_num and np.allclose(u, [0.6, 0.8]), "\`u\` tiene que valer (0,6; 0,8), la
             'Buscar el vecino más cercano es quedarse con el mínimo de las distancias. El bucle va recordando la mejor palabra y su distancia, y solo las cambia cuando encuentra una menor.',
           solution:
             'Para cada clave de `emb`, en su orden, se calcula la distancia a `q`: «perro» está a $\\sqrt{5}\\approx 2{,}24$, «gato» a $1$, «lobo» a $\\sqrt{40}\\approx 6{,}32$ y «bici» a $\\sqrt{17}\\approx 4{,}12$. El programa completo tiene dos niveles de sangrado: el cálculo de `d` y el `if` van dentro del `for`, y las dos asignaciones van dentro del `if`.\n\n```python\nfor palabra in emb:\n    d = np.linalg.norm(q - emb[palabra])\n    if d < menor:\n        menor = d\n        mas_cercana = palabra\n```\n\nAsí `menor` y `mas_cercana` solo cambian cuando aparece una palabra más cercana que todas las anteriores: aquí, con «perro» y después con «gato». La ganadora es «gato».',
+          requirements: [
+            '`mas_cercana` existe y es un texto: una de las claves de `emb`, no su vector.',
+            '`mas_cercana` es la palabra de `emb` cuyo embedding queda a menor distancia de `q`.',
+          ],
           starter: `import numpy as np
 
 # Embeddings de juguete: inventados y de 2 dimensiones
