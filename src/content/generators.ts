@@ -813,7 +813,7 @@ const resolverSistema: Generator = {
         ],
         explain:
           'Resolver $A\\vec{x}=\\vec{b}$ es preguntar qué vector $\\vec{x}$ aterriza en $\\vec{b}$ al aplicar $A$. Si $A$ no aplasta el plano ($\\det A\\neq 0$), se deshace la transformación con la inversa: $\\vec{x}=A^{-1}\\vec{b}$. La inversa intercambia $a$ y $d$, cambia el signo de $b$ y $c$, y divide entre $\\det A$.',
-        solution: `$\\det A=${paren(a)}\\cdot ${paren(d)}-${paren(b)}\\cdot ${paren(c)}=${tex(dt)}$. La matriz adjunta (intercambia $a$ y $d$, cambia el signo de $b$ y $c$) es $${adjTex}$. Entonces $\\vec{x}=A^{-1}\\vec{b}=${factor}${adjTex}${columnTex(rhs)}=${factor}${mulSteps(adj, rhs)}=${factor}${columnTex(scaled)}=${columnTex(x)}$. Comprobación: $A\\vec{x}=${mulSteps(m, x)}=${columnTex(rhs)}=\\vec{b}$.`,
+        solution: `$\\det A=${paren(a)}\\cdot ${paren(d)}-${paren(b)}\\cdot ${paren(c)}=${tex(dt)}$. La matriz que intercambia $a$ y $d$ y cambia el signo de $b$ y $c$ es $${adjTex}$. Entonces $\\vec{x}=A^{-1}\\vec{b}=${factor}${adjTex}${columnTex(rhs)}=${factor}${mulSteps(adj, rhs)}=${factor}${columnTex(scaled)}=${columnTex(x)}$. Comprobación: $A\\vec{x}=${mulSteps(m, x)}=${columnTex(rhs)}=\\vec{b}$.`,
       },
       x,
       0,

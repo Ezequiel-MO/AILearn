@@ -26,10 +26,10 @@ export const determinante: Project = {
           id: 'determinante.ex00.1',
           type: 'manipular',
           prompt:
-            'El **determinante** de una matriz es el factor por el que multiplica las áreas. El cuadrado unidad, de área $1$, se convierte en el paralelogramo que forman las columnas de la matriz, y su área es el determinante. Aquí $\\hat{\\imath}$ está fijo en $(1, 0)$. Mueve la punta de $\\hat{\\jmath}$ para que el paralelogramo tenga **área 3**. Razónalo como base por altura.',
+            'El **determinante** de una matriz es el factor por el que multiplica las áreas. El cuadrado unidad, de área $1$, se convierte en el paralelogramo que forman las columnas de la matriz, y su área es el determinante. Aquí $\\hat{\\imath}$ está fijo en $(1, 0)$. Mueve la punta de $\\hat{\\jmath}$ para que el paralelogramo tenga **área 3**, con la punta por encima del eje $x$. Razónalo como base por altura.',
           hints: [
             'La base del paralelogramo es $\\hat{\\imath}$, que mide $1$. ¿Qué altura necesita para que base por altura dé $3$?',
-            'La altura es la distancia de la punta de $\\hat{\\jmath}$ al eje $x$, es decir, su coordenada $y$. Mover la punta en horizontal no la cambia.',
+            'La altura es la distancia de la punta de $\\hat{\\jmath}$ al eje $x$, es decir, su coordenada $y$ si está por encima del eje. Mover la punta en horizontal no la cambia.',
           ],
           explain:
             'Un paralelogramo tiene área base por altura. Con la base sobre el eje $x$, la altura es la coordenada $y$ de $\\hat{\\jmath}$, no su longitud: si inclinas el vector sin subir la punta, el área no cambia.',
@@ -153,7 +153,7 @@ export const determinante: Project = {
           id: 'determinante.ex01.3',
           type: 'numero',
           prompt:
-            'Una matriz es **triangular** si tiene un cero fuera de la diagonal, como esta. Calcula $\\det A$ con $A=\\begin{pmatrix}-2&5\\\\0&4\\end{pmatrix}$.',
+            'Una matriz de $2\\times 2$ es **triangular** si tiene un cero fuera de la diagonal, como esta. Calcula $\\det A$ con $A=\\begin{pmatrix}-2&5\\\\0&4\\end{pmatrix}$.',
           hints: [
             'Aplica $ad-bc$. ¿Cuánto vale $b\\cdot c$ cuando $c=0$?',
             'Mira dónde van los vectores de la base: $\\hat{\\imath}$ va a $(-2, 0)$, sobre el eje $x$.',

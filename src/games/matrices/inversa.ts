@@ -301,7 +301,7 @@ check((not _b) or (not _good) or bool(coincide), "\`coincide\` vale \`False\`, p
             'Decide primero si es singular; solo si no lo es, llama a `np.linalg.inv`.',
           ],
           explain:
-            'Hay que mirar el determinante antes de invertir: pedir la inversa de una matriz singular no da una inversa: lanza un error o devuelve `nan`. Comparar el determinante con `== 0` es frágil, porque el redondeo puede dejar un valor diminuto en lugar de cero.',
+            'Hay que mirar el determinante antes de invertir: pedir la inversa de una matriz singular no da una inversa, sino que lanza un error o devuelve `nan`. Comparar el determinante con `== 0` es frágil, porque el redondeo puede dejar un valor diminuto en lugar de cero.',
           solution:
             'Se calcula el determinante `d = np.linalg.det(M)`; si `np.isclose(d, 0)`, se devuelve `None`, y si no, `np.linalg.inv(M)`. Para `A` el determinante vale $1\\cdot 7-2\\cdot 3=1$ y `Ainv` es $\\begin{pmatrix}7&-2\\\\-3&1\\end{pmatrix}$. Para $\\begin{pmatrix}2&4\\\\1&2\\end{pmatrix}$, de columnas paralelas, la función devuelve `None`.',
           starter: `import numpy as np
