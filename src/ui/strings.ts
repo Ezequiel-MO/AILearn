@@ -196,6 +196,26 @@ export const t = {
     statsAttempts: 'Intentos',
     statsCorrect: 'Aciertos',
     statsLaunch: 'Despegue',
+    roadmapLink: 'Ver la ruta completa',
+  },
+
+  // --- Ruta completa (todos los juegos previstos) ---
+  roadmap: {
+    title: 'La ruta completa',
+    intro:
+      'Todo lo que comprenderá AIlearn: cada juego enseña un bloque de matemáticas y lo aplica de inmediato a la IA. Lo que aún no está construido lleva la etiqueta «Próximamente».',
+    totals: (games: number, orbits: number, projects: number, ready: number) =>
+      `${games} juegos · ${orbits} órbitas · ${projects} proyectos · ${ready} ${ready === 1 ? 'juego disponible' : 'juegos disponibles'}`,
+    gameNumber: (n: number) => `Juego ${n}`,
+    math: 'Matemática',
+    ai: 'En IA',
+    ready: 'Disponible',
+    soon: 'Próximamente',
+    play: 'Ir al juego',
+    contents: (orbits: number) => `Despegue y ${orbits} órbitas`,
+    launch: 'Despegue',
+    orbit: (c: number, name: string) => `Órbita ${c} · ${name}`,
+    projects: 'Proyectos',
   },
 
   // --- Cuenta (inicio de sesión y progreso en la nube) ---

@@ -1292,6 +1292,161 @@ a {
   color: var(--color-text-muted);
 }
 
+.hub__roadmap {
+  margin: var(--space-4) 0 0;
+}
+
+/* === Ruta completa === */
+
+.roadmap__intro {
+  margin: 0 0 var(--space-2);
+}
+
+.roadmap__totals {
+  margin: 0 0 var(--space-4);
+  color: var(--color-text-muted);
+}
+
+.roadmap__list,
+.roadmap__stages,
+.roadmap__projects {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roadmap__list {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.roadmap__card {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-left: 3px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.roadmap__card--soon {
+  border-left-color: var(--color-border);
+}
+
+.roadmap__head,
+.roadmap__stage-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+}
+
+.roadmap__n {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.roadmap__name {
+  margin: 0;
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.roadmap__badge {
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.roadmap__badge--ready {
+  border-color: var(--color-ok);
+  color: var(--color-ok);
+}
+
+.roadmap__badge--soon {
+  color: var(--color-text-muted);
+}
+
+.roadmap__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  min-width: 0;
+}
+
+.roadmap__facts dt {
+  color: var(--color-text-muted);
+}
+
+.roadmap__facts dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.roadmap__details {
+  width: 100%;
+}
+
+.roadmap__summary {
+  color: var(--color-accent);
+  cursor: pointer;
+}
+
+.roadmap__stages {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.roadmap__stage {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.roadmap__stage-name {
+  margin: 0;
+  font-size: var(--text-base);
+  overflow-wrap: anywhere;
+}
+
+.roadmap__projects {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.roadmap__project {
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-sm);
+}
+
+/* Una columna en móvil: la etiqueta encima del texto. */
+@media (max-width: 30rem) {
+  .roadmap__facts {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .roadmap__facts dd + dt {
+    margin-top: var(--space-1);
+  }
+}
+
 /* === Mapa del juego === */
 
 .map__bar {

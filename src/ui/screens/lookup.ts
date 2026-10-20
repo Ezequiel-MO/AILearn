@@ -26,6 +26,9 @@ export function parseOrbit(text: string | undefined, game: Game): number | null 
   return c < game.orbits.length ? c : null;
 }
 
+/** `/ruta`: todos los juegos previstos, construidos o no. */
+export const roadmapPath = '/ruta';
+
 /** Ruta del mapa de un juego. */
 export const mapPath = (gameId: string): string => `/j/${encodeURIComponent(gameId)}`;
 

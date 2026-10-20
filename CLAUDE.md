@@ -44,7 +44,7 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - `src/ui/`: `Layout`, `Account` (inicio de sesión en la cabecera), `VectorPlane`, `CodeEditor`, `ExerciseRunner`, `Md`; `questions/` (un componente por tipo); `screens/` (pantallas y puertas); `dev/` (rutas `#/dev/*`, solo en desarrollo); `strings.ts`.
 - `src/games/index.ts`: registro de juegos; `src/games/vectores/`: contenido del juego 1; `src/games/matrices/`: contenido del juego 2 (`plane.ts`: plano de transformación con î y ĵ).
 - Los ids de generador son globales a todos los juegos (`src/content/generators.ts`): uno nuevo no puede repetir id y entra en `IDS` y en la tabla de límites de `generators.test.ts`.
-- `src/App.tsx`: rutas con `HashRouter`: `/`, `/j/:game`, `/j/:game/p/:project`, `/j/:game/estadisticas` (estas cuatro, de la tarea 14), `/j/:game/despegue`, `/j/:game/p/:project/ex/:n`, `/j/:game/p/:project/hoja/:n`, `/j/:game/examen/:c`.
+- `src/App.tsx`: rutas con `HashRouter`: `/`, `/j/:game`, `/j/:game/p/:project`, `/j/:game/estadisticas` (estas cuatro, de la tarea 14), `/ruta` (la ruta completa, de `src/games/roadmap.ts`), `/j/:game/despegue`, `/j/:game/p/:project/ex/:n`, `/j/:game/p/:project/hoja/:n`, `/j/:game/examen/:c`.
 - `tests/content/`: pruebas que recorren `games` y ayudantes (`python-helpers.ts`, `prose-helpers.ts`). `tests/deps/`, `tests/lint/`, `tests/e2e/`.
 - `docs/superpowers/`: specs y planes.
 
