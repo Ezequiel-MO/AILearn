@@ -740,6 +740,194 @@ const formaProducto: Generator = {
   },
 };
 
+// ---------- Juego 2, Órbita 1: el área ----------
+
+const det2 = (m: readonly number[]): number => m[0]! * m[3]! - m[1]! * m[2]!;
+
+/** Matriz 2×2 de entradas de -3 a 3, con a lo sumo un cero y determinante distinto de 0. */
+const drawInvertible2x2 = (rng: () => number): number[] => {
+  for (;;) {
+    const m = draw2x2(rng);
+    if (m.filter((x) => x === 0).length <= 1 && det2(m) !== 0) return m;
+  }
+};
+
+const determinante: Generator = {
+  id: 'determinante',
+  bounds: { min: -18, max: 18 },
+  make(id, _params, rng) {
+    const m = drawInvertible2x2(rng);
+    const [a, b, c, d] = m as [number, number, number, number];
+    const r = det2(m);
+    const effect =
+      r > 0
+        ? 'Como el determinante es positivo, $A$ conserva la orientación del plano.'
+        : 'Como el determinante es negativo, $A$ además voltea el plano: cambia su orientación.';
+    return numeroQ(
+      id,
+      {
+        prompt: `Sea $A=${matrix2Tex(m)}$. Calcula su determinante, $\\det A$.`,
+        hints: [
+          'Para una matriz $2\\times 2$, $\\det A=ad-bc$: el producto de la diagonal principal menos el de la otra diagonal.',
+          'Fíjate en el orden y en el signo: primero $a\\cdot d$, después se resta $b\\cdot c$, y cuidado con los números negativos.',
+        ],
+        explain:
+          'El determinante de $\\begin{pmatrix}a & b\\\\ c & d\\end{pmatrix}$ es $ad-bc$. Los fallos habituales son sumar en lugar de restar ($ad+bc$) y multiplicar la diagonal equivocada ($ab-cd$ o $ac-bd$). Su valor absoluto es el factor por el que $A$ multiplica las áreas; el signo dice si el plano se voltea.',
+        solution: `$\\det A=a\\cdot d-b\\cdot c=${paren(a)}\\cdot ${paren(d)}-${paren(b)}\\cdot ${paren(c)}=${tex(a * d)}-${paren(b * c)}=${tex(r)}$. El valor absoluto, $${tex(Math.abs(r))}$, es el factor por el que $A$ multiplica las áreas. ${effect}`,
+      },
+      r,
+      0,
+    );
+  },
+};
+
+const resolverSistema: Generator = {
+  id: 'resolver-sistema',
+  bounds: { min: -3, max: 3 },
+  make(id, _params, rng) {
+    const drawX = (): number[] => [int(rng, -3, 3), int(rng, -3, 3)];
+    let x = drawX();
+    while (isZero(x)) x = drawX();
+    // Con A diagonal el sistema se lee a ojo: se exige b ≠ 0 o c ≠ 0.
+    let m = draw2x2(rng);
+    while (det2(m) === 0 || (m[1] === 0 && m[2] === 0)) m = draw2x2(rng);
+    const [a, b, c, d] = m as [number, number, number, number];
+    const rhs = [a * x[0]! + b * x[1]!, c * x[0]! + d * x[1]!].map(clean);
+    const dt = det2(m);
+    const adj = [d, -b, -c, a].map(clean);
+    const scaled = [
+      adj[0]! * rhs[0]! + adj[1]! * rhs[1]!,
+      adj[2]! * rhs[0]! + adj[3]! * rhs[1]!,
+    ].map(clean);
+    // El signo del determinante va delante de la fracción: nunca \dfrac{1}{-5}.
+    const sign = dt < 0 ? '-' : '';
+    const factor = Math.abs(dt) === 1 ? sign : `${sign}\\dfrac{1}{${Math.abs(dt)}}`;
+    const adjTex = matrix2Tex(adj);
+    return vectorQ(
+      id,
+      {
+        prompt: `Resuelve $A\\vec{x}=\\vec{b}$ con $A=${matrix2Tex(m)}$ y $\\vec{b}=${columnTex(rhs)}$. Escribe $\\vec{x}$.`,
+        hints: [
+          'Si $\\det A\\neq 0$, $A$ tiene inversa y $\\vec{x}=A^{-1}\\vec{b}$. Para una matriz $2\\times 2$, $A^{-1}=\\dfrac{1}{\\det A}\\begin{pmatrix}d & -b\\\\ -c & a\\end{pmatrix}$.',
+          'Cuando tengas $\\vec{x}$, compruébalo: calcula $A\\vec{x}$ y mira si sale $\\vec{b}$.',
+        ],
+        explain:
+          'Resolver $A\\vec{x}=\\vec{b}$ es preguntar qué vector $\\vec{x}$ aterriza en $\\vec{b}$ al aplicar $A$. Si $A$ no aplasta el plano ($\\det A\\neq 0$), se deshace la transformación con la inversa: $\\vec{x}=A^{-1}\\vec{b}$. La inversa intercambia $a$ y $d$, cambia el signo de $b$ y $c$, y divide entre $\\det A$.',
+        solution: `$\\det A=${paren(a)}\\cdot ${paren(d)}-${paren(b)}\\cdot ${paren(c)}=${tex(dt)}$. La matriz adjunta (intercambia $a$ y $d$, cambia el signo de $b$ y $c$) es $${adjTex}$. Entonces $\\vec{x}=A^{-1}\\vec{b}=${factor}${adjTex}${columnTex(rhs)}=${factor}${mulSteps(adj, rhs)}=${factor}${columnTex(scaled)}=${columnTex(x)}$. Comprobación: $A\\vec{x}=${mulSteps(m, x)}=${columnTex(rhs)}=\\vec{b}$.`,
+      },
+      x,
+      0,
+    );
+  },
+};
+
+const ORDINAL = ['primera', 'segunda', 'tercera'] as const;
+
+/** Determinante de una matriz 3×3 guardada por filas en nueve números. */
+const det3 = (m: readonly number[]): number =>
+  m[0]! * (m[4]! * m[8]! - m[5]! * m[7]!) -
+  m[1]! * (m[3]! * m[8]! - m[5]! * m[6]!) +
+  m[2]! * (m[3]! * m[7]! - m[4]! * m[6]!);
+
+const cross = (u: readonly number[], v: readonly number[]): number[] => [
+  u[1]! * v[2]! - u[2]! * v[1]!,
+  u[2]! * v[0]! - u[0]! * v[2]!,
+  u[0]! * v[1]! - u[1]! * v[0]!,
+];
+
+const drawCol3 = (rng: () => number): number[] => [
+  int(rng, -3, 3),
+  int(rng, -3, 3),
+  int(rng, -3, 3),
+];
+
+/** «$m$ veces la primera»; el caso -1 se lee «la opuesta de la primera». */
+const multipleText = (m: number, name: string): string =>
+  m === 1 ? name : m === -1 ? `la opuesta de ${name}` : `$${tex(m)}$ veces ${name}`;
+
+const rango: Generator = {
+  id: 'rango',
+  bounds: { min: 1, max: 3 },
+  make(id, _params, rng) {
+    const target = int(rng, 1, 3);
+    const MULTIPLES = [-2, -1, 2, 3];
+    const MIXES = [-2, -1, 1, 2];
+    const pick = (xs: readonly number[]): number => xs[int(rng, 0, xs.length - 1)]!;
+    const combine = (p: number, u: readonly number[], q: number, v: readonly number[]): number[] =>
+      u.map((x, i) => p * x + q * v[i]!);
+    // Columnas en el orden sorteado: `cols`, y `how` dice cómo se reparte la dependencia.
+    let cols: number[][] = [];
+    let coefficients: number[] = [];
+    if (target === 1) {
+      let c1 = drawCol3(rng);
+      while (isZero(c1)) c1 = drawCol3(rng);
+      coefficients = [pick(MULTIPLES), pick(MULTIPLES)];
+      cols = [c1, c1.map((x) => coefficients[0]! * x), c1.map((x) => coefficients[1]! * x)];
+    } else if (target === 2) {
+      for (;;) {
+        const c1 = drawCol3(rng);
+        const c2 = drawCol3(rng);
+        if (isZero(cross(c1, c2))) continue;
+        coefficients = [pick(MIXES), pick(MIXES)];
+        const c3 = combine(coefficients[0]!, c1, coefficients[1]!, c2);
+        if (c3.some((x) => Math.abs(x) > 9)) continue;
+        cols = [c1, c2, c3];
+        break;
+      }
+    } else {
+      for (;;) {
+        cols = [drawCol3(rng), drawCol3(rng), drawCol3(rng)];
+        const rows = [0, 1, 2].flatMap((i) => cols.map((c) => c[i]!));
+        if (det3(rows) !== 0) break;
+      }
+    }
+    // Se baraja el orden de las columnas: la dependiente no cae siempre en el mismo sitio.
+    const order = [0, 1, 2];
+    for (let i = 2; i > 0; i--) {
+      const j = int(rng, 0, i);
+      [order[i], order[j]] = [order[j]!, order[i]!];
+    }
+    const shuffled = order.map((k) => cols[k]!);
+    const rows = [0, 1, 2].map((i) => shuffled.map((c) => c[i]!));
+    const flat = rows.flat();
+    // Posición (0, 1 o 2) en la matriz mostrada de la columna original k.
+    const posOf = (k: number): number => order.indexOf(k);
+    let solution: string;
+    if (target === 1) {
+      const others = [1, 2]
+        .map((k) => ({ pos: posOf(k), m: coefficients[k - 1]! }))
+        .sort((u, v) => u.pos - v.pos);
+      const base = ORDINAL[posOf(0)]!;
+      solution = `Todas las columnas son múltiplos de una misma: la ${ORDINAL[others[0]!.pos]} columna es ${multipleText(others[0]!.m, `la ${base}`)} y la ${ORDINAL[others[1]!.pos]} columna es ${multipleText(others[1]!.m, `la ${base}`)}. Entonces solo hay una dirección independiente: todo el espacio cae sobre una recta y el rango es $1$.`;
+    } else if (target === 2) {
+      const parts = [0, 1]
+        .map((k) => ({ pos: posOf(k), p: coefficients[k]!, col: cols[k]! }))
+        .sort((u, v) => u.pos - v.pos);
+      const [first, second] = parts as [(typeof parts)[number], (typeof parts)[number]];
+      const lead = multipleText(first.p, `la ${ORDINAL[first.pos]}`);
+      const tail = `${second.p > 0 ? 'más' : 'menos'} ${multipleText(Math.abs(second.p), `la ${ORDINAL[second.pos]}`)}`;
+      solution = `La ${ORDINAL[posOf(2)]} columna es ${lead} ${tail}: $${columnTex(cols[2]!)}=${paren(first.p)}${columnTex(first.col)}+${paren(second.p)}${columnTex(second.col)}$. Esas dos columnas no son paralelas (ninguna es múltiplo de la otra), así que generan un plano: la imagen es un plano y el rango es $2$.`;
+    } else {
+      solution = `$\\det A=${tex(det3(flat))}\\neq 0$, así que las tres columnas son linealmente independientes: ninguna es combinación de las otras. La imagen llena todo el espacio y el rango es $3$.`;
+    }
+    return numeroQ(
+      id,
+      {
+        prompt: `¿Cuál es el rango de $A=${matrixTex(rows)}$?`,
+        hints: [
+          'El rango es el número de columnas linealmente independientes de $A$, es decir, la dimensión de su imagen.',
+          'Busca una columna que sea combinación de las otras (un múltiplo de una, o una suma de múltiplos de las otras dos). Si no hay ninguna, el rango es $3$.',
+        ],
+        explain:
+          'El rango cuenta cuántas direcciones independientes quedan en la imagen de $A$: una recta (rango 1), un plano (rango 2) o todo el espacio (rango 3). Cada columna que sea combinación de las demás no aporta una dirección nueva. En una matriz $3\\times 3$, rango 3 equivale a $\\det A\\neq 0$.',
+        solution,
+      },
+      target,
+      0,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -760,6 +948,9 @@ export const generators: Record<string, Generator> = {
   'matriz-vector': matrizVector,
   'producto-matrices': productoMatrices,
   'forma-producto': formaProducto,
+  determinante,
+  'resolver-sistema': resolverSistema,
+  rango,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */

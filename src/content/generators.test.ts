@@ -43,6 +43,9 @@ const IDS = [
   'matriz-vector',
   'producto-matrices',
   'forma-producto',
+  'determinante',
+  'resolver-sistema',
+  'rango',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -110,6 +113,9 @@ describe('bounds declarados', () => {
       'matriz-vector': [-18, 18], // contract: Órbita 0 de Matrices, entradas de -3 a 3: |a·x + b·y| ≤ 2·9
       'producto-matrices': [-18, 18], // contract: Órbita 0 de Matrices, entradas de -3 a 3: |Σ a·e| ≤ 2·9
       'forma-producto': [2, 800], // contract: Órbita 0 de Matrices, tamaños de 2 a 800 (el mayor, 768)
+      determinante: [-18, 18], // contract: Órbita 1 de Matrices, entradas de -3 a 3: |ad − bc| ≤ 9 + 9
+      'resolver-sistema': [-3, 3], // contract: Órbita 1 de Matrices, x con componentes enteras de -3 a 3
+      rango: [1, 3], // contract: Órbita 1 de Matrices, matriz 3×3 con rango 1, 2 o 3
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -580,6 +586,156 @@ describe('oráculo de la Órbita 0 de Matrices: matriz-vector, producto-matrices
 
   it('los textos de las tres no llevan punto decimal', () => {
     for (const id of ['matriz-vector', 'producto-matrices', 'forma-producto']) {
+      for (const seed of SEEDS.slice(0, 50)) {
+        const q = resolve(call(id), seed);
+        // contract: restricción global, coma decimal (aquí todo son enteros)
+        expect(`${q.prompt}${q.solution}${q.explain}${q.hints.join('')}`).not.toMatch(/\d\.\d/);
+      }
+    }
+  });
+});
+
+describe('oráculo de la Órbita 1 de Matrices: determinante, resolver-sistema y rango (200 semillas)', () => {
+  it('determinante: ad − bc de la matriz del enunciado, a lo sumo un cero, det ≠ 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('determinante'), seed);
+      if (q.type !== 'numero') throw new Error('determinante debe dar un número');
+      const [a] = matricesOf(q.prompt) as [number[]];
+      expect(a.length, `semilla ${seed}`).toBe(4); // contract: Órbita 1 de Matrices: A es 2×2
+      expect(a.every((x) => Math.abs(x) <= 3)).toBe(true); // contract: brief, entradas enteras de -3 a 3
+      expect(a.filter((x) => x === 0).length, `semilla ${seed}`).toBeLessThanOrEqual(1); // contract: brief, a lo sumo un cero
+      const det = a[0]! * a[3]! - a[1]! * a[2]!;
+      expect(det, `semilla ${seed}`).not.toBe(0); // contract: brief, det ≠ 0
+      expect(q.answer, `semilla ${seed}`).toBe(det); // contract: definición det = ad − bc
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      // contract: brief, la frase final varía con el signo: negativo voltea el plano, positivo conserva la orientación
+      expect(q.solution.includes('voltea'), `semilla ${seed}`).toBe(det < 0);
+      expect(q.solution.includes('conserva la orientación'), `semilla ${seed}`).toBe(det > 0);
+      expect(q.solution).toContain(`multiplica las áreas`); // contract: brief, |det| es el factor de las áreas
+    }
+  });
+
+  it('resolver-sistema: A·x = b exacto, x entero no nulo, A con det ≠ 0 y no diagonal', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('resolver-sistema'), seed);
+      if (q.type !== 'vector') throw new Error('resolver-sistema debe dar un vector');
+      const [a, b] = matricesOf(q.prompt) as [number[], number[]];
+      expect([a.length, b.length], `semilla ${seed}`).toEqual([4, 2]); // contract: A es 2×2 y b tiene dos componentes
+      expect(a[0]! * a[3]! - a[1]! * a[2]!, `semilla ${seed}`).not.toBe(0); // contract: brief, det ≠ 0
+      expect(a[1] !== 0 || a[2] !== 0, `semilla ${seed}`).toBe(true); // contract: brief, A no diagonal
+      expect(q.answer.length).toBe(2); // contract: brief, x tiene dos componentes
+      expect(q.answer.every((x) => Number.isInteger(x) && Math.abs(x) <= 3)).toBe(true); // contract: brief, x entero de -3 a 3
+      expect(
+        q.answer.some((x) => x !== 0),
+        `semilla ${seed}`,
+      ).toBe(true); // contract: brief, x ≠ 0
+      // contract: definición: x resuelve el sistema si A x = b
+      expect(
+        [
+          a[0]! * q.answer[0]! + a[1]! * q.answer[1]! + 0,
+          a[2]! * q.answer[0]! + a[3]! * q.answer[1]! + 0,
+        ],
+        `semilla ${seed}`,
+      ).toEqual(b);
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      expect(q.shape).toBeUndefined(); // contract: brief, vector de 2 sin forma de matriz
+      // contract: brief, el signo del determinante va delante de la fracción, nunca en el denominador
+      expect(q.solution, `semilla ${seed}`).not.toMatch(/\\dfrac\{1\}\{-/);
+      expect(q.solution).toContain('Comprobación'); // contract: brief, la solución comprueba A x = b
+    }
+  });
+
+  /** Rango por aritmética entera exacta: determinante 3×3, después menores 2×2. */
+  const rankOf = (m: readonly number[]): number => {
+    const det3 =
+      m[0]! * (m[4]! * m[8]! - m[5]! * m[7]!) -
+      m[1]! * (m[3]! * m[8]! - m[5]! * m[6]!) +
+      m[2]! * (m[3]! * m[7]! - m[4]! * m[6]!);
+    if (det3 !== 0) return 3;
+    for (const [r1, r2] of [
+      [0, 1],
+      [0, 2],
+      [1, 2],
+    ] as const) {
+      for (const [c1, c2] of [
+        [0, 1],
+        [0, 2],
+        [1, 2],
+      ] as const) {
+        if (m[3 * r1 + c1]! * m[3 * r2 + c2]! - m[3 * r1 + c2]! * m[3 * r2 + c1]! !== 0) return 2;
+      }
+    }
+    return m.some((x) => x !== 0) ? 1 : 0;
+  };
+
+  it('rango: coincide con el rango exacto, entradas |·| ≤ 9, salen los tres rangos y la dependiente cambia de sitio', () => {
+    const ranks = new Set<number>();
+    const dependentAt = new Set<string>();
+    const words = ['primera', 'segunda', 'tercera'];
+    for (const seed of SEEDS) {
+      const q = resolve(call('rango'), seed);
+      if (q.type !== 'numero') throw new Error('rango debe dar un número');
+      const [m] = matricesOf(q.prompt) as [number[]];
+      expect(m.length, `semilla ${seed}`).toBe(9); // contract: Órbita 1 de Matrices: A es 3×3
+      expect(
+        m.every((x) => Math.abs(x) <= 9),
+        `semilla ${seed}`,
+      ).toBe(true); // contract: brief, entradas |·| ≤ 9
+      expect(q.answer, `semilla ${seed}`).toBe(rankOf(m)); // contract: definición de rango, calculado con enteros exactos
+      expect(q.tol).toBe(0); // contract: enteros exactos
+      ranks.add(q.answer);
+      const col = (j: number): number[] => [m[j]!, m[3 + j]!, m[6 + j]!];
+      if (q.answer === 2) {
+        const w = /La (primera|segunda|tercera) columna es/.exec(q.solution);
+        expect(w, `semilla ${seed}`).not.toBeNull(); // contract: brief, la solución nombra la columna por su posición
+        const dep = words.indexOf(w![1]!);
+        dependentAt.add(w![1]!);
+        // contract: brief, la identidad escrita en la solución es cierta: col dependiente = p·colA + q·colB
+        const idt =
+          /\$\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}=\(?(-?\d+)\)?\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}\+\(?(-?\d+)\)?\\begin\{pmatrix\}(.*?)\\end\{pmatrix\}\$/.exec(
+            q.solution,
+          );
+        expect(idt, `semilla ${seed}`).not.toBeNull();
+        const nums = (s: string): number[] => s.match(/-?\d+/g)!.map(Number);
+        const [p, qq] = [Number(idt![2]), Number(idt![4])];
+        const [x, y] = [nums(idt![3]!), nums(idt![5]!)];
+        expect(nums(idt![1]!), `semilla ${seed}`).toEqual(col(dep));
+        expect(nums(idt![1]!), `semilla ${seed}`).toEqual(x.map((v, i) => p * v + qq * y[i]! + 0));
+        // contract: brief, p y q en {-2, -1, 1, 2}
+        expect([p, qq].every((k) => [-2, -1, 1, 2].includes(k))).toBe(true);
+      }
+      if (q.answer === 3) expect(q.solution).toContain('\\det A'); // contract: brief, rango 3 muestra el determinante
+    }
+    expect([...ranks].sort()).toEqual([1, 2, 3]); // contract: brief, rango uniforme en {1, 2, 3}
+    expect(dependentAt.size, 'posiciones de la columna dependiente').toBe(3); // contract: brief, se baraja el orden de las columnas
+  });
+
+  it('rango 3: el determinante de la solución es el de la matriz; rango 1: los factores escritos son ciertos', () => {
+    let seen1 = 0;
+    let seen3 = 0;
+    for (const seed of SEEDS) {
+      const q = resolve(call('rango'), seed);
+      if (q.type !== 'numero') throw new Error('rango debe dar un número');
+      const [m] = matricesOf(q.prompt) as [number[]];
+      if (q.answer === 3) {
+        seen3++;
+        const det =
+          m[0]! * (m[4]! * m[8]! - m[5]! * m[7]!) -
+          m[1]! * (m[3]! * m[8]! - m[5]! * m[6]!) +
+          m[2]! * (m[3]! * m[7]! - m[4]! * m[6]!);
+        expect(q.solution, `semilla ${seed}`).toContain(`\\det A=${det}\\neq 0`); // contract: det por cofactores de la primera fila
+      }
+      if (q.answer === 1) {
+        seen1++;
+        // contract: brief, rango 1: la solución dice que todas las columnas son múltiplos de una
+        expect(q.solution).toContain('múltiplos de una misma');
+      }
+    }
+    expect(seen1 > 20 && seen3 > 20).toBe(true); // contract: brief, rango uniforme: cada caso sale con frecuencia
+  });
+
+  it('los textos de las tres no llevan punto decimal', () => {
+    for (const id of ['determinante', 'resolver-sistema', 'rango']) {
       for (const seed of SEEDS.slice(0, 50)) {
         const q = resolve(call(id), seed);
         // contract: restricción global, coma decimal (aquí todo son enteros)
