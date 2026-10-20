@@ -16,15 +16,16 @@ const byId = <T extends Question>(id: string): T => {
 };
 
 describe('el juego «Matrices y transformaciones»', () => {
-  it('se llama así, tiene 10 preguntas de despegue y la Órbita 0', () => {
+  it('se llama así, tiene 10 preguntas de despegue y las Órbitas 0 y 1', () => {
     // contract: encargo T2 (2026-10-17): id `matrices`, título «Matrices y transformaciones», despegue de 10 preguntas
     expect([matrices.id, matrices.title, matrices.launch.length]).toEqual([
       'matrices',
       'Matrices y transformaciones',
       10,
     ]);
-    // contract: primera entrega del juego 2 (2026-10-17): despegue y Órbita 0 «La máquina»; las demás órbitas llegan después
-    expect(matrices.orbits.map((o) => o.name)).toEqual(['La máquina']);
+    // contract: primera entrega del juego 2 (2026-10-17): despegue y Órbita 0 «La máquina»; README: la siguiente es
+    // «El área» (determinante, inversa, rango), entregada el 2026-10-20; las demás órbitas llegan después
+    expect(matrices.orbits.map((o) => o.name)).toEqual(['La máquina', 'El área']);
   });
 
   it('el despegue sigue la secuencia del encargo: tipos en orden', () => {

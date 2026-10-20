@@ -1,6 +1,6 @@
 # AIlearn: guía para el agente
 
-Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria, el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3), y el juego 2, «Matrices y transformaciones», con Despegue y Órbita 0 («La máquina»; órbitas previstas en `README.md`). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
+Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria, el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3), y el juego 2, «Matrices y transformaciones», con Despegue, Órbita 0 («La máquina») y Órbita 1 («El área»; las siguientes, previstas en `README.md`). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
 
 ## Cómo comprobar
 
@@ -54,4 +54,5 @@ Despliegue: el remoto `origin` es `github.com/Ezequiel-MO/AILearn`, enlazado a V
 - Lo que NO se descubre solo y hay que cablear por proyecto: `defineProseTests(...)` (reglas de prosa) y las pruebas `*.python.test.ts` de soluciones alternativas y errores típicos de cada pregunta de código. Un proyecto nuevo sin ellas pasa `npm test` pero queda sin revisar.
 - Un `manipular` admite como mucho 2 vectores móviles.
 - Toda expectativa de una prueba lleva un comentario `// contract:` con su procedencia. No cambies una expectativa existente para que pase: arregla el código o el contenido.
+- En el Pyodide del juego, `np.linalg.inv` de una matriz singular devuelve `nan` en vez de lanzar `LinAlgError`: una pregunta no puede depender de esa excepción.
 - Las pruebas que cargan Pyodide tardan (7 a 14 s en frío) y necesitan red la primera vez. Si fallan por carga o por plazo, lánzalas solas antes de concluir que el contenido está mal.
