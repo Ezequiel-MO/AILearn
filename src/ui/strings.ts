@@ -269,4 +269,31 @@ export const t = {
     repeat: 'Volver a hacerlo (cuenta)',
     toReview: 'Repasar',
   },
+
+  // --- Calentamiento de Python, antes del ejercicio «Programar» ---
+  warmup: {
+    title: (project: string) => `${project} · Calentamiento de Python`,
+    intro:
+      'Antes del ejercicio de programar, prueba aquí lo nuevo de Python que vas a necesitar. Ejecuta cada ejemplo, cámbialo y vuelve a ejecutarlo para ver qué pasa. Nada de lo que hagas aquí cuenta para la nota.',
+    stepsLabel: 'Fichas del calentamiento',
+    stepTitle: (n: number, total: number) => `Ficha ${n} de ${total}`,
+    exampleLabel: 'Ejemplo',
+    experimentsLabel: 'Prueba a…',
+    taskLabel: 'Ahora tú',
+    check: 'Comprobar',
+    restore: 'Volver al principio',
+    passed: '¡Conseguido! Tu código cumple todas las comprobaciones.',
+    showSolution: 'Ver una solución',
+    solutionNote:
+      'Hay más de una forma correcta: si la tuya pasa las comprobaciones, también vale.',
+    toExercise: 'Ir al ejercicio 3 · Programar',
+    toProject: 'Volver al proyecto',
+    // panel del proyecto y ejercicio 3
+    panelName: 'Calentamiento de Python',
+    panelNote: 'No cuenta para la nota',
+    panelOpenShort: 'Calentar',
+    panelOpen: 'Abrir el calentamiento de Python',
+    exerciseHint: '¿Te cuesta el Python de este ejercicio? Prueba antes lo nuevo en el',
+    exerciseLink: 'calentamiento de Python',
+  },
 } as const;

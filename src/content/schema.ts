@@ -297,6 +297,30 @@ export const exerciseSchema = z
     });
   });
 
+/** El reto «Ahora tú» de una ficha del calentamiento: como una pregunta de código, pero no puntúa. */
+export const warmupTaskSchema = z.strictObject({
+  prompt: md,
+  starter: z.string(),
+  checks: z.string(),
+  reference: z.string(),
+});
+
+/**
+ * Una ficha del calentamiento de Python: un concepto nuevo del ejercicio «Programar», con un ejemplo que
+ * se ejecuta y se edita (`example`), cambios para probar en él (`experiments`) y un reto corto (`task`).
+ */
+export const warmupStepSchema = z.strictObject({
+  id,
+  title: md,
+  explain: md,
+  example: z.string(),
+  experiments: z.array(md).min(1),
+  task: warmupTaskSchema,
+});
+
+/** Fichas del calentamiento de un proyecto. */
+export const WARMUP_MAX_STEPS = 4;
+
 export const projectSchema = z
   .strictObject({
     id,
@@ -304,10 +328,14 @@ export const projectSchema = z
     sub: z.string(),
     exercises: z.array(exerciseSchema).length(EXERCISES_PER_PROJECT),
     sheets: z.array(revisionQSchema).length(3),
+    /** Calentamiento de Python antes del ejercicio «Programar». No cuenta para la nota. */
+    warmup: z.array(warmupStepSchema).min(1).max(WARMUP_MAX_STEPS).optional(),
   })
   .superRefine((p, ctx) => {
     const seen = new Set<string>();
-    const ids = [...p.exercises.flatMap((e) => e.questions), ...p.sheets].map((q) => q.id);
+    const ids = [...p.exercises.flatMap((e) => e.questions), ...p.sheets, ...(p.warmup ?? [])].map(
+      (q) => q.id,
+    );
     for (const qid of ids) {
       if (seen.has(qid)) {
         ctx.addIssue({
@@ -389,6 +417,8 @@ export type RevisionQ = z.infer<typeof revisionQSchema>;
 export type Question = z.infer<typeof questionSchema>;
 export type GeneradaQ = z.infer<typeof generadaQSchema>;
 export type Exercise = z.infer<typeof exerciseSchema>;
+export type WarmupTask = z.infer<typeof warmupTaskSchema>;
+export type WarmupStep = z.infer<typeof warmupStepSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type BankEntry = z.infer<typeof bankEntrySchema>;
 export type Orbit = z.infer<typeof orbitSchema>;

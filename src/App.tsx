@@ -18,6 +18,9 @@ const ExerciseScreen = lazy(() =>
 const SheetScreen = lazy(() =>
   import('./ui/screens/SheetScreen').then((m) => ({ default: m.SheetScreen })),
 );
+const WarmupScreen = lazy(() =>
+  import('./ui/screens/WarmupScreen').then((m) => ({ default: m.WarmupScreen })),
+);
 const ExamScreen = lazy(() =>
   import('./ui/screens/ExamScreen').then((m) => ({ default: m.ExamScreen })),
 );
@@ -100,6 +103,14 @@ export function AppRoutes() {
         element={
           <Suspense fallback={null}>
             <SheetScreen />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/j/:game/p/:project/calentamiento"
+        element={
+          <Suspense fallback={null}>
+            <WarmupScreen />
           </Suspense>
         }
       />

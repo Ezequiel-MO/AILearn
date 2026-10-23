@@ -1,4 +1,4 @@
-import { useId, useMemo } from 'react';
+import { Fragment, useId, useMemo } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Game, Project } from '../../content/schema';
 import { toShape } from '../../content/schema';
@@ -23,6 +23,7 @@ import {
   sheetPath,
   useFocusTitle,
   useOpenOverride,
+  warmupPath,
 } from './lookup';
 
 /** `/j/:game/p/:project`: la nota del proyecto, sus tres ejercicios y sus tres hojas. */
@@ -71,23 +72,39 @@ function PanelView({ game, orbit, project }: { game: Game; orbit: number; projec
           {project.exercises.map((exercise, ex) => {
             const best = summary.firsts[`${project.id}/${ex}`];
             return (
-              <li key={ex} className="panel__item">
-                <span className="panel__item-name">
-                  {t.hub.exerciseTitle(ex + 1, t.hub.exerciseKinds[exercise.kind])}
-                </span>
-                <span className="panel__item-state num">
-                  {best === undefined
-                    ? t.hub.exerciseNone
-                    : t.hub.exerciseBest(best, QUESTIONS_PER_EXERCISE)}
-                </span>
-                <Link
-                  className="play__action"
-                  to={exercisePath(game.id, project.id, ex)}
-                  aria-label={t.hub.exercisePlay(ex + 1)}
-                >
-                  {t.hub.exercisePlayShort}
-                </Link>
-              </li>
+              <Fragment key={ex}>
+                {/* El calentamiento de Python va justo antes del ejercicio «Programar». */}
+                {exercise.kind === 'programar' && project.warmup ? (
+                  <li className="panel__item panel__item--warmup">
+                    <span className="panel__item-name">{t.warmup.panelName}</span>
+                    <span className="panel__item-state">{t.warmup.panelNote}</span>
+                    <Link
+                      className="play__action"
+                      to={warmupPath(game.id, project.id)}
+                      aria-label={t.warmup.panelOpen}
+                    >
+                      {t.warmup.panelOpenShort}
+                    </Link>
+                  </li>
+                ) : null}
+                <li className="panel__item">
+                  <span className="panel__item-name">
+                    {t.hub.exerciseTitle(ex + 1, t.hub.exerciseKinds[exercise.kind])}
+                  </span>
+                  <span className="panel__item-state num">
+                    {best === undefined
+                      ? t.hub.exerciseNone
+                      : t.hub.exerciseBest(best, QUESTIONS_PER_EXERCISE)}
+                  </span>
+                  <Link
+                    className="play__action"
+                    to={exercisePath(game.id, project.id, ex)}
+                    aria-label={t.hub.exercisePlay(ex + 1)}
+                  >
+                    {t.hub.exercisePlayShort}
+                  </Link>
+                </li>
+              </Fragment>
             );
           })}
         </ul>

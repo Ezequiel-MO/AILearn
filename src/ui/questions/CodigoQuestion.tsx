@@ -333,7 +333,8 @@ function NextSteps({
   );
 }
 
-function Outcome({
+/** Salida, error y comprobaciones fallidas de una ejecución. También la usa el calentamiento (`CodeSandbox`). */
+export function Outcome({
   result,
   hideChecks,
   silentNote,

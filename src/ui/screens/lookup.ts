@@ -43,6 +43,10 @@ export const launchPath = (gameId: string): string => `${mapPath(gameId)}/despeg
 export const exercisePath = (gameId: string, projectId: string, ex: number): string =>
   `${projectPath(gameId, projectId)}/ex/${ex}`;
 
+/** Ruta del calentamiento de Python de un proyecto. */
+export const warmupPath = (gameId: string, projectId: string): string =>
+  `${projectPath(gameId, projectId)}/calentamiento`;
+
 /** Ruta de una hoja «Caza el error» de un proyecto (`n` de 0 a 2). */
 export const sheetPath = (gameId: string, projectId: string, n: number): string =>
   `${projectPath(gameId, projectId)}/hoja/${n}`;

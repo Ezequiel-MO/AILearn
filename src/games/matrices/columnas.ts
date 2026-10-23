@@ -1,4 +1,5 @@
 import type { Project } from '../../content/schema';
+import { columnasWarmup } from './columnas.calentamiento';
 import { transformPlane } from './plane';
 
 /** Primer proyecto de la Órbita 0: una matriz es la lista de adónde van î y ĵ. */
@@ -6,6 +7,7 @@ export const columnas: Project = {
   id: 'columnas',
   name: 'Columnas',
   sub: 'Adónde van î y ĵ',
+  warmup: columnasWarmup,
   exercises: [
     {
       kind: 'manipular',

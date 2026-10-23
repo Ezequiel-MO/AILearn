@@ -19,7 +19,14 @@ import { Layout } from '../Layout';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
-import { findProject, parseIndex, projectPath, useFocusTitle, useOpenOverride } from './lookup';
+import {
+  findProject,
+  parseIndex,
+  projectPath,
+  useFocusTitle,
+  useOpenOverride,
+  warmupPath,
+} from './lookup';
 
 /** `/j/:game/p/:project/ex/:n`: un ejercicio de cinco preguntas; n de 0 a 2. */
 export function ExerciseScreen() {
@@ -85,6 +92,12 @@ function ExercisePlay({
       level={currentLevel}
       warning={warning}
     >
+      {project.exercises[ex]!.kind === 'programar' && project.warmup ? (
+        <p className="play__warmup">
+          {t.warmup.exerciseHint}{' '}
+          <Link to={warmupPath(game.id, project.id)}>{t.warmup.exerciseLink}</Link>.
+        </p>
+      ) : null}
       <div className="play__runner">
         {reviewing ? (
           <ExerciseReview
