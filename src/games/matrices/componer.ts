@@ -1,4 +1,5 @@
 import type { Goal, Project } from '../../content/schema';
+import { componerWarmup } from './componer.calentamiento';
 import { transformPlane } from './plane';
 
 /** Metas de un `manipular` de matriz: î y ĵ en el sitio de las columnas de la matriz pedida. */
@@ -14,6 +15,7 @@ export const componer: Project = {
   id: 'componer',
   name: 'Componer',
   sub: 'Una transformación tras otra',
+  warmup: componerWarmup,
   exercises: [
     {
       kind: 'manipular',

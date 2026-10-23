@@ -1,4 +1,5 @@
 import type { PlaneVector, Project } from '../../content/schema';
+import { matrizVectorWarmup } from './matriz-vector.calentamiento';
 import { transformPlane } from './plane';
 
 /** Un vector suelto del plano (el que se transforma con `apply`), móvil o fijo. */
@@ -15,6 +16,7 @@ export const matrizVector: Project = {
   id: 'matriz-vector',
   name: 'Matriz por vector',
   sub: 'Combinar las columnas',
+  warmup: matrizVectorWarmup,
   exercises: [
     {
       kind: 'manipular',
