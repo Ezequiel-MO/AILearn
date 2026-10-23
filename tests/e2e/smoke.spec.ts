@@ -500,3 +500,39 @@ test('11. con los tres proyectos validados el mapa ofrece el examen de la Órbit
   await expect(orbit.getByRole('link', { name: 'Hacer el examen' })).toBeVisible();
   await expect(orbit.getByText('Completa el despegue')).toHaveCount(0);
 });
+
+test('12. calentamiento de Columnas: el ejemplo se ejecuta y el reto se comprueba sin puntuar', async ({
+  page,
+}) => {
+  await openWith(page, '/j/matrices/p/columnas/calentamiento?abierto');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Columnas · Calentamiento de Python',
+  );
+  const card = page.getByRole('region', { name: /^Filas y columnas de una matriz/ });
+
+  await test.step('el ejemplo se ejecuta tal cual y enseña su salida', async () => {
+    await card.getByRole('button', { name: 'Ejecutar' }).first().click();
+    await expect(card.locator('.code__output').first()).toContainText('forma: (2, 3)', {
+      timeout: PYTHON_LOAD_MS,
+    });
+  });
+
+  await test.step('el código de partida del reto no pasa y dice por qué', async () => {
+    await card.getByRole('button', { name: 'Comprobar' }).click();
+    await expect(card).toContainText('tiene que ser un array de NumPy con 3 números', {
+      timeout: PYTHON_LOAD_MS,
+    });
+    await expect(card.getByText(/¡Conseguido!/)).toHaveCount(0);
+  });
+
+  await test.step('con una solución correcta, «¡Conseguido!»', async () => {
+    const editor = card.getByRole('textbox', { name: 'Editor de código Python' }).nth(1);
+    await editor.click();
+    await page.keyboard.press('Control+A');
+    await page.keyboard.insertText(
+      'import numpy as np\nT = np.array([[2, 7, 1], [8, 3, 9], [4, 6, 5]])\nfila = T[2]\ncolumna = T[:, 0]\nesquina = T[2, 2]\n',
+    );
+    await card.getByRole('button', { name: 'Comprobar' }).click();
+    await expect(card.getByText(/¡Conseguido!/)).toBeVisible({ timeout: PYTHON_LOAD_MS });
+  });
+});
