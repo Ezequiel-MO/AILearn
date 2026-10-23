@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { dimensionAltaWarmup } from './dimension-alta.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
 const plane = (
@@ -22,6 +23,7 @@ export const dimensionAlta: Project = {
   id: 'dimension-alta',
   name: 'Dimensión alta',
   sub: 'Donde casi todo es perpendicular',
+  warmup: dimensionAltaWarmup,
   exercises: [
     {
       kind: 'manipular',

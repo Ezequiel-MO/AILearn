@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { normalizarWarmup } from './normalizar.calentamiento';
 
 /**
  * Plano del proyecto: rango 2, rejilla de 0,1 y la circunferencia unidad dibujada, salvo que se
@@ -33,6 +34,7 @@ export const normalizar: Project = {
   id: 'normalizar',
   name: 'Normalizar',
   sub: 'Todos a la misma longitud',
+  warmup: normalizarWarmup,
   exercises: [
     {
       kind: 'manipular',

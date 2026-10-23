@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { rnNumpyWarmup } from './rn-numpy.calentamiento';
 import { toy } from './toy';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
@@ -23,6 +24,7 @@ export const rnNumpy: Project = {
   id: 'rn-numpy',
   name: 'ℝⁿ en NumPy',
   sub: 'Muchos vectores a la vez',
+  warmup: rnNumpyWarmup,
   exercises: [
     {
       kind: 'manipular',
