@@ -1,5 +1,6 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
 import { toy } from './toy';
+import { productoEscalarWarmup } from './producto-escalar.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1 (o la que se pida). */
 const plane = (
@@ -22,6 +23,7 @@ export const productoEscalar: Project = {
   id: 'producto-escalar',
   name: 'Producto escalar',
   sub: 'Cuánto van en la misma dirección',
+  warmup: productoEscalarWarmup,
   exercises: [
     {
       kind: 'manipular',

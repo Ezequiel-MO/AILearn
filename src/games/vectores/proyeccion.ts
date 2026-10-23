@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { proyeccionWarmup } from './proyeccion.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1 (o la que se pida). */
 const plane = (
@@ -21,6 +22,7 @@ export const proyeccion: Project = {
   id: 'proyeccion',
   name: 'Proyección',
   sub: 'La sombra de una flecha',
+  warmup: proyeccionWarmup,
   exercises: [
     {
       kind: 'manipular',

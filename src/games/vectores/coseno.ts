@@ -1,5 +1,6 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
 import { toy } from './toy';
+import { cosenoWarmup } from './coseno.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
 const plane = (
@@ -23,6 +24,7 @@ export const coseno: Project = {
   id: 'coseno',
   name: 'Coseno',
   sub: 'Similitud por la dirección',
+  warmup: cosenoWarmup,
   exercises: [
     {
       kind: 'manipular',
