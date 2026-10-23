@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { sumaEscalaWarmup } from './suma-escala.calentamiento';
 import { toy } from './toy';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1 (o la que se pida). */
@@ -22,6 +23,7 @@ export const sumaEscala: Project = {
   id: 'suma-escala',
   name: 'Suma y escala',
   sub: 'Combinar flechas',
+  warmup: sumaEscalaWarmup,
   exercises: [
     {
       kind: 'manipular',

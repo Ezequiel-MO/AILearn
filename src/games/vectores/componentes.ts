@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { componentesWarmup } from './componentes.calentamiento';
 import { toy } from './toy';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1. */
@@ -21,6 +22,7 @@ export const componentes: Project = {
   id: 'componentes',
   name: 'Componentes',
   sub: 'Un vector es una flecha y es una lista',
+  warmup: componentesWarmup,
   exercises: [
     {
       kind: 'manipular',

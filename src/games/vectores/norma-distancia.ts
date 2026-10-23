@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { normaDistanciaWarmup } from './norma-distancia.calentamiento';
 import { toy } from './toy';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
@@ -23,6 +24,7 @@ export const normaDistancia: Project = {
   id: 'norma-distancia',
   name: 'Norma y distancia',
   sub: 'Cuánto mide y cuánto separa',
+  warmup: normaDistanciaWarmup,
   exercises: [
     {
       kind: 'manipular',
