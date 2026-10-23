@@ -1,4 +1,5 @@
 import type { Goal, PlaneSpec, Project } from '../../content/schema';
+import { determinanteWarmup } from './determinante.calentamiento';
 import { transformPlane, type TransformPlaneOptions } from './plane';
 
 /** Plano de transformación con î fijo y ĵ arrastrable. */
@@ -18,6 +19,7 @@ export const determinante: Project = {
   id: 'determinante',
   name: 'Determinante',
   sub: 'El área con signo',
+  warmup: determinanteWarmup,
   exercises: [
     {
       kind: 'manipular',

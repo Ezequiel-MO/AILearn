@@ -1,4 +1,5 @@
 import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { rangoWarmup } from './rango.calentamiento';
 import { transformPlane } from './plane';
 
 /** El vector suelto `v` que se transforma con `apply`, móvil o fijo. */
@@ -29,6 +30,7 @@ export const rango: Project = {
   id: 'rango',
   name: 'Rango',
   sub: 'Cuántas direcciones sobreviven',
+  warmup: rangoWarmup,
   exercises: [
     {
       kind: 'manipular',

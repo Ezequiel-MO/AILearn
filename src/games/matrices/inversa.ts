@@ -1,4 +1,5 @@
 import type { Goal, PlaneVector, Project } from '../../content/schema';
+import { inversaWarmup } from './inversa.calentamiento';
 import { transformPlane } from './plane';
 
 /** Metas de un `manipular` de matriz: î y ĵ en el sitio de las columnas de la matriz pedida. */
@@ -23,6 +24,7 @@ export const inversa: Project = {
   id: 'inversa',
   name: 'Inversa',
   sub: 'Deshacer la transformación',
+  warmup: inversaWarmup,
   exercises: [
     {
       kind: 'manipular',
