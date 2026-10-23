@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { fallosRagWarmup } from './fallos-rag.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
 const plane = (
@@ -36,6 +37,7 @@ export const fallosRag: Project = {
   id: 'fallos-rag',
   name: 'Por qué falla un RAG',
   sub: 'Parecido no es correcto',
+  warmup: fallosRagWarmup,
   exercises: [
     {
       kind: 'manipular',

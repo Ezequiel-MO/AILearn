@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { analogiasWarmup } from './analogias.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
 const plane = (
@@ -22,6 +23,7 @@ export const analogias: Project = {
   id: 'analogias',
   name: 'Analogías',
   sub: 'Aritmética con significados',
+  warmup: analogiasWarmup,
   exercises: [
     {
       kind: 'manipular',

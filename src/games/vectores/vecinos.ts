@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { vecinosWarmup } from './vecinos.calentamiento';
 
 /**
  * Plano del proyecto: rango 6 y rejilla de 1 en 1, sin circunferencia, salvo que se diga otra cosa.
@@ -34,6 +35,7 @@ export const vecinos: Project = {
   id: 'vecinos',
   name: 'Vecinos y top-k',
   sub: 'Los k más parecidos',
+  warmup: vecinosWarmup,
   exercises: [
     {
       kind: 'manipular',
