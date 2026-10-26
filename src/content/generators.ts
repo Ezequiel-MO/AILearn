@@ -984,11 +984,11 @@ const autovalores: Generator = {
           prompt: `Sea $A=${matrix2Tex(m)}$. Calcula sus dos autovalores y escríbelos de menor a mayor.`,
           hints: [
             'Los autovalores $\\lambda$ cumplen $\\det(A-\\lambda I)=0$.',
-            'En una matriz $2\\times 2$ esa ecuación es $\\lambda^2-(a+d)\\lambda+\\det A=0$: calcula la traza $a+d$ y el determinante, y busca dos números que sumen la traza y multipliquen el determinante.',
+            'En una matriz $2\\times 2$ esa ecuación es $\\lambda^2-t\\lambda+\\det A=0$, con $t$ la traza (la suma de la diagonal): calcula la traza y el determinante, y busca dos números que sumen la traza y multipliquen el determinante.',
           ],
           explain:
-            'Un autovector $\\vec{v}$ no nulo cumple $A\\vec{v}=\\lambda\\vec{v}$, es decir, $(A-\\lambda I)\\vec{v}=\\vec{0}$. Para que exista un $\\vec{v}$ no nulo, $A-\\lambda I$ tiene que aplastar el plano, y eso ocurre justo cuando su determinante es $0$. En una matriz $2\\times 2$ ese determinante es $\\lambda^2-(a+d)\\lambda+\\det A$, así que los autovalores son las raíces de esa ecuación.',
-          solution: `La traza es $a+d=${tex(a)}+${paren(e)}=${tex(trace)}$ y el determinante es $\\det A=${paren(a)}\\cdot ${paren(e)}-${paren(b)}\\cdot ${paren(c)}=${tex(det)}$. La ecuación $\\lambda^2-(a+d)\\lambda+\\det A=0$ queda $${quadraticTex(-trace, det)}=0$, que se factoriza como $${rootFactorTex(l1)}${rootFactorTex(l2)}=0$. Los autovalores, de menor a mayor, son $\\lambda_1=${tex(l1)}$ y $\\lambda_2=${tex(l2)}$. Comprobación: la suma, $${tex(l1)}+${paren(l2)}=${tex(l1 + l2)}$, es la traza, y el producto, $${paren(l1)}\\cdot ${paren(l2)}=${tex(l1 * l2)}$, es el determinante.`,
+            'Un autovector $\\vec{v}$ no nulo cumple $A\\vec{v}=\\lambda\\vec{v}$, es decir, $(A-\\lambda I)\\vec{v}=\\vec{0}$. Para que exista un $\\vec{v}$ no nulo, $A-\\lambda I$ tiene que aplastar el plano, y eso ocurre justo cuando su determinante es $0$. En una matriz $2\\times 2$ ese determinante es $\\lambda^2-t\\lambda+\\det A$, con $t$ la traza (la suma de la diagonal), así que los autovalores son las raíces de esa ecuación.',
+          solution: `La traza (la suma de la diagonal) es $t=${tex(a)}+${paren(e)}=${tex(trace)}$ y el determinante es $\\det A=${paren(a)}\\cdot ${paren(e)}-${paren(b)}\\cdot ${paren(c)}=${tex(det)}$. La ecuación $\\lambda^2-t\\lambda+\\det A=0$ queda $${quadraticTex(-trace, det)}=0$, que se factoriza como $${rootFactorTex(l1)}${rootFactorTex(l2)}=0$. Los autovalores, de menor a mayor, son $\\lambda_1=${tex(l1)}$ y $\\lambda_2=${tex(l2)}$. Comprobación: la suma, $${tex(l1)}+${paren(l2)}=${tex(l1 + l2)}$, es la traza, y el producto, $${paren(l1)}\\cdot ${paren(l2)}=${tex(l1 * l2)}$, es el determinante.`,
         },
         [l1, l2],
         0,

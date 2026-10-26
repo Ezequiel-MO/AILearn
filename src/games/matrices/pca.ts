@@ -46,7 +46,7 @@ export const pca: Project = {
             'La varianza es mayor donde la elipse se estira más. Alinea $v$ con su eje largo.',
           ],
           explain:
-            'La varianza depende de la dirección de $v$, no de su longitud: duplicar $v$ no cambia la lectura. La dirección de máxima varianza no es la de ninguna de las dos variables sueltas: es la que mejor resume cómo varían las dos juntas.',
+            'La varianza depende de la dirección de $v$, no de su longitud: duplicar $v$ no cambia la lectura. Aquí, la dirección de máxima varianza no es la de ninguna de las dos variables sueltas: es la que mejor resume cómo varían las dos juntas.',
           solution:
             'Sirve cualquier $v$ sobre la recta de $(1, 1)$: $(1, 1)$, $(2, 2)$ o $(-1, -1)$. Con $v=(1, 1)$, $Cv=(4, 4)=4v$: $C$ solo estira esa flecha, sin girarla, por un factor $4$. Un vector así es un **autovector** de $C$ y $4$, su **autovalor**. La varianza mínima, $2$, está en la recta perpendicular: $C(1, -1)=(2, -2)=2\\,(1, -1)$. La dirección de máxima varianza es la primera **componente principal**.',
           plane: covPlane({
@@ -78,7 +78,7 @@ export const pca: Project = {
             extra: [vec('v', 1, 1, true)],
             apply: ['v'],
             readouts: ['rayleigh'],
-            range: 3,
+            range: 4,
           }),
           goals: [varianceGoal('v', 4)],
         },
@@ -152,7 +152,7 @@ export const pca: Project = {
             extra: [vec('v', 1, 1, false)],
             apply: ['v'],
             readouts: ['matrix', 'img_angle', 'rayleigh'],
-            range: 3,
+            range: 5,
             snap: 1,
           }),
           goals: [
@@ -517,7 +517,7 @@ error = ((X - X_rec) ** 2).sum() / (len(X) - 1)
           id: 'pca.ex02.5',
           type: 'codigo',
           prompt:
-            'El módulo `embeddings` trae embeddings **reales** de 32 palabras: `palabras` es la lista y `P`, la matriz de 32 filas y 384 columnas (los reales tienen cientos de dimensiones), una fila por palabra. Para verlos en una pantalla hay que bajar a dos dimensiones con PCA. Guarda en `mapa` un array de 32 filas y 2 columnas con las coordenadas de cada palabra, en el mismo orden que `palabras`, en las dos primeras componentes principales de `P`; en `explicada`, la fracción de la varianza total que conservan esas dos componentes; y dibuja el mapa con `plt.scatter` y, junto a cada punto, el nombre de su palabra (con `plt.annotate` o `plt.text`).\n\nEl mapa es una vista parcial: `explicada` te dice cuánta variación se queda fuera. Con 32 palabras la covarianza de 384 variables tiene como mucho 31 autovalores distintos de cero, y las demás direcciones valen cero.',
+            'El módulo `embeddings` trae embeddings **reales** de 32 palabras: `palabras` es la lista y `P`, la matriz de 32 filas y 384 columnas, una fila por palabra. Para verlos en una pantalla hay que bajar a dos dimensiones con PCA. Guarda en `mapa` un array de 32 filas y 2 columnas con las coordenadas de cada palabra, en el mismo orden que `palabras`, en las dos primeras componentes principales de `P`; en `explicada`, la fracción de la varianza total que conservan esas dos componentes; y dibuja el mapa con `plt.scatter` y, junto a cada punto, el nombre de su palabra (con `plt.annotate` o `plt.text`).\n\nEl mapa es una vista parcial: `explicada` te dice cuánta variación se queda fuera. Con 32 palabras la covarianza de 384 variables tiene como mucho 31 autovalores distintos de cero, y las demás direcciones valen cero.',
           hints: [
             'Es el mismo PCA de antes, ahora con 384 variables en lugar de 2: centra `P`, saca la covarianza y los autovectores con `eigh`, y proyecta sobre los dos de mayor autovalor.',
             '`explicada` es la suma de los dos autovalores mayores entre la suma de todos. Para dibujar, recorre las palabras con `enumerate`.',
@@ -608,7 +608,7 @@ for i, palabra in enumerate(palabras):
       explain:
         'La covarianza mide cómo varían los datos alrededor de su media. Un producto de los datos consigo mismos, sin restarla, mezcla esa variación con la posición de los datos respecto del origen. Revisa si cada línea usa lo que la anterior debería haber preparado.',
       solution:
-        'La primera línea está mal. `X.T @ X / (len(X) - 1)` no resta la media: es la covarianza solo si los datos ya están centrados, y aquí no lo están. Su primer autovector apunta hacia el centro de la nube y no hacia su dirección de mayor variación. Hay que centrar antes: `Xc = X - X.mean(axis=0)` y `C = Xc.T @ Xc / (len(X) - 1)` o `C = np.cov(X.T)`. Las otras dos líneas están bien, ya que `eigh` ordena de menor a mayor y la última columna es la del autovalor mayor.',
+        'La primera línea está mal. `X.T @ X / (len(X) - 1)` no resta la media: es la covarianza solo si los datos ya están centrados, y aquí no lo están. Su autovector de mayor autovalor apunta hacia el centro de la nube y no hacia su dirección de mayor variación. Hay que centrar antes: `Xc = X - X.mean(axis=0)` y `C = Xc.T @ Xc / (len(X) - 1)` o `C = np.cov(X.T)`. Las otras dos líneas están bien, ya que `eigh` ordena de menor a mayor y la última columna es la del autovalor mayor.',
       lines: ['C = X.T @ X / (len(X) - 1)', 'vals, vecs = np.linalg.eigh(C)', 'pc1 = vecs[:, -1]'],
       faultyLine: 0,
     },

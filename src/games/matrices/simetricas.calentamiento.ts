@@ -207,11 +207,11 @@ cov_02 = S[0, 2]
     id: 'simetricas.cal.4',
     title: '`np.linalg.eigh` y `[::-1]`: autovalores en orden y autovectores en columnas',
     explain:
-      '`np.linalg.eigh(M)` calcula los **autovalores** y los **autovectores** de una matriz **simétrica**. Devuelve dos cosas, que se guardan de una vez: `vals, vecs = np.linalg.eigh(M)`.\n\n- `vals` es un array con los autovalores, siempre **de menor a mayor**.\n- `vecs` es una matriz cuyas **columnas** son los autovectores, de longitud 1: la columna `vecs[:, k]` es el autovector del autovalor `vals[k]`. Sus filas no son autovectores.\n\nPara tener los autovalores **de mayor a menor** se les da la vuelta con `vals[::-1]`. Pero los autovectores no se reordenan solos: `vecs[:, ::-1]` da la vuelta a las columnas. El signo de un autovector es arbitrario: `u` y `-u` valen lo mismo.',
+      '`np.linalg.eigh(M)` calcula los **autovalores** y los **autovectores** de una matriz **simétrica**. Devuelve dos cosas, que se guardan de una vez: `vals, vecs = np.linalg.eigh(M)`.\n\n- `vals` es un array con los autovalores, siempre **de menor a mayor**.\n- `vecs` es una matriz cuyas **columnas** son los autovectores, de longitud 1: la columna `vecs[:, k]` es el autovector del autovalor `vals[k]`. En general, sus filas no son autovectores.\n\nPara tener los autovalores **de mayor a menor** se les da la vuelta con `vals[::-1]`. Pero los autovectores no se reordenan solos: `vecs[:, ::-1]` da la vuelta a las columnas. El signo de un autovector es arbitrario: `u` y `-u` valen lo mismo.',
     example: `import numpy as np
 
-M = np.array([[3, 2],
-              [2, 0]])
+M = np.array([[1, 2],
+              [2, -2]])
 vals, vecs = np.linalg.eigh(M)
 print("autovalores, de menor a mayor:", vals)
 print("autovectores, en las columnas:")
@@ -226,7 +226,7 @@ print("autovalores de mayor a menor:", vals[::-1])
 `,
     experiments: [
       'Cambia `k = 1` por `k = 0` y comprueba que `M @ u` sigue siendo el autovalor por `u`.',
-      'Escribe `print(vecs[0])` y compáralo con `print(vecs[:, 0])`: la primera es una fila, que no es un autovector; la segunda es una columna, que sí.',
+      'Escribe `print(vecs[0])` y compáralo con `print(vecs[:, 0])`: la primera es una fila, que aquí no es un autovector (en general no lo es); la segunda es una columna, que sí.',
       'Escribe `print(vecs[:, 0] @ vecs[:, 1])`: el producto escalar de los dos autovectores es $0$, salvo redondeo, porque son perpendiculares.',
       'Escribe `print(vecs.T @ vecs)`: sale la matriz identidad, porque las columnas son perpendiculares y de longitud 1.',
     ],

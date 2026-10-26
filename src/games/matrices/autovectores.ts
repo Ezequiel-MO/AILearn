@@ -113,7 +113,7 @@ export const autovectores: Project = {
           explain:
             'Cuando la matriz aplasta el plano sobre una recta, los vectores que caen en el origen forman una recta entera: el núcleo. Sus vectores cumplen $A\\vec{v}=0\\cdot\\vec{v}$, así que son autovectores de autovalor $0$.',
           solution:
-            '$\\vec{v}=(1, -2)$ da $A\\vec{v}=(2\\cdot 1+1\\cdot(-2),\\ 4\\cdot 1+2\\cdot(-2))=(0, 0)$. Con $x=1$ es la única posición, y vale cualquier múltiplo si cambias la $x$. Un autovector de autovalor $0$ es un vector del núcleo, y una matriz tiene un $\\lambda=0$ cuando su determinante es $0$.',
+            '$\\vec{v}=(1, -2)$ da $A\\vec{v}=(2\\cdot 1+1\\cdot(-2),\\ 4\\cdot 1+2\\cdot(-2))=(0, 0)$. Con $x=1$ es la única posición, y sin la condición $x=1$ valdría cualquier múltiplo. Un autovector de autovalor $0$ es un vector del núcleo, y una matriz tiene un $\\lambda=0$ cuando su determinante es $0$.',
           plane: transformPlane({
             i: [2, 4],
             j: [1, 2],
@@ -373,7 +373,7 @@ check((not _all) or not _neg, "\`es_autovector\` dice que no a un vector cuya im
 check((not _all) or not _nuc, "\`es_autovector\` dice que no a un vector que la matriz aplasta en el vector nulo. Ese vector es un autovector de autovalor 0.")
 check((not _all) or not _dec, "\`es_autovector\` falla con decimales: dos números que en matemáticas coinciden pueden diferir en el redondeo. Compara con una tolerancia pequeña y no con una igualdad exacta.")
 check((not _all) or not _fp, "\`es_autovector\` dice que sí a un vector cuya imagen cambia de dirección. Para estar en su recta, la imagen tiene que ser un múltiplo del vector, no solo más larga o más corta.")
-check((not _all) or not _fn or _nul or _neg or _nuc or _dec or _fp, "\`es_autovector\` tiene que decir que sí a un vector no nulo cuya imagen es un múltiplo suyo, con un factor positivo, y que no a los demás.")
+check((not _all) or not _fn or _nul or _neg or _nuc or _dec or _fp, "\`es_autovector\` dice que no a un vector no nulo cuya imagen es un múltiplo positivo suyo; ese vector sí es un autovector.")
 check((not _good) or (isinstance(propio, (bool, np.bool_)) and bool(propio)), "\`propio\` tiene que ser \`True\`: es lo que devuelve la función para la matriz y el vector del enunciado.")
 `,
           reference: `import numpy as np

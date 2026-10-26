@@ -146,7 +146,7 @@ describe('valores de la tabla del proyecto pca', () => {
         q.id,
       ];
     });
-    // contract: encargo de la Órbita 2 de matrices (P3-pca): C = (3 1; 1 3), (4 0; 0 1), (2 −1; −1 2) y (3 1; 1 3) en las columnas î y ĵ, v móvil desde (1, 0), (1, 1), (1, 1) y u desde (0, 1) con p = (3, 1) fijo; en la última î y ĵ móviles desde la identidad y v = (1, 1) fijo; circle 1 y circleImage
+    // contract: encargo de la Órbita 2 de matrices (P3-pca): C = (3 1; 1 3), (4 0; 0 1), (2 −1; −1 2) y (3 1; 1 3) en las columnas î y ĵ, v móvil desde (1, 0), (1, 1), (1, 1) y u desde (0, 1) con p = (3, 1) fijo; en la última î y ĵ móviles desde la identidad y v = (1, 1) fijo; circle 1 y circleImage Revisión de la Órbita 2: range 4 en ex00.2 (î = (4, 0) cabe) y 5 en ex00.5 (la elipse de la solución, de semieje 5, se ve entera).
     expect(shape).toEqual([
       [
         ['i=(3, 1) false', 'j=(1, 3) false', 'v=(1, 0) true'],
@@ -162,7 +162,7 @@ describe('valores de la tabla del proyecto pca', () => {
       [
         ['i=(4, 0) false', 'j=(0, 1) false', 'v=(1, 1) true'],
         ['rayleigh'],
-        3,
+        4,
         1,
         ['v'],
         1,
@@ -195,7 +195,7 @@ describe('valores de la tabla del proyecto pca', () => {
       [
         ['i=(1, 0) true', 'j=(0, 1) true', 'v=(1, 1) false'],
         ['matrix', 'img_angle', 'rayleigh'],
-        3,
+        5,
         1,
         ['v'],
         1,

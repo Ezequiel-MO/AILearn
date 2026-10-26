@@ -268,7 +268,7 @@ describe('valores de la tabla del proyecto simetricas', () => {
         q.plane.circleImage,
       ];
     });
-    // contract: encargo de la Órbita 2 de matrices (P2): î fijo y ĵ móvil desde (0, 1) en la primera; A fija y v, w móviles con pair, circle 1 y circleImage en la segunda; v y w móviles en la tercera; î y ĵ móviles con v, w fijos y elipse en la cuarta (range 4, snap 1); v móvil en la quinta
+    // contract: encargo de la Órbita 2 de matrices (P2): î fijo y ĵ móvil desde (0, 1) en la primera; A fija y v, w móviles con pair, circle 1 y circleImage en la segunda; v y w móviles en la tercera; î y ĵ móviles con v, w fijos y elipse (circle 1 y circleImage, que el enunciado de ex00.4 anuncia y la revisión de la Órbita 2 añadió) en la cuarta (range 4, snap 1); v móvil en la quinta
     expect(shape).toEqual([
       [
         ['i=(2, 1) false', 'j=(0, 1) true'],
@@ -307,8 +307,8 @@ describe('valores de la tabla del proyecto simetricas', () => {
         1,
         { columns: ['i', 'j'], apply: ['v', 'w'] },
         undefined,
-        undefined,
-        undefined,
+        1,
+        true,
       ],
       [
         ['i=(1, 2) false', 'j=(2, 1) false', 'v=(1, 0) true'],

@@ -54,3 +54,66 @@ describe('calentamiento: fichas que se ejecutan', { timeout: 60_000 }, () => {
     });
   }
 });
+
+// Las fichas que enseñan «las filas de la matriz de autovectores no son los autovectores» tienen que usar
+// una matriz para la que fila y columna difieran en el eigh del Pyodide del juego (en simétricas como
+// [[5, 2], [2, 2]] la matriz de autovectores sale simétrica y la fila vale).
+describe('calentamiento: fila ≠ columna en las fichas de eigh', { timeout: 60_000 }, () => {
+  const stepOf = (id: string) => {
+    const found = allWarmupSteps.find((s) => s.step.id === id);
+    if (!found) throw new Error(`No existe la ficha ${id}`);
+    return found.step;
+  };
+  // Imprime, para cada fila de V, si cumple A·v = λv para algún λ.
+  const rowsEigen = (a: string, v: string, w: string): string =>
+    `\nprint([any(np.allclose(${a} @ ${v}[k], x * ${v}[k]) for x in ${w}) for k in range(2)])\n`;
+
+  const cases: { id: string; name: string; code: (s: ReturnType<typeof stepOf>) => string }[] = [
+    {
+      id: 'simetricas.cal.4',
+      name: 'el ejemplo',
+      code: (s) => s.example + rowsEigen('M', 'vecs', 'vals'),
+    },
+    {
+      id: 'simetricas.cal.4',
+      name: 'el reto',
+      code: (s) => s.task.reference + rowsEigen('N', 'vectores', 'valores'),
+    },
+    {
+      id: 'pca.cal.2',
+      name: 'la matriz del experimento',
+      code: () =>
+        'import numpy as np\nS = np.array([[1, 2], [2, -2]])\nvalores, vectores = np.linalg.eigh(S)' +
+        rowsEigen('S', 'vectores', 'valores'),
+    },
+    {
+      id: 'pca.cal.2',
+      name: 'el reto',
+      code: (s) => s.task.reference + rowsEigen('A', 'vectores', 'valores'),
+    },
+  ];
+  for (const c of cases) {
+    it(`${c.id}: ${c.name}`, async () => {
+      const r = await runInPyodide(pyodide, c.code(stepOf(c.id)));
+      // contract: revisión de la Órbita 2: si alguna fila fuera autovector, «las filas no son autovectores» sería falso en ese ejemplo
+      expect(r.error, describeRun(r)).toBeNull();
+      expect(r.stdout.trim().split('\n').pop(), describeRun(r)).toBe('[False, False]');
+    });
+  }
+
+  it('pca.cal.2: el reto rechaza u = una fila de V con el mensaje de las filas', async () => {
+    const s = stepOf('pca.cal.2');
+    const code = s.task.reference.replace('u = vectores[:, -1]', 'u = vectores[-1]');
+    const r = await runInPyodide(pyodide, code, s.task.checks);
+    const failed = (r.checks ?? []).filter((c) => !c.passed).map((c) => c.message);
+    // contract: revisión de la Órbita 2: con A no simétrica en V, la fila ya no pasa por autovector y salta el mensaje de «filas»
+    expect(code).not.toBe(s.task.reference);
+    expect(r.passed, describeRun(r)).toBe(false);
+    expect(failed.join(' | '), describeRun(r)).toMatch(/no las filas/);
+  });
+
+  it('el experimento de pca.cal.2 propone la matriz comprobada', () => {
+    // contract: revisión de la Órbita 2: el experimento propone S = [[1, 2], [2, -2]], la de la prueba anterior
+    expect(stepOf('pca.cal.2').experiments.join(' ')).toContain('np.array([[1, 2], [2, -2]])');
+  });
+});

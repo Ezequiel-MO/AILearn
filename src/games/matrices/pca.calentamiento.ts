@@ -73,7 +73,7 @@ print("el autovalor por él:", valores[-1] * mayor)
 print("autovalores de mayor a menor:", valores[::-1])
 `,
     experiments: [
-      'Escribe `print(vectores[0])`: es la primera **fila**, que no es ningún autovector. Los autovectores son las columnas.',
+      'Escribe `print(vectores[0])`: es la primera **fila**, y en general no es un autovector (con esta `S` simétrica de covarianza, las filas y las columnas coinciden, pero no es la regla). Cambia `S` por `np.array([[1, 2], [2, -2]])` y compara `vectores[0]` con `vectores[:, 0]`: ahora la fila ya no es un autovector. Los autovectores son las columnas.',
       'Cambia `S` por `np.array([[3, 0], [0, 7]])`, diagonal: los autovalores son 3 y 7, los números de la diagonal, y los autovectores son los ejes.',
       'Escribe `print(np.linalg.norm(mayor))`: mide 1.',
       'Escribe `print(vectores[:, ::-1])`: las mismas columnas en orden inverso, con la del autovalor mayor primero.',
@@ -83,12 +83,12 @@ print("autovalores de mayor a menor:", valores[::-1])
         'Guarda en `vals` los autovalores de `A` de mayor a menor y en `u` el autovector de norma 1 del autovalor mayor (cualquiera de sus dos signos vale).',
       starter: `import numpy as np
 
-A = np.array([[6, 2], [2, 3]])
+A = np.array([[1, 2], [2, -2]])
 # Guarda en vals los autovalores de A de mayor a menor y en u el autovector de norma 1 del autovalor mayor
 vals = None
 u = None
 `,
-      checks: `_A = np.array([[6, 2], [2, 3]], dtype=float)
+      checks: `_A = np.array([[1, 2], [2, -2]], dtype=float)
 _v = isinstance(vals, np.ndarray) and vals.shape == (2,) and np.issubdtype(vals.dtype, np.floating)
 _u = isinstance(u, np.ndarray) and u.shape == (2,) and np.issubdtype(u.dtype, np.floating)
 _w, _V = np.linalg.eigh(_A)
@@ -102,7 +102,7 @@ check((not _u) or abs(float(np.linalg.norm(u)) - 1) >= 1e-6 or abs(float(u @ _V[
 `,
       reference: `import numpy as np
 
-A = np.array([[6, 2], [2, 3]])
+A = np.array([[1, 2], [2, -2]])
 valores, vectores = np.linalg.eigh(A)
 vals = valores[::-1]
 u = vectores[:, -1]

@@ -36,7 +36,7 @@ const rayleighGoal = (v: string, target: number, tol: number): Goal => ({
   tol,
 });
 
-/** Tercer proyecto de la Órbita 2 de matrices: simetría, perpendicularidad y covarianza. */
+/** Segundo proyecto de la Órbita 2 de matrices: simetría, perpendicularidad y covarianza. */
 export const simetricas: Project = {
   id: 'simetricas',
   name: 'Matrices simétricas',
@@ -69,7 +69,7 @@ export const simetricas: Project = {
           id: 'simetricas.ex00.2',
           type: 'manipular',
           prompt:
-            'La matriz $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ es simétrica y está fija. La curva es lo que $A$ hace con la circunferencia de radio $1$: la convierte en una **elipse**. Mueve $\\vec{v}$ y $\\vec{w}$ hasta cumplir las tres condiciones a la vez: que $A\\vec{v}$ vaya en la misma dirección que $\\vec{v}$ (la lectura «ángulo(v, A·v)» vale $0°$), que $A\\vec{w}$ vaya en la misma dirección que $\\vec{w}$, y que $\\vec{v}$ y $\\vec{w}$ formen $90°$. Después fíjate en dónde caen respecto a los ejes de la elipse y en lo que vale cada cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$.',
+            'La matriz $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ es simétrica y está fija. La curva discontinua, la **elipse**, es lo que $A$ hace con la circunferencia de radio $1$. Mueve $\\vec{v}$ y $\\vec{w}$ hasta cumplir las tres condiciones a la vez: que $A\\vec{v}$ vaya en la misma dirección que $\\vec{v}$ (la lectura «ángulo(v, A·v)» vale $0°$), que $A\\vec{w}$ vaya en la misma dirección que $\\vec{w}$, y que $\\vec{v}$ y $\\vec{w}$ formen $90°$. Después fíjate en dónde caen respecto a los ejes de la elipse y en lo que vale cada cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$: dice cuánto estira $A$ en la dirección de $\\vec{v}$, y vale $\\lambda$ cuando $\\vec{v}$ solo se estira, $A\\vec{v}=\\lambda\\vec{v}$.',
           hints: [
             'Una flecha que $A$ solo estira, sin girarla, tiene el ángulo con su imagen en $0°$. Prueba con $A\\cdot(1, 1)$ a mano: $(2\\cdot 1+1\\cdot 1,\\ 1\\cdot 1+2\\cdot 1)$.',
             'Coloca una de las flechas en la dirección que acabas de encontrar. Para la otra, busca una dirección que forme $90°$ con ella y comprueba que la imagen tampoco gira.',
@@ -143,14 +143,18 @@ export const simetricas: Project = {
             'Cada flecha fija da una ecuación sobre las dos columnas, y hacen falta las dos a la vez: si colocas las columnas para que $\\vec{v}$ salga bien, $\\vec{w}$ se descoloca. Resuelve el sistema antes de mover.',
           solution:
             'Como $A(1, 1)=\\hat{\\imath}+\\hat{\\jmath}$ y $A(1, -1)=\\hat{\\imath}-\\hat{\\jmath}$, al sumar las dos ecuaciones sale $2\\hat{\\imath}=(6, 2)$, es decir, $\\hat{\\imath}=(3, 1)$, y al restarlas, $2\\hat{\\jmath}=(2, 6)$, es decir, $\\hat{\\jmath}=(1, 3)$. La solución es única: $A=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, y sale simétrica sin pedirlo. Dos direcciones perpendiculares con autovalores reales, $4$ y $2$, dan siempre una matriz simétrica.',
-          plane: transformPlane({
-            movable: true,
-            extra: [vec('v', 1, 1, false), vec('w', 1, -1, false)],
-            apply: ['v', 'w'],
-            readouts: ['matrix', 'image'],
-            range: 4,
-            snap: 1,
-          }),
+          plane: {
+            ...transformPlane({
+              movable: true,
+              extra: [vec('v', 1, 1, false), vec('w', 1, -1, false)],
+              apply: ['v', 'w'],
+              readouts: ['matrix', 'image'],
+              range: 4,
+              snap: 1,
+            }),
+            circle: 1,
+            circleImage: true,
+          },
           goals: [
             { metric: 'img_x', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
             { metric: 'img_y', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
@@ -162,13 +166,13 @@ export const simetricas: Project = {
           id: 'simetricas.ex00.5',
           type: 'manipular',
           prompt:
-            'La matriz $A=\\begin{pmatrix}1&2\\\\2&1\\end{pmatrix}$ es simétrica y está fija. El cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ dice cuánto estira $A$ en la dirección de $\\vec{v}$, y no depende de la longitud de $\\vec{v}$: solo de su dirección. Mueve $\\vec{v}$ hasta que el cociente valga $-1$.',
+            'La matriz $A=\\begin{pmatrix}1&2\\\\2&1\\end{pmatrix}$ es simétrica y está fija. El cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ no depende de la longitud de $\\vec{v}$: solo de su dirección. Mueve $\\vec{v}$ hasta que el cociente valga $-1$.',
           hints: [
             'Recorre varias direcciones y mira el cociente: con $\\vec{v}=(1, 0)$ vale $1$. ¿Qué dirección lo hace bajar?',
             'Si $A\\vec{v}$ apunta en sentido opuesto a $\\vec{v}$, el cociente es negativo. Prueba una dirección perpendicular a una diagonal.',
           ],
           explain:
-            'El cociente cambia al girar $\\vec{v}$, pero no al alargarlo: no sirve buscar una flecha más larga. Y para que sea negativo, la imagen tiene que quedar al otro lado del origen que la flecha.',
+            'El cociente cambia al girar $\\vec{v}$, pero no al alargarlo: no sirve buscar una flecha más larga. Y para que sea negativo, la imagen tiene que formar más de $90°$ con la flecha.',
           solution:
             'Con $\\vec{v}=(1, -1)$ (o cualquier múltiplo), $A\\vec{v}=(1-2,\\ 2-1)=(-1, 1)=-\\vec{v}$, y el cociente vale $-1$. Es el valor más pequeño que alcanza: el máximo, $3$, está en la dirección de $(1, 1)$, perpendicular a esta. El cociente de una matriz simétrica queda siempre entre su menor autovalor, $-1$, y el mayor, $3$.',
           plane: transformPlane({

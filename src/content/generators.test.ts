@@ -790,7 +790,7 @@ describe('oráculo de la Órbita 2 de Matrices: autovalores, covarianza y varian
   it('autovalores: la solución escribe traza, determinante, la ecuación y la comprobación', () => {
     for (const seed of SEEDS.slice(0, 50)) {
       const q = resolve(call('autovalores'), seed);
-      expect(q.solution).toContain('La traza es'); // contract: brief, la solución da la traza
+      expect(q.solution).toContain('La traza (la suma de la diagonal) es'); // contract: brief, la solución da la traza; revisión de la Órbita 2: sin la letra d, que otras preguntas usan para det A
       expect(q.solution).toContain('el determinante es'); // contract: brief, y el determinante
       expect(q.solution).toContain('\\lambda^2'); // contract: brief, la ecuación con los números
       expect(q.solution).toContain('Comprobación'); // contract: brief, suma = traza y producto = determinante
