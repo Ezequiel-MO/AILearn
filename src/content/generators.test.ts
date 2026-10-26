@@ -22,7 +22,7 @@ const tuplesOf = (prompt: string): number[][] =>
 /** Redondeo a dos decimales de la solución escrita. */
 const round2 = (x: number): number => Math.round(x * 100) / 100;
 
-// contract: tabla de generadores del brief (id y bounds); los tres últimos, de la Órbita 1
+// contract: tabla de generadores del brief (id y bounds); tres de la Órbita 1 y tres de la Órbita 2 de Matrices
 const IDS = [
   'desplazamiento',
   'suma',
@@ -46,6 +46,9 @@ const IDS = [
   'determinante',
   'resolver-sistema',
   'rango',
+  'autovalores',
+  'covarianza',
+  'varianza-explicada',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -116,6 +119,9 @@ describe('bounds declarados', () => {
       determinante: [-18, 18], // contract: Órbita 1 de Matrices, entradas de -3 a 3: |ad − bc| ≤ 9 + 9
       'resolver-sistema': [-3, 3], // contract: Órbita 1 de Matrices, x con componentes enteras de -3 a 3
       rango: [1, 3], // contract: Órbita 1 de Matrices, matriz 3×3 con rango 1, 2 o 3
+      autovalores: [-3, 5], // contract: brief de la tarea 2 de la Órbita 2, autovalores enteros sorteados en -3..5
+      covarianza: [-28, 28], // contract: brief de la tarea 2 de la Órbita 2, puntos en -4..6 con medias enteras: el extremo es 28 (prueba de enumeración)
+      'varianza-explicada': [35, 95], // contract: brief de la tarea 2 de la Órbita 2, cuatro autovalores distintos que suman 20: de 35 % (k=1, 3-4-6-7) a 95 % (k=3, 1-…)
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -734,14 +740,151 @@ describe('oráculo de la Órbita 1 de Matrices: determinante, resolver-sistema y
     expect(seen1 > 20 && seen3 > 20).toBe(true); // contract: brief, rango uniforme: cada caso sale con frecuencia
   });
 
-  it('los textos de las tres no llevan punto decimal', () => {
-    for (const id of ['determinante', 'resolver-sistema', 'rango']) {
+  it('los textos de los generadores de las Órbitas 1 y 2 no llevan punto decimal', () => {
+    for (const id of [
+      'determinante',
+      'resolver-sistema',
+      'rango',
+      'autovalores',
+      'covarianza',
+      'varianza-explicada',
+    ]) {
       for (const seed of SEEDS.slice(0, 50)) {
         const q = resolve(call(id), seed);
         // contract: restricción global, coma decimal (aquí todo son enteros)
         expect(`${q.prompt}${q.solution}${q.explain}${q.hints.join('')}`).not.toMatch(/\d\.\d/);
       }
     }
+  });
+});
+
+describe('oráculo de la Órbita 2 de Matrices: autovalores, covarianza y varianza-explicada (200 semillas)', () => {
+  it('autovalores: A entera, no diagonal, |entradas| ≤ 9; λ1 < λ2 enteros con suma = traza, producto = det y A − λI singular', () => {
+    const seen = new Set<number>();
+    for (const seed of SEEDS) {
+      const q = resolve(call('autovalores'), seed);
+      if (q.type !== 'vector') throw new Error('autovalores debe dar un vector');
+      const [a] = matricesOf(q.prompt) as [number[]];
+      expect(a.length, `semilla ${seed}`).toBe(4); // contract: brief de la tarea 2 de la Órbita 2, A es 2×2
+      expect(a.every((x) => Number.isInteger(x))).toBe(true); // contract: brief, A entera
+      expect(a[1] !== 0 || a[2] !== 0, `semilla ${seed}`).toBe(true); // contract: brief, A no diagonal
+      expect(a.every((x) => Math.abs(x) <= 9)).toBe(true); // contract: brief, entradas de valor absoluto ≤ 9
+      const [l1, l2] = q.answer as [number, number];
+      expect(q.answer.length).toBe(2); // contract: brief, respuesta [λ1, λ2]
+      expect(l1 < l2, `semilla ${seed}`).toBe(true); // contract: brief, de menor a mayor
+      expect(Number.isInteger(l1) && Number.isInteger(l2)).toBe(true); // contract: brief, autovalores enteros
+      expect(l1 >= -3 && l2 <= 5, `semilla ${seed}`).toBe(true); // contract: brief, autovalores en -3..5
+      expect(l1 + l2, `semilla ${seed}`).toBe(a[0]! + a[3]!); // contract: suma de autovalores = traza
+      expect(l1 * l2 + 0, `semilla ${seed}`).toBe(a[0]! * a[3]! - a[1]! * a[2]! + 0); // contract: producto de autovalores = determinante
+      for (const l of [l1, l2]) {
+        const singular = (a[0]! - l) * (a[3]! - l) - a[1]! * a[2]! + 0;
+        expect(singular, `semilla ${seed}, λ=${l}`).toBe(0); // contract: det(A − λI) = 0 define el autovalor
+      }
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+      seen.add(l1).add(l2);
+    }
+    // contract: brief, los autovalores salen de todo el rango -3..5 (se alcanzan los dos extremos)
+    expect(seen.has(-3) && seen.has(5)).toBe(true);
+  });
+
+  it('autovalores: la solución escribe traza, determinante, la ecuación y la comprobación', () => {
+    for (const seed of SEEDS.slice(0, 50)) {
+      const q = resolve(call('autovalores'), seed);
+      expect(q.solution).toContain('La traza es'); // contract: brief, la solución da la traza
+      expect(q.solution).toContain('el determinante es'); // contract: brief, y el determinante
+      expect(q.solution).toContain('\\lambda^2'); // contract: brief, la ecuación con los números
+      expect(q.solution).toContain('Comprobación'); // contract: brief, suma = traza y producto = determinante
+    }
+  });
+
+  it('covarianza: tres puntos enteros con medias enteras; C con n − 1, simétrica, diagonal > 0, covarianza ≠ 0', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('covarianza'), seed);
+      if (q.type !== 'vector') throw new Error('covarianza debe dar un vector');
+      const pts = tuplesOf(q.prompt);
+      expect(pts.length, `semilla ${seed}`).toBe(3); // contract: brief, tres puntos
+      expect(pts.every((p) => p.length === 2 && p.every((x) => x >= -4 && x <= 6))).toBe(true); // contract: brief, coordenadas enteras en -4..6
+      const xs = pts.map((p) => p[0]!);
+      const ys = pts.map((p) => p[1]!);
+      const sx = xs[0]! + xs[1]! + xs[2]!;
+      const sy = ys[0]! + ys[1]! + ys[2]!;
+      expect([Math.abs(sx % 3), Math.abs(sy % 3)], `semilla ${seed}`).toEqual([0, 0]); // contract: brief, medias enteras
+      expect(xs.every((x) => x === xs[0])).toBe(false); // contract: brief, x no todas iguales
+      expect(ys.every((y) => y === ys[0])).toBe(false); // contract: brief, y no todas iguales
+      const mx = sx / 3;
+      const my = sy / 3;
+      const cov = (u: number[], mu: number, v: number[], mv: number): number =>
+        u.reduce((t, ui, i) => t + (ui - mu) * (v[i]! - mv), 0) / 2;
+      const expected = [
+        cov(xs, mx, xs, mx),
+        cov(xs, mx, ys, my),
+        cov(ys, my, xs, mx),
+        cov(ys, my, ys, my),
+      ];
+      expect(q.answer, `semilla ${seed}`).toEqual(expected); // contract: definición de covarianza muestral, divide entre n − 1 = 2
+      expect(q.answer[1], `semilla ${seed}`).toBe(q.answer[2]); // contract: la matriz de covarianza es simétrica
+      expect(q.answer[0]! > 0 && q.answer[3]! > 0).toBe(true); // contract: varianza > 0 si los valores no son todos iguales
+      expect(q.answer[1], `semilla ${seed}`).not.toBe(0); // contract: brief, covarianza distinta de 0
+      expect(q.answer.every((x) => Number.isInteger(x * 2))).toBe(true); // contract: brief, entradas enteras o con ,5
+      expect(q.shape).toEqual([2, 2]); // contract: brief, forma 2×2
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+    }
+  });
+
+  it('covarianza: bounds exactos, el extremo de todos los sorteos posibles (enumeración)', () => {
+    const range = Array.from({ length: 11 }, (_, i) => i - 4);
+    const valid = range
+      .flatMap((a) => range.flatMap((b) => range.map((c) => [a, b, c] as const)))
+      .filter(([a, b, c]) => (a + b + c) % 3 === 0 && !(a === b && b === c));
+    let min = Infinity;
+    let max = -Infinity;
+    for (const x of valid) {
+      for (const y of valid) {
+        const dx = x.map((v) => v - (x[0] + x[1] + x[2]) / 3);
+        const dy = y.map((v) => v - (y[0] + y[1] + y[2]) / 3);
+        const xy = dx.reduce((t, v, i) => t + v * dy[i]!, 0) / 2;
+        if (xy === 0) continue;
+        for (const v of [
+          dx.reduce((t, v) => t + v * v, 0) / 2,
+          xy,
+          dy.reduce((t, v) => t + v * v, 0) / 2,
+        ]) {
+          min = Math.min(min, v);
+          max = Math.max(max, v);
+        }
+      }
+    }
+    const { bounds } = generators['covarianza']!;
+    expect([bounds.min, bounds.max]).toEqual([min, max]); // contract: brief, bounds exactos según los rangos de sorteo
+  });
+
+  it('varianza-explicada: cuatro autovalores de menor a mayor, distintos, suman 20; respuesta = suma de los k mayores × 5', () => {
+    const ks = new Set<number>();
+    for (const seed of SEEDS) {
+      const q = resolve(call('varianza-explicada'), seed);
+      if (q.type !== 'numero') throw new Error('varianza-explicada debe dar un número');
+      const [values] = tuplesOf(q.prompt) as [number[]];
+      expect(values.length, `semilla ${seed}`).toBe(4); // contract: brief, cuatro autovalores
+      expect(
+        values.every((v, i) => v > 0 && (i === 0 || v > values[i - 1]!)),
+        `semilla ${seed}`,
+      ).toBe(true); // contract: brief, positivos, distintos y de menor a mayor
+      expect(
+        values.reduce((t, v) => t + v, 0),
+        `semilla ${seed}`,
+      ).toBe(20); // contract: brief, suman 20
+      const k = Number(/k=(\d)/.exec(q.prompt)![1]);
+      expect([1, 2, 3], `semilla ${seed}`).toContain(k); // contract: brief, k en {1, 2, 3}
+      ks.add(k);
+      const topK = values.slice(4 - k).reduce((t, v) => t + v, 0);
+      expect(q.answer, `semilla ${seed}`).toBe(topK * 5); // contract: brief, suma de los k mayores entre 20 por 100
+      expect(q.answer % 5).toBe(0); // contract: brief, el resultado es múltiplo de 5
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+      expect(q.prompt).toContain('de menor a mayor'); // contract: brief, el enunciado los da de menor a mayor
+      expect(q.prompt).toContain('np.linalg.eigh'); // contract: brief, como los devuelve eigh
+      expect(q.solution).toContain('tal como viene'); // contract: brief, la solución dice qué saldría sumando los k primeros de la lista
+    }
+    expect([...ks].sort()).toEqual([1, 2, 3]); // contract: brief, salen los tres valores de k
   });
 });
 

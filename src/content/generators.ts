@@ -928,6 +928,169 @@ const rango: Generator = {
   },
 };
 
+// ---------- Juego 2, Órbita 2: direcciones propias ----------
+
+/** Matrices enteras con determinante ±1 y no diagonales: P·D·P⁻¹ sale entera. */
+const EIGEN_BASES: readonly (readonly [number, number, number, number])[] = [
+  [1, 1, 0, 1],
+  [1, 0, 1, 1],
+  [2, 1, 1, 1],
+  [1, 1, 1, 2],
+  [1, -1, 0, 1],
+  [1, 2, 0, 1],
+  [1, 0, 2, 1],
+  [3, 1, 2, 1],
+  [1, 1, 2, 3],
+  [0, 1, -1, 0],
+];
+
+/** Polinomio λ² + pλ + q en LaTeX, sin términos nulos ni coeficiente 1 delante de λ. */
+const quadraticTex = (p: number, q: number): string => {
+  const linear =
+    p === 0 ? '' : `${p < 0 ? '-' : '+'}${Math.abs(p) === 1 ? '' : tex(Math.abs(p))}\\lambda`;
+  const constant = q === 0 ? '' : `${q < 0 ? '-' : '+'}${tex(Math.abs(q))}`;
+  return `\\lambda^2${linear}${constant}`;
+};
+
+/** Factor (λ − r) en LaTeX; con r = 0 queda λ sola. */
+const rootFactorTex = (r: number): string =>
+  r === 0 ? '\\lambda' : `(\\lambda${r < 0 ? '+' : '-'}${Math.abs(r)})`;
+
+const autovalores: Generator = {
+  id: 'autovalores',
+  bounds: { min: -3, max: 5 },
+  make(id, _params, rng) {
+    for (;;) {
+      const l1 = int(rng, -3, 5);
+      const l2 = int(rng, -3, 5);
+      if (l1 >= l2) continue;
+      const [p, q, r, s] = EIGEN_BASES[int(rng, 0, EIGEN_BASES.length - 1)]!;
+      const d = p * s - q * r;
+      // P·diag(l1, l2) por P⁻¹ = (1/d)·(s -q; -r p), con d = ±1.
+      const m = [
+        (p * l1 * s - q * l2 * r) * d,
+        (-p * l1 * q + q * l2 * p) * d,
+        (r * l1 * s - s * l2 * r) * d,
+        (-r * l1 * q + s * l2 * p) * d,
+      ].map(clean);
+      if (m[1] === 0 && m[2] === 0) continue;
+      if (m.some((x) => Math.abs(x) > 9)) continue;
+      const [a, b, c, e] = m as [number, number, number, number];
+      const trace = a + e;
+      const det = det2(m);
+      return vectorQ(
+        id,
+        {
+          prompt: `Sea $A=${matrix2Tex(m)}$. Calcula sus dos autovalores y escríbelos de menor a mayor.`,
+          hints: [
+            'Los autovalores $\\lambda$ cumplen $\\det(A-\\lambda I)=0$.',
+            'En una matriz $2\\times 2$ esa ecuación es $\\lambda^2-(a+d)\\lambda+\\det A=0$: calcula la traza $a+d$ y el determinante, y busca dos números que sumen la traza y multipliquen el determinante.',
+          ],
+          explain:
+            'Un autovector $\\vec{v}$ no nulo cumple $A\\vec{v}=\\lambda\\vec{v}$, es decir, $(A-\\lambda I)\\vec{v}=\\vec{0}$. Para que exista un $\\vec{v}$ no nulo, $A-\\lambda I$ tiene que aplastar el plano, y eso ocurre justo cuando su determinante es $0$. En una matriz $2\\times 2$ ese determinante es $\\lambda^2-(a+d)\\lambda+\\det A$, así que los autovalores son las raíces de esa ecuación.',
+          solution: `La traza es $a+d=${tex(a)}+${paren(e)}=${tex(trace)}$ y el determinante es $\\det A=${paren(a)}\\cdot ${paren(e)}-${paren(b)}\\cdot ${paren(c)}=${tex(det)}$. La ecuación $\\lambda^2-(a+d)\\lambda+\\det A=0$ queda $${quadraticTex(-trace, det)}=0$, que se factoriza como $${rootFactorTex(l1)}${rootFactorTex(l2)}=0$. Los autovalores, de menor a mayor, son $\\lambda_1=${tex(l1)}$ y $\\lambda_2=${tex(l2)}$. Comprobación: la suma, $${tex(l1)}+${paren(l2)}=${tex(l1 + l2)}$, es la traza, y el producto, $${paren(l1)}\\cdot ${paren(l2)}=${tex(l1 * l2)}$, es el determinante.`,
+        },
+        [l1, l2],
+        0,
+      );
+    }
+  },
+};
+
+const covarianza: Generator = {
+  id: 'covarianza',
+  bounds: { min: -28, max: 28 },
+  make(id, _params, rng) {
+    for (;;) {
+      const pts = Array.from({ length: 3 }, () => [int(rng, -4, 6), int(rng, -4, 6)]);
+      const xs = pts.map((p) => p[0]!);
+      const ys = pts.map((p) => p[1]!);
+      const sx = xs[0]! + xs[1]! + xs[2]!;
+      const sy = ys[0]! + ys[1]! + ys[2]!;
+      if (sx % 3 !== 0 || sy % 3 !== 0) continue;
+      if (xs.every((x) => x === xs[0]) || ys.every((y) => y === ys[0])) continue;
+      const mx = sx / 3;
+      const my = sy / 3;
+      const dx = xs.map((x) => x - mx);
+      const dy = ys.map((y) => y - my);
+      const sumXX = dx.reduce((t, v) => t + v * v, 0);
+      const sumYY = dy.reduce((t, v) => t + v * v, 0);
+      const sumXY = dx.reduce((t, v, i) => t + v * dy[i]!, 0);
+      if (sumXY === 0) continue;
+      const answer = [sumXX / 2, sumXY / 2, sumXY / 2, sumYY / 2];
+      const list = (v: readonly number[]): string => `(${v.map(tex).join(',\\ ')})`;
+      const over2 = (terms: readonly string[]): string => `\\dfrac{${terms.join('+')}}{2}`;
+      return vectorQ(
+        id,
+        {
+          prompt: `Tres observaciones tienen los puntos $P_1=${tuple(pts[0]!)}$, $P_2=${tuple(pts[1]!)}$ y $P_3=${tuple(pts[2]!)}$. Escribe su matriz de covarianza $C$, dividiendo entre $n-1$. Rellénala por filas: arriba a la izquierda la varianza de $x$, abajo a la derecha la varianza de $y$ y, en las otras dos casillas, la covarianza.`,
+          hints: [
+            'Empieza por las medias de $x$ y de $y$ y réstalas a las coordenadas: son las desviaciones.',
+            'La varianza de $x$ es la suma de los cuadrados de sus desviaciones entre $n-1$; la covarianza es la suma de los productos de las desviaciones de $x$ y de $y$ entre $n-1$.',
+          ],
+          explain:
+            'La matriz de covarianza $C$ guarda en la diagonal la varianza de cada variable y fuera de la diagonal la covarianza entre ellas. Con $n$ puntos se divide entre $n-1$, y aquí $n-1=2$. Los fallos habituales son dividir entre $n$ o no restar antes la media.',
+          solution: `Las medias son $\\bar{x}=\\dfrac{${xs.map(paren).join('+')}}{3}=${tex(mx)}$ y $\\bar{y}=\\dfrac{${ys.map(paren).join('+')}}{3}=${tex(my)}$. Las desviaciones son $${list(dx)}$ en $x$ y $${list(dy)}$ en $y$. Entonces $\\operatorname{var}(x)=${over2(dx.map((v) => `${paren(v)}^2`))}=${tex(answer[0]!)}$, $\\operatorname{var}(y)=${over2(dy.map((v) => `${paren(v)}^2`))}=${tex(answer[3]!)}$ y $\\operatorname{cov}(x,y)=${over2(dx.map((v, i) => `${paren(v)}\\cdot ${paren(dy[i]!)}`))}=${tex(answer[1]!)}$. Así, $C=${matrix2Tex(answer)}$. Es simétrica: la covarianza de $x$ con $y$ es la de $y$ con $x$, y las dos casillas fuera de la diagonal coinciden.`,
+        },
+        answer,
+        0,
+        [2, 2],
+      );
+    }
+  },
+};
+
+/** Cuartetos de enteros positivos distintos, de menor a mayor, que suman 20. */
+const EIGEN_QUARTETS: readonly (readonly number[])[] = (() => {
+  const out: number[][] = [];
+  for (let a = 1; a <= 17; a++)
+    for (let b = a + 1; b <= 17; b++)
+      for (let c = b + 1; c <= 17; c++) {
+        const d = 20 - a - b - c;
+        if (d > c) out.push([a, b, c, d]);
+      }
+  return out;
+})();
+
+const varianzaExplicada: Generator = {
+  id: 'varianza-explicada',
+  bounds: { min: 35, max: 95 },
+  make(id, _params, rng) {
+    const values = EIGEN_QUARTETS[int(rng, 0, EIGEN_QUARTETS.length - 1)]!;
+    const k = int(rng, 1, 3);
+    const top = values.slice(4 - k).reverse();
+    const topSum = top.reduce((t, v) => t + v, 0);
+    const wrong = values.slice(0, k);
+    const wrongSum = wrong.reduce((t, v) => t + v, 0);
+    const answer = topSum * 5;
+    const topText = k === 1 ? `${top[0]}` : `${top.join('+')}=${topSum}`;
+    const wrongText = k === 1 ? `${wrong[0]}` : `${wrong.join('+')}=${wrongSum}`;
+    const takes =
+      k === 1
+        ? 'la primera componente principal recoge'
+        : `las $${k}$ primeras componentes principales recogen`;
+    const wrongTakes =
+      k === 1
+        ? 'tomaras el primero de la lista tal como viene'
+        : `sumaras los $${k}$ primeros de la lista tal como viene`;
+    return numeroQ(
+      id,
+      {
+        prompt: `Los autovalores de la matriz de covarianza de unos datos son $${tuple(values)}$, de menor a mayor, como los devuelve \`np.linalg.eigh\`. ¿Qué porcentaje de la varianza total explican las $k$ primeras componentes principales, con $k=${k}$, es decir, las de autovalor más grande? Escribe el porcentaje, sin el símbolo.`,
+        hints: [
+          'Las componentes principales se ordenan de mayor a menor autovalor, y `np.linalg.eigh` los devuelve al revés: de menor a mayor.',
+          'La varianza total es la suma de todos los autovalores. El porcentaje es la suma de los $k$ mayores entre la varianza total, por $100$.',
+        ],
+        explain:
+          'Cada autovalor de la matriz de covarianza es la varianza que recoge su componente principal, y la varianza total es la suma de todos ellos. Las primeras componentes son las de autovalor más grande, así que hay que ordenar de mayor a menor antes de sumar las $k$ primeras. Fiarse del orden de `np.linalg.eigh` da la varianza de las componentes menos importantes.',
+        solution: `De mayor a menor los autovalores son $${tuple([...values].reverse())}$. La varianza total es $${values.join('+')}=20$. Con $k=${k}$, ${takes} $${topText}$ de esa varianza, y $\\dfrac{${topSum}}{20}=${tex(topSum / 20)}$, es decir, el $${answer}\\,\\%$ de la varianza. Si ${wrongTakes}, $${wrongText}$, te saldría el $${wrongSum * 5}\\,\\%$, que es la varianza de las componentes menos importantes.`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -951,6 +1114,9 @@ export const generators: Record<string, Generator> = {
   determinante,
   'resolver-sistema': resolverSistema,
   rango,
+  autovalores,
+  covarianza,
+  'varianza-explicada': varianzaExplicada,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */
