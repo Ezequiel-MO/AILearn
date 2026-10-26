@@ -1,6 +1,6 @@
 # AIlearn: guía para el agente
 
-Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria, el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3), y el juego 2, «Matrices y transformaciones», con Despegue, Órbita 0 («La máquina») y Órbita 1 («El área»; las siguientes, previstas en `README.md`). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
+Juegos para aprender ingeniería de IA (React, Vite, TypeScript estricto, Pyodide). Hoy: el motor de la trayectoria, el juego 1, «Vectores y embeddings» completo (Despegue y Órbitas 0 a 3), y el juego 2, «Matrices y transformaciones», con Despegue, Órbita 0 («La máquina»), Órbita 1 («El área») y Órbita 2 («Direcciones propias»; la siguiente, «Descomponer y aproximar», prevista en `README.md`). Spec, la autoridad: `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. Cómo arrancar y cómo añadir contenido: `README.md`.
 
 ## Cómo comprobar
 

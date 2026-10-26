@@ -537,6 +537,37 @@ export const GLOSSARY: readonly GlossaryEntry[] = [
     'np.linalg.matrix_rank(M)',
     'El rango de `M`: cuántas de sus columnas son independientes.',
   ),
+  fn(
+    'np.linalg.eig',
+    'np.linalg.eig(M)',
+    'Los autovalores y los autovectores de `M`, en dos resultados. Los autovectores son las **columnas** de la segunda matriz.',
+  ),
+  fn(
+    'np.linalg.eigvals',
+    'np.linalg.eigvals(M)',
+    'Solo los autovalores de `M`, sin los autovectores.',
+  ),
+  fn(
+    'np.linalg.eigh',
+    'np.linalg.eigh(S)',
+    'Como `np.linalg.eig`, pero para una matriz simétrica `S`. Los autovectores son las **columnas** de la segunda matriz y los autovalores salen de menor a mayor.',
+  ),
+  fn(
+    'np.cov',
+    'np.cov(X)',
+    'La matriz de covarianzas: cuánto varían juntas las filas de `X`. Con `rowvar=False`, son las columnas las que se comparan.',
+  ),
+  fn(
+    'np.var',
+    'np.var(x)',
+    'La varianza: cuánto se apartan los números de su media, al cuadrado. Con `ddof=1` se divide entre $n-1$ en vez de entre $n$.',
+  ),
+  fn('np.cumsum', 'np.cumsum(x)', 'La suma acumulada: cada número es la suma de todos hasta ahí.'),
+  fn(
+    'np.diag',
+    'np.diag(x)',
+    'Con un vector, crea la matriz diagonal con esos números; con una matriz, saca su diagonal.',
+  ),
   method(
     'shape',
     'M.shape',
