@@ -144,3 +144,40 @@ describe('determinante e imagen por una matriz (juego 2)', () => {
     expect(() => measure('det', ['i', 'j', 'v'], vs)).toThrow(); // contract: det exige dos vectores
   });
 });
+
+describe('img_angle y rayleigh (Órbita 2)', () => {
+  const sym = { i: [2, 1], j: [1, 2] }; // A simétrica, autovalores 3 y 1
+  const at = (metric: 'img_angle' | 'rayleigh', v: number[], m: Record<string, number[]> = sym) =>
+    measure(metric, ['i', 'j', 'v'], { ...m, v });
+
+  it('img_angle vale 0 en los autovectores', () => {
+    expect(at('img_angle', [1, 1])).toBeCloseTo(0, 9); // contract: brief de la tarea 1 de la Órbita 2, A·(1,1) = (3,3)
+    expect(at('img_angle', [1, -1])).toBeCloseTo(0, 9); // contract: brief de la tarea 1 de la Órbita 2, A·(1,−1) = (1,−1)
+  });
+  it('img_angle de (1, 0) es el ángulo entre (1, 0) y (2, 1)', () => {
+    expect(at('img_angle', [1, 0])).toBeCloseTo(26.565, 3); // contract: brief de la tarea 1 de la Órbita 2, atan(1/2) en grados
+  });
+  it('img_angle es NaN si v o A·v es nulo', () => {
+    expect(at('img_angle', [0, 0])).toBeNaN(); // contract: brief de la tarea 1 de la Órbita 2, v nulo
+    const singular = { i: [2, 4], j: [1, 2] };
+    expect(at('img_angle', [1, -2], singular)).toBeNaN(); // contract: brief de la tarea 1 de la Órbita 2, A·(1,−2) = (0,0)
+  });
+  it('img_angle vale 180 con la reflexión y v = (1, −1)', () => {
+    const flip = { i: [0, 1], j: [1, 0] };
+    expect(at('img_angle', [1, -1], flip)).toBeCloseTo(180, 9); // contract: brief de la tarea 1 de la Órbita 2, A·(1,−1) = (−1,1)
+  });
+  it('rayleigh vale λ en los autovectores y no depende de la longitud', () => {
+    expect(at('rayleigh', [1, 1])).toBeCloseTo(3, 9); // contract: brief de la tarea 1 de la Órbita 2, autovalor 3
+    expect(at('rayleigh', [2, 2])).toBeCloseTo(3, 9); // contract: brief de la tarea 1 de la Órbita 2, misma dirección, mismo cociente
+    expect(at('rayleigh', [1, -1])).toBeCloseTo(1, 9); // contract: brief de la tarea 1 de la Órbita 2, autovalor 1
+  });
+  it('rayleigh de (1, 0) es 2 y el de v nulo es NaN', () => {
+    expect(at('rayleigh', [1, 0])).toBeCloseTo(2, 9); // contract: brief de la tarea 1 de la Órbita 2, (1,0)·(2,1) / 1
+    expect(at('rayleigh', [0, 0])).toBeNaN(); // contract: brief de la tarea 1 de la Órbita 2, v nulo
+  });
+  it('las dos exigen tres vectores', () => {
+    const vs = { ...sym, v: [1, 0] };
+    expect(() => measure('img_angle', ['i', 'j'], vs)).toThrow(); // contract: brief de la tarea 1 de la Órbita 2, aridad 3
+    expect(() => measure('rayleigh', ['i', 'j', 'v', 'v'], vs)).toThrow(); // contract: brief de la tarea 1 de la Órbita 2, aridad 3
+  });
+});

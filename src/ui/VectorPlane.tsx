@@ -22,6 +22,8 @@ const ARC_MIN = 10;
 const SHADOW_MIN = 1;
 /** Líneas de la rejilla transformada, a cada lado del origen, como máximo por familia (x = k, y = k). */
 const MAX_IMAGE_LINES = 30;
+/** Puntos con los que se muestrea la circunferencia para dibujar su imagen (la elipse). */
+const ELLIPSE_POINTS = 96;
 
 const clean = (n: number): number => Number(n.toFixed(6));
 
@@ -97,7 +99,7 @@ export function VectorPlane({
   positions: Record<string, [number, number]>;
   onMove?: (id: string, to: [number, number]) => void;
 }) {
-  const { range, snap, vectors, readouts, pair, circle, transform } = spec;
+  const { range, snap, vectors, readouts, pair, circle, circleImage, transform } = spec;
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ id: string; pointerId: number; offset: Point } | null>(null);
   const [draggingId, setDraggingId] = useState<string | null>(null);
@@ -230,6 +232,7 @@ export function VectorPlane({
   const imageTip = (p: Point): Point => [sx(p[0]), sy(p[1])];
   const imageLines: { key: string; axis: boolean; a: Point; b: Point }[] = [];
   let imageSquare: string | null = null;
+  let ellipse: string | null = null;
   const images: { id: string; vec: Point; tip: Point; arrow: Arrow }[] = [];
   if (transform && colI && colJ) {
     const lenI = Math.hypot(colI[0], colI[1]);
@@ -271,6 +274,14 @@ export function VectorPlane({
     family('y', colJ, colI, lenI, reach(lenI));
     const corners: Point[] = [[0, 0], colI, [colI[0] + colJ[0], colI[1] + colJ[1]], colJ];
     imageSquare = corners.map((c) => imageTip(c).join(',')).join(' ');
+    if (circleImage && circle !== undefined) {
+      // la imagen de la circunferencia de radio `circle`; con A singular se queda en un segmento
+      ellipse = Array.from({ length: ELLIPSE_POINTS }, (_, n) => {
+        const a = (2 * Math.PI * n) / ELLIPSE_POINTS;
+        const q = applyColumns(colI, colJ, [circle * Math.cos(a), circle * Math.sin(a)]);
+        return imageTip(q).join(',');
+      }).join(' ');
+    }
     for (const id of transform.apply ?? []) {
       const vec = applyColumns(colI, colJ, current[id]);
       const tip = imageTip(vec);
@@ -314,6 +325,35 @@ export function VectorPlane({
       }
     } else if (kind === 'det') {
       rows.push({ key: 'det', name: t.plane.detName, value: fmt(detA) });
+    } else if (kind === 'image' || kind === 'img_angle' || kind === 'rayleigh') {
+      // una fila por cada vector de transform.apply, en su orden; el esquema exige transform y apply
+      if (transform) {
+        for (const id of transform.apply ?? []) {
+          const of = [transform.columns[0], transform.columns[1], id];
+          const label = nameOf(id);
+          if (kind === 'image') {
+            rows.push({
+              key: `image-${id}`,
+              name: t.plane.imageName(label),
+              value: pointText(measure('img_x', of, asVecs), measure('img_y', of, asVecs)),
+            });
+          } else if (kind === 'img_angle') {
+            const value = measure('img_angle', of, asVecs);
+            rows.push({
+              key: `img-angle-${id}`,
+              name: t.plane.imgAngleName(label),
+              value: Number.isNaN(value) ? t.plane.noAngle : `${fmt(value)}°`,
+            });
+          } else {
+            const value = measure('rayleigh', of, asVecs);
+            rows.push({
+              key: `rayleigh-${id}`,
+              name: t.plane.rayleighName(label),
+              value: Number.isNaN(value) ? t.plane.noRayleigh : fmt(value),
+            });
+          }
+        }
+      }
     } else if (pair) {
       const [a, b] = pair;
       if (kind === 'distance') {
@@ -513,6 +553,9 @@ export function VectorPlane({
                 cy={CENTER}
                 r={circle * scale}
               />
+            )}
+            {ellipse && (
+              <polygon className="plane__circle-image" aria-hidden="true" points={ellipse} />
             )}
             {bLine && (
               <line

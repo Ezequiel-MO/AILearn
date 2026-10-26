@@ -13,7 +13,9 @@ export type Metric =
   | 'proj'
   | 'det'
   | 'img_x'
-  | 'img_y';
+  | 'img_y'
+  | 'img_angle'
+  | 'rayleigh';
 
 const sameDim = (a: Vec, b: Vec): void => {
   if (a.length !== b.length) {
@@ -107,12 +109,17 @@ export const METRIC_ARITY: Record<Metric, 1 | 2 | 3> = {
   det: 2,
   img_x: 3,
   img_y: 3,
+  img_angle: 3,
+  rayleigh: 3,
 };
 
 /**
  * `of` son ids de vectores del plano: uno para x, y, norm; tres para img_x, img_y; dos para el resto.
  * `det` de `[a, b]` es el determinante de la matriz de columnas a y b; `img_x` e `img_y` de `[i, j, v]`
- * son las componentes de la imagen de v por la matriz de columnas i y j.
+ * son las componentes de la imagen de v por la matriz de columnas i y j. `img_angle` de `[i, j, v]` es
+ * el ángulo en grados entre v y su imagen A·v (NaN si v o A·v es nulo). `rayleigh` de `[i, j, v]` es
+ * v·(A·v) / v·v: vale λ si v es autovector de autovalor λ; si A es una matriz de covarianza, es la
+ * varianza de los datos en la dirección de v; no depende de la longitud de v (NaN si v es nulo).
  * `proj` es la proyección escalar del primero sobre el segundo. `cos`, `angle` y `proj` dan NaN
  * cuando el ángulo no existe (vector nulo), y NaN no cumple ninguna meta.
  */
@@ -154,5 +161,12 @@ export const measure = (metric: Metric, of: string[], vectors: Record<string, Ve
       return applyColumns(a, b, c)[0];
     case 'img_y':
       return applyColumns(a, b, c)[1];
+    case 'img_angle':
+      return angle(c, applyColumns(a, b, c));
+    case 'rayleigh': {
+      const cc = dot(c, c);
+      if (cc === 0) return NaN;
+      return dot(c, applyColumns(a, b, c)) / cc;
+    }
   }
 };

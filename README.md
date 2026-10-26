@@ -91,7 +91,8 @@ Los decimales se muestran con coma y se aceptan con coma o con punto. En el text
 Matrices en el plano y en las respuestas:
 
 - `plane.transform: { columns: [idI, idJ], apply? }` convierte el plano en una transformación lineal: la matriz $A$ tiene por columnas las posiciones actuales de esos dos vectores (si son móviles, cambia al arrastrarlos). Se dibuja la rejilla transformada, la imagen del cuadrado unidad (en rojo si $\det A < 0$) y, para cada id de `apply`, la flecha discontinua $A\vec v$. Las lecturas `matrix` y `det` exigen `transform`.
-- Métricas de meta: `det` (dos ids) y `img_x`, `img_y` (tres ids: `[i, j, v]`, las componentes de $A\vec v$).
+- Métricas de meta: `det` (dos ids) y `img_x`, `img_y` (tres ids: `[i, j, v]`, las componentes de $A\vec v$), `img_angle` (tres ids: el ángulo en grados entre $\vec v$ y $A\vec v$) y `rayleigh` (tres ids: $\vec v^\top A\vec v / \vec v^\top\vec v$; vale $\lambda$ si $\vec v$ es autovector, y en una matriz de covarianza es la varianza en la dirección de $\vec v$).
+- Lecturas de `readouts` por cada id de `transform.apply` (exigen `transform` con al menos un `apply`): `image` ($A\vec v$), `img_angle` y `rayleigh`. La opción `circleImage: true` del plano (exige `circle` y `transform`) dibuja la imagen por $A$ de la circunferencia `circle`: una elipse.
 - Un `vector` con `shape: [filas, columnas]` pide una matriz: `answer` va fila a fila.
 
 ### Añadir una pregunta

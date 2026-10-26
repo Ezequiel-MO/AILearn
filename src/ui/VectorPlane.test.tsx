@@ -852,3 +852,80 @@ describe('VectorPlane: transformación lineal (juego 2)', () => {
     expect(onMove).toHaveBeenCalledExactlyOnceWith('i', [2, 0]); // contract: tarea 9, un paso de snap (1) a la derecha
   });
 });
+
+describe('VectorPlane: lecturas de autovectores y elipse (Órbita 2)', () => {
+  const aspec = (over: Partial<PlaneSpec> = {}): PlaneSpec =>
+    spec({
+      range: 4,
+      vectors: [
+        { id: 'i', label: 'î', x: 2, y: 1, movable: false },
+        { id: 'j', label: 'ĵ', x: 1, y: 2, movable: false },
+        { id: 'v', label: 'w', x: 1, y: 0, movable: true },
+      ],
+      transform: { columns: ['i', 'j'], apply: ['v'] },
+      readouts: ['image', 'img_angle', 'rayleigh'],
+      ...over,
+    });
+  const rowOf = (name: string): string | null | undefined =>
+    within(readouts()).getByText(name).closest('div')?.querySelector('output')?.textContent;
+
+  it('muestra A·w, el ángulo con A·w y el cociente, con la etiqueta del vector', () => {
+    render(<VectorPlane spec={aspec()} positions={{}} />);
+    expect(rowOf('A·w')).toBe('(2, 1)'); // contract: brief de la tarea 1 de la Órbita 2, A·(1,0) = (2,1)
+    expect(rowOf('ángulo(w, A·w)')).toBe('26,57°'); // contract: brief de la tarea 1 de la Órbita 2, atan(1/2) = 26,565° a 2 decimales
+    expect(rowOf('wᵀAw / wᵀw')).toBe('2'); // contract: brief de la tarea 1 de la Órbita 2, (1,0)·(2,1) / 1
+  });
+  it('con v = (1, 1) el ángulo es 0° y el cociente 3', () => {
+    render(<VectorPlane spec={aspec()} positions={{ v: [1, 1] }} />);
+    expect(rowOf('ángulo(w, A·w)')).toBe('0°'); // contract: brief de la tarea 1 de la Órbita 2, (1,1) es autovector
+    expect(rowOf('wᵀAw / wᵀw')).toBe('3'); // contract: brief de la tarea 1 de la Órbita 2, autovalor 3
+  });
+  it('con v nulo muestra textos fijos en lugar de NaN', () => {
+    const { container } = render(<VectorPlane spec={aspec()} positions={{ v: [0, 0] }} />);
+    expect(rowOf('A·w')).toBe('(0, 0)'); // contract: brief de la tarea 1 de la Órbita 2, A·0 = 0
+    expect(rowOf('ángulo(w, A·w)')).toBe('sin ángulo'); // contract: brief de la tarea 1 de la Órbita 2, el ángulo con el vector nulo no existe
+    expect(rowOf('wᵀAw / wᵀw')).toBe('sin dirección'); // contract: brief de la tarea 1 de la Órbita 2, cociente con v nulo
+    expect(container.innerHTML).not.toMatch(/NaN/); // contract: brief de la tarea 1 de la Órbita 2, nada de NaN en pantalla
+  });
+  it('una fila por cada vector de apply, en su orden', () => {
+    const two = aspec({
+      vectors: [
+        { id: 'i', label: 'î', x: 2, y: 1, movable: false },
+        { id: 'j', label: 'ĵ', x: 1, y: 2, movable: false },
+        { id: 'v', label: 'a', x: 1, y: 1, movable: true },
+        { id: 'u', label: 'b', x: 1, y: -1, movable: true },
+      ],
+      transform: { columns: ['i', 'j'], apply: ['u', 'v'] },
+      readouts: ['rayleigh'],
+    });
+    render(<VectorPlane spec={two} positions={{}} />);
+    const names = [...readouts().querySelectorAll('dt')].map((e) => e.textContent);
+    expect(names).toEqual(['bᵀAb / bᵀb', 'aᵀAa / aᵀa']); // contract: brief de la tarea 1 de la Órbita 2, orden de transform.apply
+  });
+  it('circleImage dibuja la elipse; sin la opción no hay trazo', () => {
+    const none = render(<VectorPlane spec={aspec({ circle: 1 })} positions={{}} />);
+    expect(none.container.querySelector('.plane__circle-image')).toBeNull(); // contract: brief de la tarea 1 de la Órbita 2, solo si se pide
+    none.unmount();
+    const { container } = render(
+      <VectorPlane spec={aspec({ circle: 1, circleImage: true })} positions={{}} />,
+    );
+    const e = container.querySelector('.plane__circle-image');
+    expect(e?.getAttribute('aria-hidden')).toBe('true'); // contract: brief de la tarea 1 de la Órbita 2, decoración como la circunferencia
+    const pts = (e?.getAttribute('points') ?? '').split(' ');
+    expect(pts).toHaveLength(96); // contract: brief de la tarea 1 de la Órbita 2, unos 96 puntos de muestreo
+    const unit = (CENTER - MARGIN) / 4;
+    // contract: brief de la tarea 1 de la Órbita 2, el punto del ángulo 0 es A·(1,0) = (2,1)
+    expect(pts[0]).toBe(`${CENTER + 2 * unit},${CENTER - 1 * unit}`);
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/); // contract: brief de la tarea 1 de la Órbita 2, nada roto
+  });
+  it('con A singular la elipse degenera en un segmento sin romper nada', () => {
+    const { container } = render(
+      <VectorPlane
+        spec={aspec({ circle: 1, circleImage: true })}
+        positions={{ i: [2, 4], j: [1, 2] }}
+      />,
+    );
+    expect(container.querySelector('.plane__circle-image')).not.toBeNull(); // contract: brief de la tarea 1 de la Órbita 2, det 0 no la quita
+    expect(container.innerHTML).not.toMatch(/NaN|Infinity/); // contract: brief de la tarea 1 de la Órbita 2, nada roto con det 0
+  });
+});

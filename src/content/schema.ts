@@ -21,6 +21,8 @@ const METRICS = [
   'det',
   'img_x',
   'img_y',
+  'img_angle',
+  'rayleigh',
 ] as const satisfies readonly Metric[];
 
 /** Lecturas que comparan los dos vectores de `pair`. */
@@ -37,6 +39,9 @@ export const planeVectorSchema = z.strictObject({
 /** Lecturas de la matriz A cuyas columnas son los vectores de `transform.columns`. */
 const TRANSFORM_READOUTS = ['matrix', 'det'] as const;
 
+/** Lecturas por cada vector de `transform.apply`: su imagen, el ángulo con ella y el cociente de Rayleigh. */
+const APPLY_READOUTS = ['image', 'img_angle', 'rayleigh'] as const;
+
 /**
  * Transformación lineal dibujada en el plano: A tiene por columnas las posiciones actuales de los
  * vectores `columns` (î y ĵ, que pueden ser móviles). `apply` son vectores cuya imagen A·v se dibuja.
@@ -51,11 +56,15 @@ export const planeSpecSchema = z
     range: z.number().positive(),
     snap: z.number().positive(),
     vectors: z.array(planeVectorSchema),
-    readouts: z.array(z.enum(['components', 'norm', ...PAIR_READOUTS, ...TRANSFORM_READOUTS])),
+    readouts: z.array(
+      z.enum(['components', 'norm', ...PAIR_READOUTS, ...TRANSFORM_READOUTS, ...APPLY_READOUTS]),
+    ),
     pair: z.tuple([z.string(), z.string()]).optional(),
     transform: transformSchema.optional(),
     /** Radio de una circunferencia centrada en el origen (la unidad, al normalizar). Solo se dibuja. */
     circle: z.number().positive().optional(),
+    /** Dibuja la imagen por A de la circunferencia `circle`: una elipse. Solo se dibuja. */
+    circleImage: z.literal(true).optional(),
   })
   .superRefine((p, ctx) => {
     if (p.circle !== undefined && p.circle > p.range) {
@@ -64,6 +73,22 @@ export const planeSpecSchema = z
         path: ['circle'],
         message: 'circle no puede ser mayor que range',
       });
+    }
+    if (p.circleImage) {
+      if (p.circle === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['circleImage'],
+          message: 'circleImage exige circle',
+        });
+      }
+      if (!p.transform) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['circleImage'],
+          message: 'circleImage exige transform',
+        });
+      }
     }
     const ids = new Set(p.vectors.map((v) => v.id));
     if (ids.size !== p.vectors.length) {
@@ -86,6 +111,22 @@ export const planeSpecSchema = z
         path: ['transform'],
         message: `transform es obligatorio si readouts incluye ${needsTransform.join(', ')}`,
       });
+    }
+    const needsApply = p.readouts.filter((r) => (APPLY_READOUTS as readonly string[]).includes(r));
+    if (needsApply.length > 0) {
+      if (!p.transform) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['transform'],
+          message: `transform es obligatorio si readouts incluye ${needsApply.join(', ')}`,
+        });
+      } else if ((p.transform.apply ?? []).length === 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['transform', 'apply'],
+          message: `transform.apply necesita al menos un vector si readouts incluye ${needsApply.join(', ')}`,
+        });
+      }
     }
     if (p.transform) {
       const [ci, cj] = p.transform.columns;

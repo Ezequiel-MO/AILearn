@@ -226,6 +226,24 @@ describe('checkReachable con metas de tres vectores (juego 2)', () => {
   });
 });
 
+describe('checkReachable con img_angle (Órbita 2)', () => {
+  it('A fija (2 1; 1 2) y v móvil desde (1, 0): v = (1, 1) es alcanzable y no está resuelta al inicio', () => {
+    const vs: Mover[] = [
+      { id: 'i', x: 2, y: 1, movable: false },
+      { id: 'j', x: 1, y: 2, movable: false },
+      { id: 'v', x: 1, y: 0, movable: true },
+    ];
+    const goals: ManipularQ['goals'] = [
+      { metric: 'img_angle', of: ['i', 'j', 'v'], target: 0, tol: 0.5 },
+      { metric: 'x', of: ['v'], target: 1, tol: 0.01 },
+    ];
+    // contract: brief de la tarea 1 de la Órbita 2: v = (1,1) es autovector (A·v = (3,3)) y está en la rejilla de snap 1
+    expect(checkReachable(manipular('q', vs, goals))).toEqual([]);
+    // contract: brief de la tarea 1 de la Órbita 2: desde v = (1,0) el ángulo con A·v = (2,1) es 26,6°, no 0
+    expect(checkStartNotSolved(manipular('q', vs, goals))).toEqual([]);
+  });
+});
+
 describe('checkReachable', () => {
   const at = (x: number) => [{ metric: 'x' as const, of: ['u'], target: x, tol: 0.1 }];
 

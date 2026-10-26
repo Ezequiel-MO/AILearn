@@ -414,6 +414,15 @@ a {
   stroke-dasharray: 3 4;
 }
 
+/* imagen de la circunferencia por A: una elipse, en el color de las imágenes y con trazo más largo */
+.plane__circle-image {
+  fill: none;
+  stroke: var(--plane-image);
+  stroke-width: 2;
+  stroke-dasharray: 7 4;
+  stroke-linejoin: round;
+}
+
 .plane__b-line {
   stroke: var(--plane-axis);
   stroke-width: 1;

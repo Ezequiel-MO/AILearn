@@ -31,6 +31,21 @@ const transformSpec: PlaneSpec = {
   transform: { columns: ['i', 'j'], apply: ['v'] },
 };
 
+// Autovectores: A = (2 1; 1 2), un v móvil, las lecturas de A·v y la elipse imagen de la circunferencia.
+const eigenSpec: PlaneSpec = {
+  range: 4,
+  snap: 0.5,
+  vectors: [
+    { id: 'i', label: 'î', x: 2, y: 1, movable: false },
+    { id: 'j', label: 'ĵ', x: 1, y: 2, movable: false },
+    { id: 'v', label: 'v', x: 1, y: 0, movable: true },
+  ],
+  readouts: ['matrix', 'image', 'img_angle', 'rayleigh'],
+  transform: { columns: ['i', 'j'], apply: ['v'] },
+  circle: 1,
+  circleImage: true,
+};
+
 export default function PlanoDev() {
   const [positions, setPositions] = useState<Record<string, [number, number]>>({
     u: [2, 1],
@@ -40,6 +55,11 @@ export default function PlanoDev() {
     i: [1, 0],
     j: [0, 1],
     v: [2, 1],
+  });
+  const [eigen, setEigen] = useState<Record<string, [number, number]>>({
+    i: [2, 1],
+    j: [1, 2],
+    v: [1, 0],
   });
   return (
     <Layout title={TITLE} back="/">
@@ -52,6 +72,11 @@ export default function PlanoDev() {
         spec={transformSpec}
         positions={matrix}
         onMove={(id, to) => setMatrix((p) => ({ ...p, [id]: to }))}
+      />
+      <VectorPlane
+        spec={eigenSpec}
+        positions={eigen}
+        onMove={(id, to) => setEigen((p) => ({ ...p, [id]: to }))}
       />
     </Layout>
   );

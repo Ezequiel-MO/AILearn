@@ -383,3 +383,62 @@ describe('respuesta en forma de matriz (juego 2)', () => {
     expect(questionSchema.safeParse(vec({ shape: [2, 1.5] })).success).toBe(false);
   });
 });
+
+describe('métricas y lecturas de autovectores (Órbita 2)', () => {
+  const tplane = {
+    ...plane,
+    vectors: [
+      { id: 'i', label: 'î', x: 2, y: 1, movable: false },
+      { id: 'j', label: 'ĵ', x: 1, y: 2, movable: false },
+      { id: 'v', label: 'v', x: 1, y: 0, movable: true },
+    ],
+  };
+  const q = (metric: string, of: string[]) => ({
+    ...manip('m'),
+    plane: tplane,
+    goals: [{ metric, of, target: 1, tol: 0.1 }],
+  });
+
+  it('img_angle y rayleigh exigen tres vectores en una meta', () => {
+    for (const metric of ['img_angle', 'rayleigh']) {
+      // contract: brief de la tarea 1 de la Órbita 2: aridad 3 para las dos métricas
+      expect(questionSchema.safeParse(q(metric, ['i', 'j', 'v'])).success).toBe(true);
+      expect(questionSchema.safeParse(q(metric, ['i', 'j'])).success).toBe(false);
+    }
+  });
+  it('image, img_angle y rayleigh exigen transform con al menos un apply', () => {
+    for (const readout of ['image', 'img_angle', 'rayleigh']) {
+      const withReadout = { ...tplane, readouts: [readout] };
+      // contract: brief de la tarea 1 de la Órbita 2: las lecturas por vector transformado necesitan transform.apply
+      expect(planeSpecSchema.safeParse(withReadout).success).toBe(false);
+      expect(
+        planeSpecSchema.safeParse({ ...withReadout, transform: { columns: ['i', 'j'] } }).success,
+      ).toBe(false);
+      expect(
+        planeSpecSchema.safeParse({
+          ...withReadout,
+          transform: { columns: ['i', 'j'], apply: [] },
+        }).success,
+      ).toBe(false);
+      expect(
+        planeSpecSchema.safeParse({
+          ...withReadout,
+          transform: { columns: ['i', 'j'], apply: ['v'] },
+        }).success,
+      ).toBe(true);
+    }
+  });
+  it('circleImage exige circle y transform', () => {
+    const transform = { columns: ['i', 'j'], apply: ['v'] };
+    // contract: brief de la tarea 1 de la Órbita 2: la elipse es la imagen de la circunferencia por A
+    expect(
+      planeSpecSchema.safeParse({ ...tplane, circle: 1, transform, circleImage: true }).success,
+    ).toBe(true);
+    expect(planeSpecSchema.safeParse({ ...tplane, transform, circleImage: true }).success).toBe(
+      false,
+    );
+    expect(planeSpecSchema.safeParse({ ...tplane, circle: 1, circleImage: true }).success).toBe(
+      false,
+    );
+  });
+});

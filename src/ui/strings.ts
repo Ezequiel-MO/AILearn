@@ -33,6 +33,10 @@ export const t = {
     matrixName: 'A',
     detName: 'det A',
     imageName: (name: string) => `A·${name}`,
+    // lecturas por vector transformado: ángulo con su imagen y cociente de Rayleigh
+    imgAngleName: (name: string) => `ángulo(${name}, A·${name})`,
+    rayleighName: (name: string) => `${name}ᵀA${name} / ${name}ᵀ${name}`,
+    noRayleigh: 'sin dirección',
   },
 
   // --- Preguntas (tarea 10) ---
