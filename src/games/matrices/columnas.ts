@@ -156,6 +156,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'Muchas veces no tienes la fórmula de una transformación, solo ves dónde caen sus resultados. Para estimar la parte lineal de una deformación de imagen (giro, estirado, inclinación) basta mirar adónde van dos puntos de referencia. Leer esas dos flechas y escribir la matriz es el primer paso.',
+            aim: 'Vas a leer en el plano adónde han ido $\\hat{\\imath}$ y $\\hat{\\jmath}$ y a escribir con ellas las cuatro casillas de $A$, cada flecha en su columna.',
+            takeaway:
+              'Las columnas de la matriz son $(1, -1)$ y $(2, 1)$: una flecha por columna. Colocarlas como filas daría la matriz traspuesta, que es otra transformación. Con las columnas leídas ya sabes qué hace la matriz con cualquier punto.',
+          },
           prompt:
             'Este plano muestra una transformación ya hecha. Lee adónde han ido $\\hat{\\imath}$ y $\\hat{\\jmath}$ y escribe la matriz $A$ de la transformación. Rellena las cuatro casillas.',
           hints: [
@@ -174,6 +180,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex01.2',
           type: 'vector',
+          purpose: {
+            why: 'La tabla de embeddings de un modelo de lenguaje es una matriz con una columna por cada palabra o fragmento de palabra del vocabulario. Pedir el embedding de una palabra es leer su columna: no hace falta calcular nada. Esta pregunta es ese acceso, hecho con $\\hat{\\jmath}$.',
+            aim: 'Vas a decir adónde va $\\hat{\\jmath}$ leyendo la segunda columna de la matriz, sin hacer ninguna cuenta, y a ver que esa columna es todo lo que $\\hat{\\jmath}$ pide.',
+            takeaway:
+              '$\\hat{\\jmath}$ va a $(1, 2)$, la segunda columna. Multiplicar la matriz por $(0, 1)$ devuelve exactamente esa columna. En un modelo de lenguaje, así se obtiene el vector de una palabra: se «consulta» su columna de la tabla en vez de multiplicar.',
+          },
           prompt:
             'Una transformación tiene esta matriz:\n\n$$A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$$\n\n¿Adónde va $\\hat{\\jmath}$? Escribe sus coordenadas: primero la $x$ y después la $y$.',
           hints: [
@@ -190,6 +202,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex01.3',
           type: 'opcion',
+          purpose: {
+            why: 'Reordenar coordenadas es una operación corriente: pasar los canales de una imagen de RGB a BGR, o colocar los rasgos de los datos en otro orden para que casen con un modelo. Una **matriz de permutación** lo hace, y se reconoce a simple vista por sus columnas, sin calcular nada.',
+            aim: 'Vas a deducir qué hace la matriz leyendo adónde manda cada eje, y a elegir la descripción que la resume entre cuatro.',
+            takeaway:
+              'La matriz intercambia $x$ e $y$: es el reflejo respecto a la diagonal. Una permutación solo reordena los números de un vector y no cambia su longitud, así que reordenar rasgos de un modo coherente en todos los datos no altera las distancias entre ellos.',
+          },
           prompt:
             'Esta es la matriz de una transformación del plano:\n\n$$A=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$$\n\n¿Qué hace?',
           hints: [
@@ -211,6 +229,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex01.4',
           type: 'vector',
+          purpose: {
+            why: 'Al girar o estirar una foto para aumentar datos, las etiquetas viajan con ella: las esquinas de la caja que marca un objeto se mueven con la misma matriz que los píxeles. Calcular adónde cae un punto es saber dónde queda cada etiqueta tras deformar la imagen.',
+            aim: 'Vas a mover un punto del plano tomando pasos de las columnas nuevas, tantos de cada una como dicen sus coordenadas, y a ver adónde queda tras la transformación.',
+            takeaway:
+              'El punto $(2, 3)$ cae en $(-1, 4)$. Es la misma cuenta para cada punto de la imagen y para cada esquina de su caja, así que la deformación se aplica a todo a la vez y las etiquetas siguen coincidiendo con el objeto.',
+          },
           prompt:
             'La transformación de este plano tiene la matriz\n\n$$A=\\begin{pmatrix}1&-1\\\\2&0\\end{pmatrix}$$\n\nEl punto $(2, 3)$ es $2\\,\\hat{\\imath}+3\\,\\hat{\\jmath}$: dos pasos de $\\hat{\\imath}$ y tres de $\\hat{\\jmath}$. Tras la transformación, son dos pasos de la nueva $\\hat{\\imath}$ y tres de la nueva $\\hat{\\jmath}$. ¿Adónde va el punto $(2, 3)$?',
           hints: [
@@ -228,6 +252,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex01.5',
           type: 'opcion',
+          purpose: {
+            why: 'Cuando una capa pasa de 2 rasgos a 3 salidas, sus columnas tienen 3 componentes y viven en un espacio más grande que el de la entrada. Es lo que hace el primer paso de un bloque feed-forward de un transformer: ampliar los números para tener más espacio donde mezclar la información antes de volver a reducirlos.',
+            aim: 'Vas a leer la forma de una matriz de 3 filas y 2 columnas y a decir qué vectores admite y qué vectores devuelve, mirando solo sus columnas.',
+            takeaway:
+              'Admite vectores de 2 componentes (una por columna) y devuelve vectores de 3 (el largo de cada columna). Como solo tiene dos columnas, sus salidas ocupan como mucho un plano dentro del espacio de 3 componentes: ampliar no crea direcciones nuevas.',
+          },
           prompt:
             'Una capa lineal de una red neuronal es una matriz. Esta tiene 3 filas y 2 columnas:\n\n$$W=\\begin{pmatrix}1&0\\\\2&1\\\\0&3\\end{pmatrix}$$\n\nSus columnas son las imágenes de las flechas de entrada. ¿Qué vectores recibe y qué vectores devuelve?',
           hints: [

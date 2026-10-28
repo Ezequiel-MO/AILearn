@@ -139,6 +139,12 @@ export const componer: Project = {
         {
           id: 'componer.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'En la atención, la puntuación entre una consulta y una clave sale de multiplicar dos matrices: $W_Q$ y $W_K$. Lo que importa para las puntuaciones es su producto, y se calcula columna a columna: cada columna del resultado es la columna de la segunda matriz ya pasada por la primera.',
+            aim: 'Vas a calcular $AB$ columna a columna, pasando cada columna de $B$ por $A$, y a ver cómo queda una matriz única que hace los dos pasos.',
+            takeaway:
+              '$AB$ tiene por columnas $(4, 6)$ y $(-2, 0)$: cada una es una columna de $B$ transformada por $A$. Por eso el producto actúa como las dos transformaciones seguidas, y por eso los modelos pueden precalcular un producto en vez de repetir los dos pasos.',
+          },
           prompt:
             'Calcula $AB$ con $A=\\begin{pmatrix}2&1\\\\0&3\\end{pmatrix}$ y $B=\\begin{pmatrix}1&-1\\\\2&0\\end{pmatrix}$. Cada columna de $AB$ es $A$ multiplicada por la columna correspondiente de $B$. Escribe la matriz en las cuatro casillas.',
           hints: [
@@ -156,6 +162,12 @@ export const componer: Project = {
         {
           id: 'componer.ex01.2',
           type: 'opcion',
+          purpose: {
+            why: 'En un preprocesado, aplicar los pasos en otro orden no da error: las formas casan y el programa corre, pero los datos que salen son distintos. Es un fallo silencioso que solo se detecta comprobando una entrada de la que conoces la salida. Aquí lo ves con dos matrices.',
+            aim: 'Vas a calcular $AB$ y $BA$ con las mismas dos matrices y a decidir si el orden cambia el resultado.',
+            takeaway:
+              '$AB$ y $BA$ no coinciden: el producto de matrices no es conmutativo, aunque los dos estén definidos. Si cambias el orden de dos pasos no obtienes un aviso, solo otros datos. Por eso se prueba el preprocesado con una entrada pequeña cuyo resultado se conoce de antemano.',
+          },
           prompt:
             'Sean $A=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ y $B=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$. Calcula $AB$ y $BA$ y compáralas. ¿Qué ocurre?',
           hints: [
@@ -177,6 +189,12 @@ export const componer: Project = {
         {
           id: 'componer.ex01.3',
           type: 'vector',
+          purpose: {
+            why: 'Las filas de una matriz de datos son los ejemplos, y las columnas, sus rasgos. Multiplicarla por la matriz de pesos de una capa procesa **todo el lote** de una vez, en lugar de ejemplo a ejemplo. Prever el tamaño del resultado permite saber de antemano qué sale de la capa.',
+            aim: 'Vas a deducir el tamaño de un producto de una matriz de $3\\times 5$ por otra de $5\\times 2$, mirando qué se conserva y qué desaparece de los tamaños.',
+            takeaway:
+              'El resultado es de $3\\times 2$: una fila por ejemplo del lote y una columna por salida de la capa. El 5 interior se gasta en las sumas: cada entrada cuesta 5 multiplicaciones, así que el producto entero son $6\\cdot 5=30$.',
+          },
           prompt:
             'Una matriz $A$ de $3\\times 5$ se multiplica por una matriz $B$ de $5\\times 2$. El producto $AB$ está definido, porque los tamaños interiores coinciden (5 y 5). ¿Qué tamaño tiene $AB$? Escribe primero las filas y después las columnas.',
           hints: [
@@ -193,6 +211,12 @@ export const componer: Project = {
         {
           id: 'componer.ex01.4',
           type: 'opcion',
+          purpose: {
+            why: 'Al encadenar capas, o un preprocesado seguido de un modelo, la salida de cada paso tiene que encajar con la entrada del siguiente. En un framework, un producto mal encadenado se detiene con un error de formas. Aprender a verlo en los tamaños evita probar combinaciones a ciegas.',
+            aim: 'Vas a revisar cuatro productos de tres matrices mirando solo los tamaños interiores, y a encontrar el único que no se puede calcular.',
+            takeaway:
+              '$AC$ no está definido, y sin embargo $CA$ sí lo está: el orden también decide si un producto existe. En una red, la solución es ajustar el tamaño de una de las capas, no cambiar de orden a la fuerza.',
+          },
           prompt:
             'Tres matrices tienen estos tamaños: $A$ es de $2\\times 3$, $B$ de $3\\times 4$ y $C$ de $4\\times 2$. Un producto solo está definido si las columnas de la primera matriz son tantas como las filas de la segunda. ¿Cuál de estos productos NO está definido?',
           hints: [
@@ -209,6 +233,12 @@ export const componer: Project = {
         {
           id: 'componer.ex01.5',
           type: 'vector',
+          purpose: {
+            why: 'Si al construir una red se olvida la función de activación entre dos capas lineales, el modelo entrena sin quejarse, pero es una sola matriz disfrazada de dos. Calcular el tamaño de esa matriz única ayuda a ver cuánto ocupa en realidad y qué ha ganado, que es nada, con la segunda capa.',
+            aim: 'Vas a calcular el tamaño de la matriz única que equivale a dos capas seguidas, usando la entrada de la primera y la salida de la segunda.',
+            takeaway:
+              'La matriz equivalente es de $3\\times 4$ y tiene 12 pesos, frente a los 56 de las dos capas juntas ($8\\cdot 4+3\\cdot 8$). La red con dos capas gasta más y no representa nada más. Por eso se añade una activación como ReLU entre capas.',
+          },
           prompt:
             'Una red tiene dos capas lineales seguidas, sin función de activación en medio. La primera, $W_1$, es de $8\\times 4$: lleva una entrada de 4 componentes a 8. La segunda, $W_2$, es de $3\\times 8$: lleva esas 8 a 3. La salida es $\\vec{y}=W_2(W_1\\vec{x})$. Dos capas así equivalen a **una sola** matriz $W$ con $\\vec{y}=W\\vec{x}$. Escribe su tamaño: primero las filas y después las columnas.',
           hints: [

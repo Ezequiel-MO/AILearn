@@ -188,6 +188,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'En la atención de un transformer, cada vector de embedding de una palabra pasa por una matriz de pesos ($W_Q$, $W_K$, $W_V$). El resultado es una **combinación de columnas** de esa matriz, pesadas por los números del embedding. Saber hacerla a mano es saber qué aporta cada componente de la entrada.',
+            aim: 'Vas a calcular $A\\vec{v}$ sumando columnas escaladas y a ver que cada componente de $\\vec{v}$ decide cuánto pesa su columna en la salida.',
+            takeaway:
+              'Con $\\vec{v}=(2, 1)$, la primera columna cuenta el doble que la segunda en el resultado $(5, 8)$. En una proyección real, una componente grande de la entrada hace pesar mucho la dirección de su columna, y una componente cero la anula.',
+          },
           prompt:
             'Calcula $A\\vec{v}$ **por columnas**, con $A=\\begin{pmatrix}3&-1\\\\2&4\\end{pmatrix}$ y $\\vec{v}=(2, 1)$: es $v_1\\cdot\\text{col}_1+v_2\\cdot\\text{col}_2$. Escribe el resultado: primero la $x$ y después la $y$.',
           hints: [
@@ -203,6 +209,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex01.2',
           type: 'numero',
+          purpose: {
+            why: 'Cada número de salida de una capa densa es la respuesta de una **neurona**: el producto escalar de su fila de pesos con la entrada. Los pesos positivos suman, los negativos restan. Calcular una sola salida sin tocar las demás es lo que hace un framework cuando solo necesita una neurona.',
+            aim: 'Vas a calcular una única componente de $A\\vec{v}$, la primera, con su fila y sin tocar la segunda, y a ver que cada salida depende solo de una fila.',
+            takeaway:
+              'La primera neurona da $-3$: sus pesos negativos pesaron más que los positivos sobre esta entrada. Con una activación como ReLU, una salida negativa se convierte en cero y esa neurona queda apagada para este ejemplo.',
+          },
           prompt:
             'También se puede calcular por **filas**: la componente $k$ de $A\\vec{v}$ es el producto escalar de la fila $k$ de $A$ con $\\vec{v}$. Con\n\n$$A=\\begin{pmatrix}2&-1&3\\\\1&4&0\\end{pmatrix},\\qquad \\vec{v}=(1, 2, -1)$$\n\n¿cuánto vale la primera componente de $A\\vec{v}$?',
           hints: [
@@ -219,6 +231,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex01.3',
           type: 'numero',
+          purpose: {
+            why: 'Al montar una red, el error más común es de formas: una capa que espera 2 números recibe 3, o al revés. Cada capa lineal tiene un número de entradas (sus columnas) y un número de salidas (sus filas), y conocerlo de antemano evita pelearse con el código.',
+            aim: 'Vas a decidir cuántos números devuelve una matriz de 3 filas y 2 columnas al multiplicarla por un vector de 2, mirando solo su forma y sin calcular nada.',
+            takeaway:
+              'El resultado tiene 3 componentes: una por fila, o lo que es lo mismo, una por cada neurona de salida de la capa. Para diseñar una red se eligen estas formas capa a capa, de modo que las salidas de una encajen con las entradas de la siguiente.',
+          },
           prompt:
             'La **forma** de la matriz decide con qué vectores se puede multiplicar. La matriz $B$ tiene 3 filas y 2 columnas ($3\\times 2$), y se multiplica por un vector $\\vec{u}$ de 2 componentes. ¿Cuántas componentes tiene el resultado $B\\vec{u}$?',
           hints: [
@@ -235,6 +253,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex01.4',
           type: 'vector',
+          purpose: {
+            why: 'Esta es la fórmula de la capa densa, la pieza que se repite en casi todas las redes: pesos $W$ que mezclan la entrada y un sesgo $\\vec{b}$ que desplaza el resultado. Sin sesgo, una entrada de ceros daría siempre ceros, y la capa no podría moverse de ahí.',
+            aim: 'Vas a calcular la salida de una capa de 3 entradas y 2 salidas, multiplicando primero y sumando el sesgo después, y a ver cómo 3 números se resumen en 2.',
+            takeaway:
+              'La capa convierte la entrada de 3 números en la salida $(5, 1)$. El sesgo desplaza la salida sin depender de la entrada: así la capa puede dar un valor distinto de cero aunque lo que recibe sea cero. $W$ y $\\vec{b}$ son lo que el entrenamiento ajusta.',
+          },
           prompt:
             'Una **capa lineal** de una red neuronal calcula $\\vec{y}=W\\vec{x}+\\vec{b}$: la matriz $W$ de pesos transforma la entrada $\\vec{x}$, y después se suma el **sesgo** $\\vec{b}$. Calcula $\\vec{y}$ con\n\n$$W=\\begin{pmatrix}1&0&2\\\\-1&3&1\\end{pmatrix},\\qquad \\vec{x}=(2, 1, 1),\\qquad \\vec{b}=(1, -1)$$\n\nEscribe el resultado: primero la primera componente y después la segunda.',
           hints: [
@@ -251,6 +275,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex01.5',
           type: 'opcion',
+          purpose: {
+            why: 'Un modelo no procesa un ejemplo suelto, sino lotes de muchos a la vez, y todos pasan por la misma matriz de pesos. Para eso las formas tienen que casar. NumPy y PyTorch lanzan un error de formas cuando no casan, y saber cuál de varios productos falla ahorra mucho tiempo buscando.',
+            aim: 'Vas a comparar las columnas de cada matriz con las componentes de cada vector, en cuatro productos, y a encontrar el único que ningún código ejecutaría.',
+            takeaway:
+              'El producto que falla es el de la matriz de 2 filas y 3 columnas por un vector de 2: sobra una columna sin pareja. En el código aparece como un error de formas. Se arregla cambiando el tamaño de la capa o de la entrada, nunca rellenando a ciegas.',
+          },
           prompt:
             'Una matriz de $m$ filas y $n$ columnas solo se puede multiplicar por un vector que tenga el número de componentes adecuado. ¿Cuál de estos productos NO está definido?',
           hints: [
