@@ -25,6 +25,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Antes de entrenar un modelo se suelen **normalizar** los rasgos: si uno se mide en euros y otro en número de habitaciones, se reescala cada uno con su propio factor para que ninguno domine las distancias. Eso es multiplicar por una matriz diagonal como esta. Y deshacerlo, para volver a las unidades de partida, es lo que haces aquí: buscar la entrada que da una salida.',
+            aim: 'Vas a buscar la entrada $\\vec{v}$ que esta matriz convierte en un punto dado, y a ver que, con una columna en cada eje, cada coordenada se resuelve por separado.',
+            takeaway:
+              'Con una matriz diagonal, $A\\vec{v}$ multiplica cada coordenada por su número: $(a, b)$ pasa a $(2a,\\ 3b)$, y para deshacerlo basta dividir. Un escalado así cambia las longitudes y las distancias, y con ellas qué puntos quedan más cerca de cuáles.',
+          },
           prompt:
             'Una matriz $A$ transforma un vector $\\vec{v}=(a, b)$ **combinando sus columnas**: las coordenadas de $\\vec{v}$ dicen cuánto se toma de cada una, $A\\vec{v}=a\\cdot\\text{col}_1+b\\cdot\\text{col}_2$. Aquí las columnas son $\\hat{\\imath}$ y $\\hat{\\jmath}$, y la flecha discontinua es $A\\vec{v}$.\n\nLa matriz $\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$ estira el plano al doble en horizontal y al triple en vertical. Mueve la punta de $\\vec{v}$ hasta que la flecha discontinua llegue a $(4, -3)$.',
           hints: [
@@ -51,8 +57,14 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'La salida de una capa lineal es justo esta cuenta: cada número de la entrada multiplica a su columna de la matriz de pesos, y se suman. Si la entrada tiene un $1$ y el resto ceros (un vector *one-hot*), la suma se queda con una sola columna: en el fondo, así saca un modelo el **embedding** de una palabra de su tabla, aunque en la práctica la columna se lee directamente, sin multiplicar.',
+            aim: 'Vas a buscar qué cantidad de cada columna hace falta para llegar a un punto, empezando por la coordenada que depende de una sola columna.',
+            takeaway:
+              '$A\\vec{v}$ es $a$ veces la primera columna más $b$ veces la segunda: con $\\vec{v}=(1, 2)$, $1\\cdot(1, 0)+2\\cdot(1, 1)=(3, 2)$. Las coordenadas de la entrada son los pesos de la mezcla, y las columnas, los ingredientes.',
+          },
           prompt:
-            'Esta matriz **inclina** el plano: $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. Sus columnas son $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(1, 1)$, y $A\\vec{v}$ es la flecha discontinua.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 2)$.',
+            'Esta matriz **inclina** el plano: $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. Sus columnas son $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(1, 1)$, y $A\\vec{v}$ es la flecha discontinua.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 2)$. Las componentes de $\\vec{v}$ que muestra el panel son las cantidades que se toman de cada columna.',
           hints: [
             'Fíjate en la altura: solo la segunda columna sube, porque la primera es horizontal.',
             'La segunda coordenada de $A\\vec{v}$ es $b\\cdot 1$, así que ya sabes cuánto vale $b$. Con ella, busca $a$ para la primera coordenada.',
@@ -76,6 +88,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Buscar qué entrada produce una salida dada es resolver un **sistema** de ecuaciones lineales, porque cada coordenada de la salida depende de las dos de la entrada. Es el cálculo que hay dentro de la regresión lineal por mínimos cuadrados, uno de los modelos más usados para predecir un número a partir de otros.',
+            aim: 'Vas a ajustar las dos coordenadas de $\\vec{v}$ a la vez, porque aquí cada columna mueve la flecha discontinua en las dos direcciones, y a ver que dos condiciones bastan para fijar una sola entrada.',
+            takeaway:
+              'Cuando las dos columnas apuntan en direcciones distintas, cada salida viene de una sola entrada: aquí, $\\vec{v}=(2, -1)$ es la única que llega a $(3, 3)$. Si una matriz se puede deshacer así, de la salida se recupera la entrada sin perder nada.',
+          },
           prompt:
             'Ahora las columnas ya no son sencillas: $A=\\begin{pmatrix}1&-1\\\\2&1\\end{pmatrix}$ tiene por columnas $A\\hat{\\imath}=(1, 2)$ y $A\\hat{\\jmath}=(-1, 1)$. Hace falta combinar las dos con las coordenadas de $\\vec{v}$.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 3)$.',
           hints: [
@@ -102,6 +120,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Entrenar una red es esto, con muchísimos más números que cuatro: la entrada está fija (un ejemplo de los datos), se sabe qué salida debería dar, y se ajustan los **pesos** de la matriz hasta acercarse a ella. Con un solo ejemplo sobran soluciones; por eso se entrena con muchos ejemplos, que juntos dejan muchas menos matrices posibles.',
+            aim: 'Vas a dejar quieta la entrada y mover la matriz, y a descubrir que muchas matrices distintas mandan el mismo vector al mismo sitio.',
+            takeaway:
+              'Un solo par entrada-salida no decide la matriz: fijada una columna, la otra queda determinada, pero la primera es libre. Un modelo que se ajusta a muy pocos ejemplos puede acertarlos todos y aun así no haber aprendido la transformación que buscabas.',
+          },
           prompt:
             'Ahora al revés: el vector $\\vec{v}=(2, 1)$ está fijo y lo que se mueve es la matriz. Como $A\\vec{v}=2\\cdot\\text{col}_1+1\\cdot\\text{col}_2$, el resultado depende de adónde pongas $\\hat{\\imath}$ y $\\hat{\\jmath}$.\n\nArrastra las puntas de $\\hat{\\imath}$ y de $\\hat{\\jmath}$ hasta que $A\\vec{v}$ llegue a $(4, 3)$. Hay muchas matrices que lo consiguen: vale cualquiera.',
           hints: [
@@ -127,6 +151,12 @@ export const matrizVector: Project = {
         {
           id: 'matriz-vector.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Cuando dos columnas de una matriz de pesos caen sobre la misma recta, la capa no distingue ciertas entradas: les da la misma salida, y lo que las diferenciaba se pierde para el resto de la red. Pasa también con los datos: dos rasgos **proporcionales**, como un precio en euros y el mismo precio en céntimos, no aportan nada el uno sobre el otro.',
+            aim: 'Vas a buscar una entrada no nula que la matriz convierta en el vector nulo, y a ver en la rejilla aplastada por qué existe.',
+            takeaway:
+              'Si las columnas están sobre la misma recta, una puede cancelar a la otra: todos los $(t, t)$ van a $(0, 0)$ y el determinante es $0$. Dos entradas que se diferencian en uno de esos vectores dan la misma salida, y desde ella no hay forma de saber cuál era.',
+          },
           prompt:
             'Esta matriz tiene las dos columnas sobre la misma recta: $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$, con $A\\hat{\\imath}=(2, 1)$ y $A\\hat{\\jmath}=(-2, -1)$. Mira cómo se aplasta la rejilla.\n\nEl vector nulo $(0, 0)$ siempre se queda en $(0, 0)$, así que no cuenta. Busca un vector **distinto del nulo** que esta matriz mande a $(0, 0)$. Para que no valga el nulo, pon su coordenada $x$ en $2$.',
           hints: [

@@ -24,6 +24,12 @@ export const componer: Project = {
         {
           id: 'componer.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Una red neuronal aplica una capa tras otra, y dos capas lineales seguidas se resumen en una sola matriz: su **producto**. Por eso, sin una función no lineal entre capa y capa (como ReLU), apilar diez capas no daría más poder que tener una: todo se reduciría a una matriz. Esa función entre capas es la que permite a una red aprender algo más que una transformación lineal.',
+            aim: 'Vas a seguir a $\\hat{\\imath}$ y a $\\hat{\\jmath}$ por dos transformaciones seguidas y a ver que el resultado final cabe en una sola matriz, con dos columnas como cualquier otra.',
+            takeaway:
+              '«Gira y después estira» es la matriz $SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$: las columnas del producto son adónde llegan $\\hat{\\imath}$ y $\\hat{\\jmath}$ tras los dos pasos. Dos transformaciones lineales seguidas son siempre una sola, por muchas que encadenes.',
+          },
           prompt:
             'Dos transformaciones seguidas se pueden resumir en **una sola matriz**: el **producto**. Se lee de derecha a izquierda: en $SR$ actúa primero $R$ y después $S$, porque $SR\\vec{v}=S(R\\vec{v})$.\n\n$R$ es el giro de un cuarto de vuelta en sentido antihorario y $S=\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$ estira el plano al doble en horizontal. Construye $C=SR$, la matriz de «gira un cuarto de vuelta y después estira». Sigue a $\\hat{\\imath}$ y a $\\hat{\\jmath}$ por las dos transformaciones, una tras otra, y coloca sus puntas donde terminan.',
           hints: [
@@ -40,6 +46,12 @@ export const componer: Project = {
         {
           id: 'componer.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'En una cadena de pasos sobre los datos, el **orden** cambia el resultado. Al aumentar datos de imágenes, girar y luego estirar no da la misma foto que estirar y luego girar; en una red, intercambiar dos capas da otra transformación. Por eso el orden de un preprocesado o de las capas forma parte del modelo, igual que sus números.',
+            aim: 'Vas a construir las mismas dos transformaciones en el orden contrario y a comparar la matriz con la de la primera pregunta.',
+            takeaway:
+              '$RS=\\begin{pmatrix}0&-1\\\\2&0\\end{pmatrix}$ y $SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$ son distintas: el producto de matrices no es conmutativo. Al leer $RS\\vec{v}$, la que actúa primero es la de la derecha.',
+          },
           prompt:
             'El orden importa. Construye ahora $C=RS$: primero se estira el plano al doble en horizontal ($S$) y después se gira un cuarto de vuelta en sentido antihorario ($R$). Son las mismas dos transformaciones de antes, en el orden contrario. Coloca las puntas de $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde terminan.',
           hints: [
@@ -56,6 +68,12 @@ export const componer: Project = {
         {
           id: 'componer.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Una red recurrente procesa una secuencia aplicando la misma matriz en cada paso, y lo que le pasa a la señal tras muchos pasos depende de las **potencias** de esa matriz. Si crecen, la señal se dispara; si encogen, se apaga, y la red olvida el principio de la secuencia. Aplicar dos veces una inclinación es el primer paso para ver cómo se acumula un efecto que se repite.',
+            aim: 'Vas a aplicar la misma inclinación dos veces seguidas y a ver qué le pasa a $\\hat{\\jmath}$ cuando la segunda inclinación actúa sobre lo que dejó la primera.',
+            takeaway:
+              '$H^2=\\begin{pmatrix}1&2\\\\0&1\\end{pmatrix}$: inclinar dos veces es inclinar el doble, y $H^n$ inclina $n$ veces más. El número de arriba a la derecha crece con cada repetición: una matriz que se aplica una y otra vez acumula su efecto.',
+          },
           prompt:
             'La **inclinación horizontal** $H=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ deja a $\\hat{\\imath}$ quieto y lleva a $\\hat{\\jmath}$ a $(1, 1)$. Aplicarla dos veces seguidas es la matriz $H^2=HH$. Construye $H^2$: sigue a $\\hat{\\jmath}$ por dos inclinaciones.',
           hints: [
@@ -72,6 +90,12 @@ export const componer: Project = {
         {
           id: 'componer.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Al preparar un modelo para usarlo, dos operaciones lineales seguidas se pueden **fusionar** en una sola matriz, multiplicándolas de antemano: el resultado es el mismo y se hace una multiplicación en vez de dos. A veces el producto, además, resulta ser algo más sencillo que sus piezas, como aquí: dos espejos seguidos son un giro.',
+            aim: 'Vas a encadenar dos espejos, uno respecto de cada eje, y a reconocer en la matriz final una transformación que no refleja nada.',
+            takeaway:
+              'Dos reflexiones en ejes perpendiculares dan $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$, la media vuelta, con determinante $1$. Componer cambia la naturaleza de las piezas: dos inversiones de la orientación se anulan.',
+          },
           prompt:
             'Reflejar respecto del eje $x$ cambia el signo de la $y$ de cada punto, y reflejar respecto del eje $y$ cambia el de la $x$. Construye la matriz de «primero reflejar respecto del eje $x$ y después respecto del eje $y$». Cuando la tengas, mira qué transformación conocida es.',
           hints: [
@@ -88,6 +112,12 @@ export const componer: Project = {
         {
           id: 'componer.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Muchos transformers codifican la posición de cada palabra con giros (**RoPE**): las consultas y las claves de la atención se giran, por pares de coordenadas, un ángulo que crece con la posición. La posición tercera es el mismo giro aplicado tres veces, la matriz $R^3$. Como un giro conserva longitudes, la posición se marca sin estropear el vector, y en el producto escalar entre una consulta y una clave la posición solo cuenta por la distancia entre las dos.',
+            aim: 'Vas a aplicar el mismo cuarto de vuelta tres veces seguidas, siguiendo a cada flecha posición a posición, y a ver qué giro sencillo resume los tres.',
+            takeaway:
+              '$R^3=\\begin{pmatrix}0&1\\\\-1&0\\end{pmatrix}$: tres cuartos de vuelta antihorarios son un cuarto de vuelta horario. $R^n$ gira $n$ veces el ángulo de $R$, y por eso un giro por posición sirve para contar posiciones.',
+          },
           prompt:
             'Gira el plano un cuarto de vuelta en sentido antihorario, $R=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$, **tres veces seguidas**: es la matriz $R^3=RRR$. Coloca $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde terminan tras los tres giros.',
           hints: [

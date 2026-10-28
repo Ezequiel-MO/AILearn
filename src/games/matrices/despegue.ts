@@ -43,6 +43,12 @@ export const launch: Question[] = [
   {
     id: 'despegue.3',
     type: 'manipular',
+    purpose: {
+      why: 'Un modelo de IA trabaja con vectores: una frase, una imagen o un usuario se convierten en listas de números, y cada capa de una red neuronal transforma ese vector multiplicándolo por una **matriz** de pesos. Entrenar la red es ajustar los números de esas matrices. Este plano es la misma idea en pequeño: dos números entran, dos salen, y la matriz decide adónde va cada punto.',
+      aim: 'Vas a construir tu primera matriz moviendo solo dos flechas, y a ver que con ellas se transforma la rejilla entera: cuatro números deciden adónde va cada punto del plano.',
+      takeaway:
+        'Una matriz de $2\\times 2$ es la lista de adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$: sus columnas. Aquí, $\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$ duplica la primera coordenada de cada punto y deja la segunda. En una capa de red, una matriz así daría el doble de peso al primer número de la entrada que al segundo.',
+    },
     prompt:
       'Una matriz de $2\\times 2$ **transforma el plano**, y queda decidida del todo por dos flechas: adónde va $\\hat{\\imath}=(1, 0)$ y adónde va $\\hat{\\jmath}=(0, 1)$. Sus coordenadas son las **columnas** de la matriz. La rejilla se deforma siguiendo esas dos flechas, y la lectura del panel muestra la matriz.\n\nEstira el plano al doble en horizontal: arrastra las puntas hasta que $\\hat{\\imath}$ quede en $(2, 0)$ y $\\hat{\\jmath}$ se quede en $(0, 1)$.',
     hints: [
@@ -82,8 +88,14 @@ export const launch: Question[] = [
   {
     id: 'despegue.5',
     type: 'manipular',
+    purpose: {
+      why: 'No todas las matrices deforman: un **giro** mueve el plano entero sin cambiar ninguna longitud ni ningún ángulo, y por eso conserva todos los cosenos. Si se girase todo el espacio de un modelo de embeddings, una búsqueda por similitud devolvería exactamente los mismos documentos. Lo que lleva el significado son los ángulos entre vectores, no el sitio de los ejes.',
+      aim: 'Vas a girar el plano un cuarto de vuelta moviendo solo $\\hat{\\imath}$ y $\\hat{\\jmath}$, y a ver que la rejilla gira entera sin deformarse: los cuadrados siguen siendo cuadrados del mismo tamaño.',
+      takeaway:
+        'El giro de un cuarto de vuelta en sentido antihorario es $\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$, con columnas $(0, 1)$ y $(-1, 0)$. Un giro no estira ni encoge nada: los cosenos entre vectores salen igual antes y después, así que no altera ningún resultado que dependa solo de ellos.',
+    },
     prompt:
-      'Gira el plano **un cuarto de vuelta en sentido antihorario** (contra las agujas del reloj). Un giro así lleva a $\\hat{\\imath}$, que apunta a la derecha, hasta arriba, y a $\\hat{\\jmath}$, que apunta arriba, hasta la izquierda.\n\nArrastra las puntas hasta que $\\hat{\\imath}$ quede en $(0, 1)$ y $\\hat{\\jmath}$ en $(-1, 0)$.',
+      'Gira el plano **un cuarto de vuelta en sentido antihorario** (contra las agujas del reloj). Un giro así lleva a $\\hat{\\imath}$, que apunta a la derecha, hasta arriba, y a $\\hat{\\jmath}$, que apunta arriba, hasta la izquierda.\n\nArrastra las puntas hasta que $\\hat{\\imath}$ quede en $(0, 1)$ y $\\hat{\\jmath}$ en $(-1, 0)$. Fíjate en la rejilla mientras giras: se mueve entera, sin deformarse, y la lectura del panel muestra la matriz del giro.',
     hints: [
       'Imagina la flecha de $\\hat{\\imath}$ girando hacia arriba, como la aguja de un reloj que va hacia atrás.',
       'Las dos flechas giran juntas y siguen siendo perpendiculares entre sí.',

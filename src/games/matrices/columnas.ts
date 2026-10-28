@@ -16,6 +16,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Un **reflejo**, como un giro, no cambia longitudes ni ángulos: si se reflejara todo el espacio de un modelo de embeddings, cambiando el signo de una coordenada en todos los vectores, los cosenos y las búsquedas saldrían iguales. Lo único que cambia es la orientación, y la detecta el signo del determinante. En IA ese signo casi nunca decide nada; aquí sirve para aprender a leer el determinante, que en otras preguntas sí importa.',
+            aim: 'Vas a construir un espejo moviendo una sola flecha y a ver cómo lo delata el panel: el cuadrado unidad conserva su tamaño, pero se pone rojo y el determinante sale negativo.',
+            takeaway:
+              'El reflejo respecto al eje horizontal es $\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$, con determinante $-1$: el área no cambia y la orientación se invierte. Para comparar vectores por su coseno, un reflejo es tan inofensivo como un giro.',
+          },
           prompt:
             'Un **reflejo** respecto al eje horizontal da la vuelta al plano de arriba abajo, como un espejo apoyado sobre ese eje: $\\hat{\\imath}$, que está sobre el eje, se queda donde estaba, y $\\hat{\\jmath}$ pasa de apuntar arriba a apuntar abajo.\n\nArrastra las puntas hasta que $\\hat{\\imath}$ quede en $(1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$. Fíjate en el cuadrado unidad: se pone rojo y la lectura $\\det$ se vuelve negativa, porque el plano se ha dado la vuelta.',
           hints: [
@@ -37,6 +43,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Al entrenar un modelo de visión se suelen deformar un poco las fotos (girarlas, estirarlas, **inclinarlas**) para que aprenda que un objeto torcido sigue siendo el mismo objeto: es el aumento de datos. Cada una de esas deformaciones es una matriz como la de esta pregunta, aplicada a las posiciones de los píxeles.',
+            aim: 'Vas a inclinar el plano moviendo solo $\\hat{\\jmath}$ y a ver que la rejilla entera se tuerce con él: los cuadrados se vuelven paralelogramos, pero las rectas siguen rectas y paralelas.',
+            takeaway:
+              'La inclinación $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ manda $(x, y)$ a $(x+y,\\ y)$ y tiene determinante $1$: deforma las formas sin cambiar su área. No destruye información, se puede deshacer, y por eso sirve para crear variantes de una foto sin perder nada de ella.',
+          },
           prompt:
             'Una **inclinación horizontal** deja cada recta horizontal en su altura, pero la desliza hacia la derecha tanto más cuanto más arriba está. $\\hat{\\imath}$ no se mueve, y $\\hat{\\jmath}$, que apuntaba arriba, se inclina hacia la derecha.\n\nLleva $\\hat{\\jmath}$ a $(1, 1)$ sin tocar $\\hat{\\imath}$. El cuadrado unidad se convierte en un paralelogramo.',
           hints: [
@@ -58,8 +70,14 @@ export const columnas: Project = {
         {
           id: 'columnas.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'En una capa de una red neuronal, cada **columna** de la matriz de pesos dice qué aporta a la salida uno de los números de la entrada: la primera columna, el primero; la segunda, el segundo. Leer una matriz por columnas es leer qué hace la capa con cada rasgo por separado, y es la forma más directa de imaginar qué hace una matriz que solo conoces por sus números.',
+            aim: 'Vas a pasar del papel al plano: leer las dos columnas de una matriz escrita como dos puntos y colocar en ellos $\\hat{\\imath}$ y $\\hat{\\jmath}$, con la lectura del panel como única comprobación.',
+            takeaway:
+              'Las columnas de $A$ son adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$: con colocar esas dos flechas, la rejilla entera queda decidida. Ante una matriz desconocida, lee primero sus columnas: te dicen qué le pasa a cada eje.',
+          },
           prompt:
-            'Construye la transformación de esta matriz:\n\n$$A=\\begin{pmatrix}2&-1\\\\1&1\\end{pmatrix}$$\n\nSu primera columna es adónde va $\\hat{\\imath}$ y su segunda columna es adónde va $\\hat{\\jmath}$. Arrastra las puntas hasta que la lectura del panel sea la misma matriz.',
+            'Construye la transformación de esta matriz:\n\n$$A=\\begin{pmatrix}2&-1\\\\1&1\\end{pmatrix}$$\n\nSu primera columna es adónde va $\\hat{\\imath}$ y su segunda columna es adónde va $\\hat{\\jmath}$. Arrastra las puntas hasta que la lectura del panel sea la misma matriz, y fíjate en el cuadrado unidad: sus dos lados son las dos columnas.',
           hints: [
             'La primera columna, $2$ y $1$, son las coordenadas de la punta de $\\hat{\\imath}$: dos a la derecha y una arriba.',
             'La segunda columna, $-1$ y $1$, son las coordenadas de la punta de $\\hat{\\jmath}$: una a la izquierda y una arriba.',
@@ -79,6 +97,12 @@ export const columnas: Project = {
         {
           id: 'columnas.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Para dibujar embeddings de cientos de dimensiones se proyectan en un plano, por ejemplo con PCA, y esa proyección **aplasta**: puntos distintos caen en el mismo sitio y lo perdido no se recupera. Lo mismo pasa dentro de una red cuando una capa manda entradas distintas a la misma salida: las capas siguientes ya no pueden distinguirlas.',
+            aim: 'Vas a aplastar el plano entero sobre una recta llevando una sola flecha al origen, y a ver qué marca el determinante cuando el cuadrado unidad se queda sin área.',
+            takeaway:
+              'Determinante $0$ quiere decir que la matriz aplasta: hay puntos distintos con la misma imagen y ninguna matriz lo deshace. Una proyección a dos dimensiones sirve para mirar los datos, no para guardarlos.',
+          },
           prompt:
             'Hay matrices que **aplastan** el plano. Lleva $\\hat{\\jmath}$ al origen $(0, 0)$ y deja $\\hat{\\imath}$ en $(1, 0)$: toda la rejilla se cae sobre una recta, el eje horizontal, y el cuadrado unidad se queda sin área. La lectura $\\det$ lo dice.',
           hints: [
@@ -100,14 +124,20 @@ export const columnas: Project = {
         {
           id: 'columnas.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Dos modelos de embeddings distintos colocan los mismos significados en sitios distintos: en el mejor de los casos, sus espacios difieren en un giro o en un cambio de signo, que conservan todos los cosenos. Por eso los embeddings de dos modelos no se comparan coordenada a coordenada. Aquí aprendes a distinguir esos cambios por el **determinante**: la media vuelta conserva la orientación y el reflejo la invierte.',
+            aim: 'Vas a dar media vuelta al plano y a compararla con el reflejo de la primera pregunta: las dos dejan el cuadrado del mismo tamaño, pero solo una lo pone rojo.',
+            takeaway:
+              'La media vuelta $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$ manda cada vector a su opuesto y tiene determinante $1$: dar la vuelta a las dos flechas a la vez no invierte la orientación. Como cambia el signo de todos los vectores, los cosenos entre ellos no se mueven.',
+          },
           prompt:
-            'Una **media vuelta** alrededor del origen manda cada punto al que está justo al otro lado. Lleva $\\hat{\\imath}$ a $(-1, 0)$ y $\\hat{\\jmath}$ a $(0, -1)$. Compara con el reflejo del primer ejercicio: ¿se pone rojo el cuadrado?',
+            'Una **media vuelta** alrededor del origen manda cada punto al que está justo al otro lado. Lleva $\\hat{\\imath}$ a $(-1, 0)$ y $\\hat{\\jmath}$ a $(0, -1)$. Fíjate en el cuadrado unidad y en la lectura $\\det$, y compara con el reflejo de la primera pregunta: ¿se pone rojo el cuadrado?',
           hints: [
             'Las dos flechas pasan a apuntar en sentido contrario al que tenían.',
             'La lectura de la matriz tiene que mostrar $-1$ en la diagonal y $0$ fuera de ella.',
           ],
           explain:
-            'Dar la vuelta a las dos flechas a la vez no invierte la orientación: el cuadrado no se ve rojo. El reflejo del primer ejercicio, en cambio, da la vuelta a una sola.',
+            'Dar la vuelta a las dos flechas a la vez no invierte la orientación: el cuadrado no se ve rojo. El reflejo de la primera pregunta, en cambio, da la vuelta a una sola.',
           solution:
             '$\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$ dan la matriz $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$. Todo punto $(x, y)$ acaba en $(-x, -y)$, es decir, multiplicado por $-1$. El determinante vale $1$: se conservan el área y la orientación.',
           plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
