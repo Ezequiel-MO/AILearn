@@ -7,7 +7,7 @@ general «Python para esta pregunta» (no ayudaba) y que el código de partida y
 explicando el porqué de cada paso, desde Analogías (juego 1, Órbita 3) en adelante.
 
 Hecho y verificado en la rama `worktree-python-hand-holding` (worktree
-`/home/olive/projects/AIlearn/.claude/worktrees/python-hand-holding`, 8 commits sobre `main`, árbol limpio,
+`/home/olive/projects/AIlearn/.claude/worktrees/python-hand-holding`, 9 commits sobre `main`, el último este traspaso; árbol limpio,
 **sin push**):
 
 - `a919212`: fuera la guía (`PythonGuide.tsx`, `src/content/python-guide.ts` y su prueba, estilos, textos y los
