@@ -1,4 +1,5 @@
 import type { Project } from '../../content/schema';
+import { py } from '../py';
 import { columnasWarmup } from './columnas.calentamiento';
 import { transformPlane } from './plane';
 
@@ -226,8 +227,19 @@ export const columnas: Project = {
           prompt:
             'Una transformación manda $\\hat{\\imath}$ a `img_i` y $\\hat{\\jmath}$ a `img_j`. NumPy lee una lista de listas por **filas**, pero aquí cada imagen tiene que ir en una **columna**. Construye en `A` la matriz de la transformación.',
           hints: [
-            'La primera columna de `A` tiene que ser `img_i` y la segunda, `img_j`.',
-            'NumPy tiene una función para apilar vectores como columnas, y el atributo `.T` traspone un array.',
+            'El plan es una sola línea: `A` tiene que tener `img_i` en su primera columna y `img_j` en la segunda. El error típico es escribir `np.array([img_i, img_j])`: NumPy lee cada lista como una fila y sale la matriz traspuesta, con las imágenes en las filas. Hay que colocarlas como columnas, con una función que apila como columnas o con una traspuesta.',
+            'Las piezas, con otros vectores:\n\n' +
+              py(
+                'a = np.array([5, 6])',
+                'b = np.array([7, 8])',
+                'print(np.array([a, b]))          # dos filas: [5 6] y [7 8]',
+                'print(np.array([a, b]).T)        # .T traspone: las filas pasan a ser columnas',
+                'print(np.column_stack([a, b]))   # apila a y b como columnas, en un solo paso',
+              ) +
+              '\n\nLas dos últimas líneas imprimen la misma matriz: `a` en la primera columna y `b` en la segunda.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('A = np.column_stack([___, ___])') +
+              '\n\nEl orden importa: la primera va a la primera columna. Si las intercambias, `î` y `ĵ` cambian de sitio.',
           ],
           explain:
             'Si metes `img_i` e `img_j` en una lista de listas, cada una queda como una fila, y la matriz sale traspuesta: la imagen de $\\hat{\\imath}$ acaba en la primera fila y no en la primera columna. Hay que colocarlas como columnas.',
@@ -239,11 +251,25 @@ export const columnas: Project = {
           ],
           starter: `import numpy as np
 
-# Adónde van î y ĵ
+# Ya está hecho: no hace falta tocarlo.
+# img_i es adónde va î: un array de NumPy con 2 números (x e y), aquí [2 1].
+# img_j es adónde va ĵ: otro array con 2 números, aquí [-1 3].
 img_i = np.array([2, 1])
 img_j = np.array([-1, 3])
-# Construye A: su primera columna es img_i y su segunda columna es img_j
+
+# PASO 1. Construir A, la matriz de la transformación: su primera columna es
+# img_i y su segunda columna es img_j.
+# Por qué: una matriz guarda en sus columnas adónde van î y ĵ. Así, multiplicar
+# por la matriz mueve cada punto como lo mueve la transformación.
+# Cuidado: np.array([[1, 2], [3, 4]]) lee cada lista interior como una FILA, así
+# que si le das [img_i, img_j] las imágenes quedan en las filas, y es la matriz
+# traspuesta. Hay que colocarlas como columnas. Dos herramientas:
+#   - np.column_stack([x, y]) apila los arrays x e y como columnas.
+#   - Apilarlos como filas y añadir .T al final, que traspone (filas por columnas).
+# Resultado esperado: un array de NumPy de 2 filas y 2 columnas.
 A = None
+
+# Para ver qué vale algo antes de entregar: print(A) y pulsa «Ejecutar».
 `,
           checks: `_ok = isinstance(A, np.ndarray) and A.shape == (2, 2) and np.issubdtype(A.dtype, np.number)
 _filas = _ok and np.allclose(A, [[2, 1], [-1, 3]])
@@ -261,8 +287,18 @@ check((not _ok) or _bien or _filas, "\`A\` no tiene las columnas pedidas: la pri
           prompt:
             'En una matriz de NumPy, `A[:, k]` es la columna `k` entera (el `:` del primer sitio significa «todas las filas»; se cuenta desde 0). Esas columnas son las imágenes de $\\hat{\\imath}$ y de $\\hat{\\jmath}$. Guarda en `col_i` la imagen de $\\hat{\\imath}$ y en `col_j` la de $\\hat{\\jmath}$.',
           hints: [
-            '$\\hat{\\imath}$ es la primera flecha, que se cuenta con el número 0, y $\\hat{\\jmath}$ la segunda, con el 1.',
-            'Con un solo número, `A[0]` es la primera fila: eso no vale.',
+            'El plan son dos líneas. `col_i` es la primera columna de `A`, y la primera se cuenta con el número 0. `col_j` es la segunda columna, con el número 1. En los dos casos hay que dejar libre el primer sitio de los corchetes, el de las filas, para quedarte con todas. El error típico es escribir `A[0]`: con un solo número eliges una fila, no una columna.',
+            'Las piezas, con otra matriz de 2 filas y 3 columnas:\n\n' +
+              py(
+                'M = np.array([[5, 6, 7], [8, 9, 10]])',
+                'print(M[:, 0])   # la columna 0 entera: sus números son 5 y 8',
+                'print(M[:, 2])   # la columna 2 entera: sus números son 7 y 10',
+                'print(M[1])      # un solo número elige una FILA: la fila 1, con 8, 9 y 10',
+              ) +
+              '\n\nEn `M[:, k]`, lo que va antes de la coma son las filas (`:` es «todas») y lo que va después, la columna.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('col_i = A[:, ___]', 'col_j = A[:, ___]') +
+              '\n\nEl número del hueco va después de la coma. Si lo pones solo, entre los corchetes, sale una fila.',
           ],
           explain:
             'La imagen de cada flecha es una columna, y para elegir una columna hay que dejar libre la primera posición, la de las filas, y poner el número de columna en la segunda. Con un solo número se elige una fila.',
@@ -275,10 +311,25 @@ check((not _ok) or _bien or _filas, "\`A\` no tiene las columnas pedidas: la pri
           ],
           starter: `import numpy as np
 
+# Ya está hecho: no hace falta tocarlo.
+# A es la matriz de una transformación: un array de NumPy de 2 filas y 2 columnas.
+# Sus filas son [3 -1] y [2 4]; sus columnas, [3 2] y [-1 4].
+# Con un número, A[0] es la fila 0 entera (la primera). Las posiciones se cuentan desde 0.
 A = np.array([[3, -1], [2, 4]])
-# Guarda en col_i la imagen de î y en col_j la imagen de ĵ
+
+# PASO 1. Guardar en col_i la imagen de î: la primera columna de A.
+# Por qué: la columna 0 de una matriz dice adónde va î, y la columna 1, adónde va ĵ.
+# Herramienta: A[:, k] elige la columna k entera. Antes de la coma van las filas:
+# el : significa «todas». Después de la coma, el número de columna, contado desde 0.
+# Ejemplo con otra matriz: M = np.array([[5, 6], [7, 8]]) y M[:, 1] vale [6 8].
+# Resultado esperado: un array de NumPy con 2 números, uno por fila de A.
 col_i = None
+
+# PASO 2. Guardar en col_j la imagen de ĵ: la segunda columna de A, con la misma herramienta.
+# Resultado esperado: otro array de NumPy con 2 números.
 col_j = None
+
+# Para ver qué vale algo antes de entregar: print(col_i) y pulsa «Ejecutar».
 `,
           checks: `def _vec(a):
     return isinstance(a, np.ndarray) and a.shape == (2,) and np.issubdtype(a.dtype, np.number)
@@ -299,8 +350,18 @@ check((not _vec(col_j)) or np.allclose(col_j, [2, 4]) or np.allclose(col_j, [-1,
           prompt:
             'La **identidad** es la transformación que deja cada punto donde estaba: manda $\\hat{\\imath}$ a $\\hat{\\imath}$ y $\\hat{\\jmath}$ a $\\hat{\\jmath}$, así que sus columnas son $(1, 0)$ y $(0, 1)$. NumPy la crea con `np.eye(n)`, donde `n` es el número de filas y de columnas.\n\nCrea en `I` la identidad de 2 filas y 2 columnas, y guarda en `w` el resultado de multiplicar `I` por `v`, con `@`.',
           hints: [
-            'Escribe `I = np.eye(2)` y mira sus columnas: son $\\hat{\\imath}$ y $\\hat{\\jmath}$.',
-            'Como la identidad no mueve nada, el resultado de multiplicar tiene que ser `v` sin cambios.',
+            'El plan son dos líneas. Primero `I`: la identidad de 2 filas y 2 columnas, que NumPy crea con `np.eye(...)` y el número de filas y de columnas entre paréntesis. Después `w`: `I` multiplicada por `v` con `@`, en ese orden, la matriz primero. Como la identidad no mueve nada, `w` tiene que salir igual que `v`. El error típico es el tamaño: `np.eye(3)` es de 3 filas y 3 columnas.',
+            'Las piezas, con otros tamaños y otra matriz:\n\n' +
+              py(
+                'print(np.eye(3))   # identidad de 3 filas y 3 columnas: unos en la diagonal, ceros fuera',
+                'M = np.array([[2, 0], [0, 3]])',
+                'x = np.array([1, 1])',
+                'print(M @ x)       # @ multiplica la matriz por el vector: sale [2 3]',
+              ) +
+              '\n\nEn `M @ x`, la matriz va a la izquierda y el vector a la derecha.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('I = np.eye(___)', 'w = ___ @ ___') +
+              '\n\nEl número del primer hueco es el de filas y columnas que pide el enunciado, y en `w` van la matriz y el vector, en ese orden.',
           ],
           explain:
             'La identidad tiene unos en la diagonal y ceros fuera de ella, y por eso cada columna es una de las flechas de partida. Multiplicar por ella no cambia ningún vector.',
@@ -313,10 +374,26 @@ check((not _vec(col_j)) or np.allclose(col_j, [2, 4]) or np.allclose(col_j, [-1,
           ],
           starter: `import numpy as np
 
+# Ya está hecho: no hace falta tocarlo.
+# v es un vector: un array de NumPy con 2 números (x e y), aquí [3 -2].
 v = np.array([3, -2])
-# Crea I, la identidad de 2 filas y 2 columnas, y guarda en w el resultado de multiplicar I por v
+
+# PASO 1. Crear I, la identidad de 2 filas y 2 columnas.
+# Por qué: la identidad es la transformación que deja todo donde estaba, y su
+# matriz tiene por columnas las flechas de partida: î en la primera y ĵ en la segunda.
+# Herramienta: np.eye(n) crea la identidad de n filas y n columnas, con unos en
+# la diagonal y ceros fuera. Ejemplo: np.eye(3) es la de 3 filas y 3 columnas.
+# Resultado esperado: un array de NumPy de 2 filas y 2 columnas.
 I = None
+
+# PASO 2. Guardar en w el resultado de multiplicar I por v.
+# Por qué: así compruebas que la identidad no mueve ningún vector.
+# Herramienta: a @ b multiplica una matriz por un vector (o por otra matriz).
+# La matriz va a la izquierda del @ y el vector a la derecha.
+# Resultado esperado: un array de NumPy con 2 números.
 w = None
+
+# Para ver qué vale algo antes de entregar: print(w) y pulsa «Ejecutar».
 `,
           checks: `_I = isinstance(I, np.ndarray) and I.shape == (2, 2) and np.issubdtype(I.dtype, np.number)
 _w = isinstance(w, np.ndarray) and w.shape == (2,) and np.issubdtype(w.dtype, np.number)
@@ -334,8 +411,19 @@ check((not _w) or np.allclose(w, [3, -2]), "\`w\` tiene que valer (3, -2), el mi
           prompt:
             'Una **función** guarda un cálculo para repetirlo con otros datos. Se define con `def`, su cuerpo va sangrado y `return` dice qué devuelve. Un ejemplo con otra tarea, la media de dos números:\n\n```python\ndef media(x, y):\n    return (x + y) / 2\n```\n\nCompleta `matriz_desde(img_i, img_j)` para que reciba las imágenes de $\\hat{\\imath}$ y de $\\hat{\\jmath}$, como arrays de 2 números, y devuelva la matriz de 2 filas y 2 columnas de la transformación.',
           hints: [
-            'Dentro de la función hay que colocar `img_i` e `img_j` como columnas.',
-            'Prueba con `img_i = np.array([1, 2])` e `img_j = np.array([3, 4])`: la primera columna de la matriz tiene que ser `[1, 2]`.',
+            'El plan es una sola línea dentro de la función: `return` seguido de la matriz que tiene `img_i` en su primera columna e `img_j` en la segunda. Es la misma construcción del primer ejercicio, ahora con los nombres de los parámetros. El error típico es devolver las imágenes en las filas, que da la matriz traspuesta; y olvidar el `return`, con lo que la función no devuelve nada.',
+            'Las piezas, con otra función y otros vectores:\n\n' +
+              py(
+                'def suma(x, y):',
+                '    return x + y   # return devuelve el valor y termina la función',
+                '',
+                'print(suma(np.array([1, 2]), np.array([10, 20])))   # [11 22]',
+                'print(np.column_stack([np.array([5, 6]), np.array([7, 8])]))   # [5 6] es la primera columna',
+              ) +
+              '\n\nLo que va dentro de la función lleva 4 espacios de sangría: así sabe Python que es parte de ella.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('def matriz_desde(img_i, img_j):', '    return np.column_stack([___, ___])') +
+              '\n\nLa primera va a la primera columna. Con las dos intercambiadas, la matriz sale con las columnas cambiadas de sitio.',
           ],
           explain:
             'Es la misma construcción de antes, ahora guardada para usarla con cualquier pareja de imágenes. Si la función devuelve las imágenes en filas, el resultado sale traspuesto.',
@@ -350,8 +438,24 @@ check((not _w) or np.allclose(w, [3, -2]), "\`w\` tiene que valer (3, -2), el mi
 
 
 def matriz_desde(img_i, img_j):
-    # Devuelve la matriz de 2 filas y 2 columnas cuyas columnas son img_i e img_j
+    # img_i e img_j llegan como arrays de NumPy de 2 números: adónde van î y ĵ.
+    # Por ejemplo, con [1 2] y [3 4] la función tiene que devolver la matriz de
+    # filas [1 3] y [2 4]. Usa los nombres img_i e img_j, no números escritos a
+    # mano: así la función sirve para cualquier pareja, y las comprobaciones la
+    # prueban con otras.
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella.
+
+    # PASO 1. Devolver la matriz de 2 filas y 2 columnas cuyas columnas son img_i e img_j.
+    # Por qué: es la construcción de antes, guardada para repetirla con cualquier pareja.
+    # Herramienta: np.column_stack([x, y]) apila x e y como columnas. (Si los
+    # apilas como filas con np.array([x, y]), sale la traspuesta.)
+    # return devuelve un valor y termina la función en ese momento. Sin return, la función no devuelve nada.
+    # Resultado esperado: un array de NumPy de 2 filas y 2 columnas.
     return None
+
+
+# Para ver qué vale algo antes de entregar: print(matriz_desde(np.array([1, 2]), np.array([3, 4]))) y pulsa «Ejecutar».
 `,
           checks: `_f = matriz_desde
 
@@ -388,8 +492,19 @@ def matriz_desde(img_i, img_j):
           prompt:
             'En una capa lineal de un clasificador de reseñas, la matriz de pesos `W` tiene 3 filas, una por salida («positiva», «neutra» y «negativa»), y 4 columnas, una por característica de entrada. La **columna** `k` de `W` dice cuánto empuja la característica `k` a cada una de las tres salidas.\n\nGuarda en `col` la columna de la característica 2 (se cuenta desde 0) y en `posicion` la posición de la salida a la que más empuja.',
           hints: [
-            'La columna de la característica 2 es `W[:, 2]`.',
-            '`np.argmax` devuelve la posición del número más grande de un array, no el número.',
+            'El plan son dos líneas. `col` es la columna de la característica 2 de `W`, es decir, la tercera, porque se cuenta desde 0: hay que dejar libre el sitio de las filas para quedarte con todas. `posicion` es la posición, dentro de `col`, del peso más grande; y es la posición, no el peso. El error típico es devolver el propio peso mayor o la posición del menor.',
+            'Las piezas, con otra matriz de 2 filas y 3 columnas:\n\n' +
+              py(
+                'M = np.array([[1, 9, 4], [7, 2, 8]])',
+                'c = M[:, 1]                # la columna 1 entera: sus números son 9 y 2',
+                'print(np.argmax(c))        # 0: la posición del 9, que es el mayor',
+                'print(c[np.argmax(c)])     # 9: así se lee el mayor, pero eso es el peso y no la posición',
+                'print(np.argmin(c))        # 1: la posición del menor, que es lo contrario',
+              ) +
+              '\n\nLas posiciones se cuentan desde 0, como las columnas.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('col = W[:, ___]', 'posicion = np.___(col)') +
+              '\n\nEl segundo hueco es la función que busca el mayor, no el menor. Y `posicion` se queda con lo que devuelve, sin leer el peso.',
           ],
           explain:
             'Cada columna de `W` es el efecto de una característica sobre todas las salidas. Para saber a cuál empuja más, se busca la posición del peso mayor dentro de esa columna.',
@@ -402,15 +517,34 @@ def matriz_desde(img_i, img_j):
           ],
           starter: `import numpy as np
 
-# Pesos: 3 salidas (filas) y 4 características de entrada (columnas)
+# Ya está hecho: no hace falta tocarlo.
+# W es la matriz de pesos de una capa lineal: un array de NumPy de 3 filas y 4 columnas.
+# Cada fila es una salida (positiva, neutra, negativa) y cada columna, una característica de entrada.
+# Las posiciones se cuentan desde 0: la característica 2 es la tercera columna.
 W = np.array([
     [2, -1, -2, 0],
     [0, 4, 1, 1],
     [-1, 0, 6, 9],
 ])
-# Guarda en col la columna de la característica 2 y en posicion la posición de la salida a la que más empuja
+
+# PASO 1. Guardar en col la columna de la característica 2 de W.
+# Por qué: la columna k dice cuánto empuja la característica k a cada salida,
+# así que con ella sabes el efecto de esa característica sobre las tres.
+# Herramienta: W[:, k] elige la columna k entera. Antes de la coma van las filas
+# (el : significa «todas») y después el número de columna, contado desde 0.
+# Con un solo número, W[2] sería una fila, que es otra cosa.
+# Resultado esperado: un array de NumPy con 3 números, uno por salida.
 col = None
+
+# PASO 2. Guardar en posicion la posición de la salida a la que más empuja.
+# Por qué: la salida a la que más empuja es la del peso mayor de col, y lo que
+# se pide es su posición (0, 1 o 2), no el valor del peso.
+# Herramienta: np.argmax(x) devuelve la posición del número más grande de x.
+# Ejemplo: np.argmax(np.array([4, 9, 1])) vale 1. (np.argmin da la del menor.)
+# Resultado esperado: un número entero.
 posicion = None
+
+# Para ver qué vale algo antes de entregar: print(col) y pulsa «Ejecutar».
 `,
           checks: `def _vec(a):
     return isinstance(a, np.ndarray) and a.shape == (3,) and np.issubdtype(a.dtype, np.number)

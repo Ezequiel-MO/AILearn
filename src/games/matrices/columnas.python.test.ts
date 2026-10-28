@@ -5,6 +5,7 @@ import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
   describeRun,
+  defineHintTests,
   getPyodide,
 } from '../../../tests/content/python-helpers';
 import {
@@ -336,3 +337,20 @@ describe('datos de tipo equivocado: sin errores de NumPy en inglés', { timeout:
     }
   }
 });
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'columnas.ex02.1': ['img_i', 'img_j'],
+  'columnas.ex02.2': ['0', '1'],
+  'columnas.ex02.3': ['2', 'I', 'v'],
+  'columnas.ex02.4': ['img_i', 'img_j'],
+  'columnas.ex02.5': ['2', 'argmax'],
+};
+
+defineHintTests(
+  projectQuestions(columnas).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
