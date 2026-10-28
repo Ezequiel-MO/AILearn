@@ -1076,20 +1076,15 @@ describe('QuestionView: pregunta de código', () => {
 });
 
 describe('CodigoQuestion: ayuda para quien no programa (petición de Oliver, 2026-10-20)', () => {
-  const MATMUL_REF = 'import numpy as np\nM = np.array([[1, 2]])\nr = M @ M.T\n';
-  const MATMUL_CARD = 'Producto de matrices: @';
+  it('no hay guía de Python general en la pregunta (petición de Oliver, 2026-10-28)', () => {
+    setup();
+    // contract: petición 2026-10-28: «Python para esta pregunta» no ayudaba, se quita
+    expect(screen.queryByText('Python para esta pregunta')).toBeNull();
+    expect(document.querySelector('details.guide')).toBeNull();
+  });
+
   const failing = result({ checks: [{ passed: false, message: 'x debería valer 1' }] });
   const nextSteps = () => screen.queryByRole('heading', { name: 'Cómo seguir' });
-  const groupTitles = () =>
-    [...document.querySelectorAll('.guide__group-title')].map((p) => p.textContent);
-  /** Abre el panel de la guía como lo haría el jugador (el navegador cambia `open` y lanza `toggle`). */
-  const openGuide = () => {
-    const guide = document.querySelector<HTMLDetailsElement>('details.guide')!;
-    act(() => {
-      guide.open = true;
-      fireEvent(guide, new Event('toggle'));
-    });
-  };
 
   it('enseña «Qué se comprueba al entregar» con cada punto, antes de ejecutar nada', () => {
     setup();
@@ -1108,28 +1103,6 @@ describe('CodigoQuestion: ayuda para quien no programa (petición de Oliver, 202
     expect(box.textContent).not.toMatch(/comprobaciones/i);
   });
 
-  it('la guía de Python, plegada, propone las fichas de lo que usa la referencia', () => {
-    setup({ q: { reference: MATMUL_REF } });
-    const guide = document.querySelector<HTMLDetailsElement>('details.guide')!;
-    // contract: plegada al empezar (el editor no baja hasta que el jugador la abre)
-    expect(guide.open).toBe(false);
-    // contract: las fichas (más de cien trozos de Markdown) no se pintan hasta abrir la guía
-    expect(document.querySelectorAll('.guide__card')).toHaveLength(0);
-    openGuide();
-    expect(groupTitles()).toEqual(['Lo que usa esta pregunta', 'Lo básico', 'El resto de la guía']);
-    const here = document.querySelector('.guide__group')!;
-    // contract: la referencia usa @: la ficha del producto de matrices sale en la pregunta
-    expect(within(here as HTMLElement).getByText(MATMUL_CARD)).toBeInTheDocument();
-  });
-
-  it('en examen la guía sale del código inicial: la referencia no insinúa la respuesta', () => {
-    setup({ hideChecks: true, q: { starter: 'x = None', reference: MATMUL_REF } });
-    openGuide();
-    // contract: con hideChecks la guía se calcula solo con el `starter` (sin @)
-    expect(groupTitles()).toEqual(['Lo básico', 'El resto de la guía']);
-    expect(screen.getByText(MATMUL_CARD)).toBeInTheDocument();
-  });
-
   it('«Ejecutar» sin salida ni figuras explica cómo ver los valores con print', async () => {
     const { run } = setup();
     run.mockResolvedValue(result());
@@ -1142,46 +1115,29 @@ describe('CodigoQuestion: ayuda para quien no programa (petición de Oliver, 202
     expect(screen.queryByText(/no ha escrito nada/)).toBeNull();
   });
 
-  it('una entrega fallida enseña «Cómo seguir»: la primera comprobación, print, la lista y las fichas', async () => {
-    const { run } = setup({ q: { reference: MATMUL_REF } });
+  it('una entrega fallida enseña «Cómo seguir»: la primera comprobación, print y la lista', async () => {
+    const { run } = setup();
     run.mockResolvedValue(failing);
     await click('Entregar');
     const box = nextSteps()!.closest('section')!;
     // contract: petición 2026-10-20: «si no está bien, dar más dirección sobre el contexto general»
     expect(within(box).getByText(/primera comprobación fallida/)).toBeInTheDocument();
     expect(within(box).getByText(/Qué se comprueba al entregar/)).toBeInTheDocument();
-    // contract: primero la ficha más concreta; las generales (import, listas, arrays) no, si hay otras
-    expect(within(box).getAllByRole('button')[0]).toHaveTextContent(MATMUL_CARD);
-    expect(within(box).queryByRole('button', { name: 'import: traer módulos' })).toBeNull();
+    // contract: petición de Oliver 2026-10-28: sin guía de Python, «Cómo seguir» no propone fichas
+    expect(within(box).queryAllByRole('button')).toHaveLength(0);
     // contract: el resumen recuerda que tienen que pasar todas
     expect(
       screen.getByText('Para que la respuesta cuente como correcta tienen que pasar todas.'),
     ).toBeInTheDocument();
   });
 
-  it('con un error, «Cómo seguir» pide arreglarlo primero y propone la ficha de errores', async () => {
+  it('con un error, «Cómo seguir» pide arreglarlo primero', async () => {
     const { run } = setup();
     run.mockResolvedValue(result({ error: 'Error en tu código', checks: [] }));
     await click('Entregar');
     const box = nextSteps()!.closest('section')!;
     // contract: con error las comprobaciones no llegan a mirar nada
     expect(within(box).getByText(/se ha parado en un error/)).toBeInTheDocument();
-    expect(
-      within(box).getByRole('button', { name: 'Cuando Python se para: errores' }),
-    ).toBeInTheDocument();
-  });
-
-  it('el botón de una ficha abre la guía y la ficha, y le pasa el foco', async () => {
-    const { run } = setup({ q: { reference: MATMUL_REF } });
-    run.mockResolvedValue(failing);
-    await click('Entregar');
-    await click(MATMUL_CARD);
-    const guide = document.querySelector<HTMLDetailsElement>('details.guide')!;
-    const summary = document.activeElement as HTMLElement;
-    // contract: la ficha queda abierta, dentro del panel abierto, con el foco en su título
-    expect(guide.open).toBe(true);
-    expect(summary.textContent).toBe(MATMUL_CARD);
-    expect((summary.parentElement as HTMLDetailsElement).open).toBe(true);
   });
 
   it('sin «Cómo seguir» si la entrega acierta, en examen o con la pregunta ya bloqueada', async () => {

@@ -102,19 +102,8 @@ export const t = {
       'Añade `print(...)` con tus variables y pulsa «Ejecutar» para ver qué valen. No cuenta como intento.',
     nextRequirements:
       'Vuelve a leer «Qué se comprueba al entregar»: tu respuesta tiene que cumplir cada punto.',
-    nextReview: 'Repasa en la guía de Python:',
   },
 
-  // --- Guía de Python de la pregunta de código ---
-  guide: {
-    label: 'Python para esta pregunta',
-    count: (n: number) => (n === 1 ? '1 ficha sobre su código' : `${n} fichas sobre su código`),
-    here: 'Lo que usa esta pregunta',
-    basics: 'Lo básico',
-    rest: 'El resto de la guía',
-    glossaryHere: 'Funciones de esta pregunta',
-    glossaryAll: 'Todas las funciones',
-  },
 
   // --- Ejecutor de tandas (tarea 12) ---
   runner: {

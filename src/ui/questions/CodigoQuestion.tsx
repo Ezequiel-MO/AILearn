@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
-import { GUIDE_CARDS, pythonGuide, type GuideCard } from '../../content/python-guide';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import type { CodigoQ } from '../../content/schema';
 import type { RunResult } from '../../python/core';
 import { getRunner, PythonLoadError, type PythonRunner } from '../../python/runner';
@@ -7,10 +6,6 @@ import { CodeEditor, type CodeEditorHandle } from '../CodeEditor';
 import { Md } from '../Md';
 import { t } from '../strings';
 import { Stem, useSubmit, type QuestionProps } from './parts';
-import { PythonGuide, type PythonGuideHandle } from './PythonGuide';
-
-/** Fichas que «Cómo seguir» propone repasar, como mucho. */
-const MAX_REVIEW_CARDS = 4;
 
 /** Espera máxima entre dos guardados del borrador mientras el jugador escribe. */
 export const DRAFT_INTERVAL_MS = 500;
@@ -45,12 +40,6 @@ export function CodigoQuestion({
   const [result, setResult] = useState<RunResult | null>(null);
   // Si el resultado a la vista viene de «Entregar» (con comprobaciones) o de «Ejecutar».
   const [resultMode, setResultMode] = useState<Mode | null>(null);
-  // En examen la guía sale solo del código inicial: la referencia no puede insinuar la respuesta.
-  const guide = useMemo(
-    () => pythonGuide(hideChecks ? question.starter : `${question.starter}\n${question.reference}`),
-    [hideChecks, question.starter, question.reference],
-  );
-  const guideRef = useRef<PythonGuideHandle>(null);
   const [harnessFailed, setHarnessFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -150,7 +139,6 @@ export function CodigoQuestion({
     result !== null &&
     !result.timedOut &&
     !result.passed;
-  const reviewCards = failedSubmit ? cardsToReview(guide.cards, result.error !== null) : [];
 
   return (
     <div className="question code">
@@ -168,7 +156,6 @@ export function CodigoQuestion({
           <p className="code__requirements-note">{t.code.requirementsNote}</p>
         </section>
       ) : null}
-      <PythonGuide guide={guide} ref={guideRef} />
       <div className={`code__work${figures.length > 0 ? ' code__work--figures' : ''}`}>
         <div className="code__main">
           <CodeEditor
@@ -259,8 +246,6 @@ export function CodigoQuestion({
               <NextSteps
                 error={result.error !== null}
                 hasRequirements={question.requirements.length > 0}
-                cards={reviewCards}
-                onOpen={(id) => guideRef.current?.open(id)}
               />
             ) : null}
           </div>
@@ -278,32 +263,7 @@ export function CodigoQuestion({
   );
 }
 
-/** Fichas que casi toda pregunta usa: en «Cómo seguir» solo salen si no hay otras. */
-const GENERIC_CARDS = new Set(['importar', 'listas', 'arrays']);
-
-/**
- * Fichas para «Cómo seguir»: las de lo que usa la pregunta, de la más concreta a la más general (la guía
- * va de lo general a lo concreto) y, si el código se paró en un error, primero la de los errores.
- */
-function cardsToReview(cards: readonly GuideCard[], error: boolean): GuideCard[] {
-  const errores = GUIDE_CARDS.find((c) => c.id === 'errores');
-  const concrete = [...cards].reverse();
-  const preferred = concrete.filter((c) => !GENERIC_CARDS.has(c.id));
-  const picked = preferred.length > 0 ? preferred : concrete;
-  return (error && errores ? [errores, ...picked] : picked).slice(0, MAX_REVIEW_CARDS);
-}
-
-function NextSteps({
-  error,
-  hasRequirements,
-  cards,
-  onOpen,
-}: {
-  error: boolean;
-  hasRequirements: boolean;
-  cards: readonly GuideCard[];
-  onOpen: (cardId: string) => void;
-}) {
+function NextSteps({ error, hasRequirements }: { error: boolean; hasRequirements: boolean }) {
   return (
     <section className="code__next">
       <h3 className="code__label">{t.code.nextLabel}</h3>
@@ -313,21 +273,6 @@ function NextSteps({
           <Md inline>{t.code.nextPrint}</Md>
         </li>
         {hasRequirements ? <li>{t.code.nextRequirements}</li> : null}
-        {cards.length > 0 ? (
-          <li>
-            {t.code.nextReview}{' '}
-            {cards.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                className="code__next-card"
-                onClick={() => onOpen(c.id)}
-              >
-                {c.title}
-              </button>
-            ))}
-          </li>
-        ) : null}
       </ul>
     </section>
   );
