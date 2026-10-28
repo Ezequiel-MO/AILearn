@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -372,6 +373,23 @@ rejects('componer.ex02.5', [
     failures: 1,
   },
 ]);
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'componer.ex02.1': ['A', 'B'],
+  'componer.ex02.2': ['0', '1', 'col0', 'col1'],
+  'componer.ex02.3': ['N', 'M', '[R, S]'],
+  'componer.ex02.4': ['A', 'B', 'B', 'A', 'AB', 'BA'],
+  'componer.ex02.5': ['W2', 'W1', 'W'],
+};
+
+defineHintTests(
+  projectQuestions(componer).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
 
 // ---------- examen-0.tres-capas: tres capas lineales en una ----------
 

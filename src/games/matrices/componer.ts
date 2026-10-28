@@ -1,5 +1,6 @@
 import type { Goal, Project } from '../../content/schema';
 import { componerWarmup } from './componer.calentamiento';
+import { py } from '../py';
 import { transformPlane } from './plane';
 
 /** Metas de un `manipular` de matriz: î y ĵ en el sitio de las columnas de la matriz pedida. */
@@ -202,8 +203,18 @@ export const componer: Project = {
           prompt:
             'En NumPy, `A @ B` entre dos matrices es su producto: la matriz que aplica primero `B` y después `A`. Ya tienes las matrices `A` y `B`. Guarda en `C` el producto de `A` por `B`.',
           hints: [
-            'El operador `@` multiplica matrices igual que multiplica una matriz por un vector.',
-            'La matriz que se aplica primero se escribe a la derecha.',
+            'El plan es una sola línea: `C` es `A` por `B` con el operador `@`, el mismo que multiplica una matriz por un vector, ahora entre dos matrices. Ojo con el orden: la matriz que actúa primero se escribe a la derecha, y aquí actúa primero `B`.',
+            'La pieza, con otras matrices:\n\n' +
+              py(
+                'P = np.array([[1, 0], [0, 2]])',
+                'Q = np.array([[0, 1], [1, 0]])',
+                'print(P @ Q)   # [[0 1] [2 0]]: el producto de matrices, Q actúa primero',
+                'print(P * Q)   # [[0 0] [0 0]]: con * se multiplica casilla con casilla, que es otra cosa',
+              ) +
+              '\n\nLa primera fila de `P @ Q` sale de la primera fila de `P` por cada columna de `Q`; no es lo mismo que multiplicar casilla con casilla.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('C = ___ @ ___') +
+              '\n\nEn el primer hueco va la matriz que actúa después y en el segundo la que actúa primero. Si pones `B @ A`, sale el producto en el orden contrario.',
           ],
           explain:
             'El operador `@` entre matrices calcula el producto, con el orden de la escritura matemática: la matriz de la derecha actúa primero. Si sale una matriz con los productos entrada a entrada, se ha usado otra operación.',
@@ -215,10 +226,21 @@ export const componer: Project = {
           ],
           starter: `import numpy as np
 
+# A y B son matrices de 2 filas y 2 columnas (arrays de NumPy).
+# A[0] es la primera fila de A y A[:, 0] su primera columna.
 A = np.array([[1, 2], [0, 1]])
 B = np.array([[2, 0], [1, 3]])
-# Guarda en C el producto de A por B
+
+# PASO 1. El producto de A por B: la matriz que aplica primero B y después A.
+# Por qué: dos transformaciones seguidas se resumen en una sola matriz, el producto.
+# Se lee de derecha a izquierda: en el producto de A por B actúa primero B, la más
+# cercana al vector.
+# El operador @ entre dos matrices calcula el producto de matrices. No lo confundas
+# con *, que multiplica casilla con casilla y no es una composición.
+# El resultado es otra matriz de 2 filas y 2 columnas.
 C = None
+
+# Para ver qué vale algo antes de entregar: print(C) y pulsa «Ejecutar».
 `,
           checks: `_arr = isinstance(C, np.ndarray) and np.issubdtype(C.dtype, np.number)
 _ok = _arr and C.shape == (2, 2)
@@ -239,8 +261,26 @@ check((not _ok) or _elem or _rev or np.allclose(C, [[4, 6], [1, 3]]), "\`C\` tie
           prompt:
             'Cada columna de un producto es la matriz de la izquierda por la columna correspondiente de la de la derecha: la primera columna de $AB$ es $A$ por la primera columna de $B$. Ya tienes `A` y `B`. Calcula una a una las dos columnas de $AB$ y guárdalas en `col0` y `col1`; guarda en `C` la matriz que las tiene por columnas. La columna `k` de `B` se coge con `B[:, k]`.',
           hints: [
-            '`B[:, 0]` es la primera columna de `B`. Multiplica `A` por ella con `@`.',
-            'Para juntar dos columnas en una matriz, `np.column_stack([col0, col1])` las coloca una al lado de la otra.',
+            'El plan son tres líneas. `col0` es `A` por la primera columna de `B`: la columna se coge con `B[:, 0]` y se multiplica con `@`. `col1` es lo mismo con la segunda columna, `B[:, 1]`. Y `C` junta las dos columnas, una al lado de la otra. Ojo: `B[0]` es la primera fila, no la columna.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'P = np.array([[1, 0], [2, 1]])',
+                'Q = np.array([[3, 4], [5, 6]])',
+                'print(Q[:, 1])                  # [4 6]: la segunda columna de Q',
+                'print(Q[1])                     # [5 6]: la segunda fila de Q, que no es lo mismo',
+                'u = P @ Q[:, 0]                 # P por la primera columna de Q',
+                'print(u)                        # [ 3 11]',
+                'print(np.column_stack([u, u]))  # [[ 3  3] [11 11]]: u dos veces, una al lado de la otra',
+                'print(np.array([u, u]))         # [[ 3 11] [ 3 11]]: u dos veces, pero como filas',
+              ) +
+              '\n\nEn `B[:, k]`, los dos puntos significan «todas las filas» y `k` elige la columna.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'col0 = A @ B[:, ___]',
+                'col1 = A @ B[:, ___]',
+                'C = np.column_stack([___, ___])',
+              ) +
+              '\n\nEn los dos últimos huecos van `col0` y `col1`, en ese orden. Con `np.array([col0, col1])` las columnas quedarían como filas y `C` saldría traspuesta.',
           ],
           explain:
             'Cada columna de `C` es la imagen por `A` de una columna de `B`. Al juntarlas tienen que quedar como columnas, no como filas.',
@@ -253,12 +293,29 @@ check((not _ok) or _elem or _rev or np.allclose(C, [[4, 6], [1, 3]]), "\`C\` tie
           ],
           starter: `import numpy as np
 
+# A y B son matrices de 2 filas y 2 columnas (arrays de NumPy).
+# B[:, 0] es la primera columna de B y B[:, 1] la segunda: los dos puntos significan
+# «todas las filas» y el número elige la columna. B[0], en cambio, es la primera FILA.
 A = np.array([[1, 2], [3, 1]])
 B = np.array([[1, 2], [3, 0]])
-# Guarda en col0 y col1 las columnas de AB, y en C la matriz con esas columnas
+
+# PASO 1. col0: la primera columna del producto AB.
+# Por qué: cada columna de AB es A multiplicada por la columna correspondiente de B.
+# Es decir, A transforma cada columna de B, igual que transforma cualquier vector.
+# A @ v multiplica la matriz A por el vector v y da otro vector (un array de 2 números).
+# Aquí v es la primera columna de B.
 col0 = None
+
+# PASO 2. col1: la segunda columna de AB, con la misma idea y la segunda columna de B.
 col1 = None
+
+# PASO 3. C: la matriz que tiene col0 como primera columna y col1 como segunda.
+# Por qué: al juntarlas tienen que quedar una al lado de la otra, como columnas.
+# np.column_stack([u, v]) coloca u y v como columnas de una matriz.
+# Ojo: np.array([u, v]) las pondría como filas, y la matriz saldría traspuesta.
 C = None
+
+# Para ver qué vale algo antes de entregar: print(col0) y pulsa «Ejecutar».
 `,
           checks: `def _v(a):
     return isinstance(a, np.ndarray) and a.shape == (2,) and np.issubdtype(a.dtype, np.number)
@@ -281,8 +338,31 @@ check((not _m) or np.allclose(C, [[7, 6], [2, 6]]) or np.allclose(C, [[7, 2], [6
           prompt:
             'Una transformación compuesta aplica varias matrices **en el orden dado**: la primera de la lista actúa primero. Escribe `componer(lista)`, que recibe una lista de matrices de $2\\times 2$ y devuelve la matriz que las aplica en ese orden. Después, guarda en `C` lo que devuelve para `[R, S]`: primero el giro `R` y luego el estiramiento `S`.',
           hints: [
-            'Con la lista `[R, S]`, la matriz tiene que ser $SR$: la que actúa primero va a la derecha del producto.',
-            'Un bucle puede acumular el resultado: empieza por la identidad, `np.eye(2)`, y multiplica cada matriz nueva por la izquierda de lo acumulado.',
+            'El plan, dentro de `componer`: empieza con `M` igual a la identidad, `np.eye(2)`, la matriz que no cambia nada. Recorre la lista con un `for` y, para cada matriz `N`, actualiza `M` multiplicando `N` por la izquierda de lo que ya hay. Al final devuelve `M`. Fuera de la función, `C` es la llamada con la lista `[R, S]`. Ojo: si multiplicas por la derecha, la composición sale en el orden contrario.',
+            'Las piezas, con otra función y otros datos:\n\n' +
+              py(
+                'def suma_todo(lista):',
+                '    total = 0               # el valor de partida, antes de mirar la lista',
+                '    for n in lista:         # n toma cada elemento de la lista, uno por vuelta',
+                '        total = total + n   # el resultado nuevo sustituye al anterior',
+                '    return total            # devuelve el valor y termina la función',
+                '',
+                'print(suma_todo([4, 5, 6]))   # 15',
+                'print(np.eye(2))              # [[1. 0.] [0. 1.]]: la identidad',
+                'print(np.eye(2) @ R)          # [[ 0. -1.] [ 1.  0.]]: es R, sin cambios',
+              ) +
+              '\n\nLo que va dentro de `def` y de `for` lleva 4 espacios más de sangría que la línea de arriba. Multiplicar por la identidad no altera una matriz. Y una lista se escribe con corchetes: `[R, S]`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def componer(lista):',
+                '    M = np.eye(2)',
+                '    for N in lista:',
+                '        M = ___ @ ___',
+                '    return M',
+                '',
+                'C = componer(___)',
+              ) +
+              '\n\nEn `M = ___ @ ___` va `N` a la izquierda de `M`: la matriz nueva actúa después. En el último hueco va la lista de `R` y `S`, en ese orden.',
           ],
           explain:
             'Cada matriz nueva actúa después de las anteriores, así que se coloca a la izquierda de lo que ya hay. Si se coloca a la derecha, la composición sale en el orden contrario.',
@@ -296,17 +376,37 @@ check((not _m) or np.allclose(C, [[7, 6], [2, 6]]) or np.allclose(C, [[7, 2], [6
           ],
           starter: `import numpy as np
 
+# R: el giro de un cuarto de vuelta. S: el estiramiento al doble en horizontal.
+# Las dos son arrays de NumPy de 2 filas y 2 columnas.
 R = np.array([[0, -1], [1, 0]])
 S = np.array([[2, 0], [0, 1]])
 
 
 def componer(lista):
-    # Devuelve la matriz que aplica las de la lista en orden: la primera de la lista actúa primero
+    # lista es una lista de matrices de 2 por 2, por ejemplo [R, S].
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella.
+    # La función tiene que servir para cualquier lista, también más larga: las
+    # comprobaciones la prueban con otras.
+
+    # PASO 1. Devuelve la matriz que aplica las de la lista en orden.
+    # La primera de la lista actúa primero.
+    # Por qué: en un producto, la matriz que actúa primero es la de la derecha;
+    # cada matriz nueva de la lista actúa después de las anteriores, así que
+    # se coloca a la izquierda de lo que ya llevas acumulado.
+    # Cómo: empieza con M = np.eye(2), la identidad (la matriz que no cambia nada,
+    # el punto de partida de un producto). Recorre la lista con
+    # for N in lista: (N toma cada matriz, una por vuelta) y, dentro del for,
+    # actualiza M con el producto de N y M: M = ... @ ...
+    # Al terminar el bucle, return M devuelve el resultado y termina la función.
     return None
 
 
-# Guarda en C lo que devuelve componer para la lista [R, S]
+# PASO 2. Llama a la función con la lista [R, S] y guarda lo que devuelve.
+# Por qué: primero actúa el giro R y después el estiramiento S.
 C = None
+
+# Para ver qué vale algo antes de entregar: print(C) y pulsa «Ejecutar».
 `,
           checks: `_R = np.array([[0, -1], [1, 0]])
 _S = np.array([[2, 0], [0, 1]])
@@ -353,8 +453,19 @@ C = componer([R, S])
           prompt:
             'Con matrices el orden importa: `A @ B` y `B @ A` casi nunca coinciden. Ya tienes `A`, una inclinación, y `B`, un estiramiento. Guarda en `AB` el producto de `A` por `B`, en `BA` el de `B` por `A`, y en `iguales` si las dos matrices son iguales: un solo `True` o `False`. Para comparar matrices, `np.allclose(X, Y)` devuelve un solo valor.',
           hints: [
-            '`np.allclose(X, Y)` compara dos arrays entrada a entrada y devuelve un solo valor.',
-            'El operador `==` entre arrays devuelve otro array de `True` y `False`, no un solo valor.',
+            'El plan son tres líneas. `AB` es el producto con `A` a la izquierda y `B` a la derecha. `BA` es el producto con `B` a la izquierda. Y `iguales` compara las dos matrices con `np.allclose(AB, BA)`, que da un solo `True` o `False`. No uses `==`: entre arrays da otro array de `True` y `False`, uno por casilla.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'P = np.array([[1, 0], [0, 2]])',
+                'Q = np.array([[1, 0], [0, 2]])',
+                'print(P == Q)                  # [[ True  True] [ True  True]]: un array, no un solo valor',
+                'print(np.allclose(P, Q))       # True: un solo valor, porque todas las casillas coinciden',
+                'print(np.allclose(P, 3 * Q))   # False: basta una casilla distinta',
+              ) +
+              '\n\n`np.allclose(X, Y)` da `True` solo si todas las casillas de `X` y de `Y` son iguales (o casi).',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('AB = ___ @ ___', 'BA = ___ @ ___', 'iguales = np.allclose(___, ___)') +
+              '\n\nEn `AB` va `A` a la izquierda de `B`, y en `BA` al revés. Comparar con `==` dejaría `iguales` como un array y no como un solo valor.',
           ],
           explain:
             'Los dos productos usan los mismos factores en distinto orden: se calcula cada uno por separado y se comparan al final. Para obtener un único valor, hay que comparar con una función y no con el operador de igualdad.',
@@ -366,12 +477,27 @@ C = componer([R, S])
           ],
           starter: `import numpy as np
 
+# A es una inclinación y B un estiramiento: dos arrays de NumPy de 2 filas y 2 columnas.
 A = np.array([[1, 1], [0, 1]])
 B = np.array([[2, 0], [0, 1]])
-# Guarda en AB el producto de A por B, en BA el de B por A, y en iguales si son iguales
+
+# PASO 1. AB: el producto de A por B, que aplica primero B y después A.
+# Por qué: en un producto de matrices el orden importa, así que hay que calcular
+# los dos productos por separado antes de compararlos.
+# El operador @ entre dos matrices es el producto (la matriz de la derecha actúa primero).
 AB = None
+
+# PASO 2. BA: el producto de B por A, con los mismos factores en el orden contrario.
 BA = None
+
+# PASO 3. iguales: un solo True o False que diga si AB y BA son iguales.
+# Por qué: es lo que demuestra que el orden de los factores sí altera el producto.
+# Si comparas dos arrays con ==, el resultado es otro array, con un True o un False
+# por casilla. Para obtener un solo valor, usa np.allclose(X, Y): da True si todas
+# las casillas de X e Y coinciden y False si alguna es distinta.
 iguales = None
+
+# Para ver qué vale algo antes de entregar: print(iguales) y pulsa «Ejecutar».
 `,
           checks: `def _mat(m):
     return isinstance(m, np.ndarray) and m.shape == (2, 2) and np.issubdtype(m.dtype, np.number)
@@ -395,8 +521,20 @@ check((not _b) or not bool(iguales), "\`iguales\` vale \`True\`, pero \`AB\` y \
           prompt:
             'Una red tiene dos capas lineales seguidas, sin función de activación entre ellas: primero `W1` y después `W2`, así que para una entrada `x` la salida es `W2 @ (W1 @ x)`. Ya tienes las dos matrices y la entrada. Guarda en `W` la matriz única que equivale a las dos capas, y en `y` la salida de esa capa única para `x`.',
           hints: [
-            'La capa que actúa primero va a la derecha del producto.',
-            'La salida de la capa única se calcula como la de cualquier capa lineal: la matriz multiplicada por la entrada.',
+            'El plan son dos líneas. `W` es el producto de las dos capas: `W1` actúa primero, así que va a la derecha, y `W2` va a la izquierda. `y` es la salida de la capa única: `W` multiplicada por `x` con `@`. Para comprobar, `W` tiene que ser de 2 filas y 2 columnas; si te sale de 3 por 3, has puesto las capas al revés.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'P = np.array([[1, 2, 0], [0, 1, 1]])     # 2 filas, 3 columnas: lleva 3 números a 2',
+                'Q = np.array([[1, 0], [0, 1], [1, 1]])   # 3 filas, 2 columnas: lleva 2 números a 3',
+                'print((P @ Q).shape)   # (2, 2): primero actúa Q y luego P',
+                'print((Q @ P).shape)   # (3, 3): en el orden contrario sale otra forma',
+                'v = np.array([1, 2])',
+                'print(P @ Q @ v)       # [5 5]: la matriz producto por un vector',
+              ) +
+              '\n\n`.shape` da el tamaño de una matriz como (filas, columnas). En un producto, las columnas de la de la izquierda tienen que ser tantas como las filas de la de la derecha.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('W = ___ @ ___', 'y = ___ @ x') +
+              '\n\nEn `W` va primero `W2` y después `W1`. En `y` va la capa única `W`, no `W1` ni `W2`.',
           ],
           explain:
             'La capa que actúa después va a la izquierda del producto. Comprueba los tamaños: la matriz única tiene que llevar la entrada de 2 componentes a una salida de 2, y si sale de $3\\times 3$ las capas están al revés.',
@@ -409,12 +547,29 @@ check((not _b) or not bool(iguales), "\`iguales\` vale \`True\`, pero \`AB\` y \
           ],
           starter: `import numpy as np
 
+# W1: la primera capa, una matriz de 3 filas y 2 columnas: lleva 2 números a 3.
+# W2: la segunda capa, de 2 filas y 3 columnas: lleva esos 3 números a 2.
+# x: la entrada, un array con 2 números.
 W1 = np.array([[1, 2], [0, 1], [-1, 1]])
 W2 = np.array([[2, 0, 1], [1, -1, 0]])
 x = np.array([1, 2])
-# Guarda en W la matriz única equivalente a las dos capas, y en y su salida para x
+
+# PASO 1. W: la matriz única que equivale a las dos capas.
+# Por qué: sin una función de activación entre ellas, dos capas lineales seguidas
+# se funden en una sola matriz, que es el producto de las dos.
+# Primero actúa W1 y después W2; en un producto, la que actúa primero va a la
+# derecha. Se multiplican con @, como cualquier par de matrices.
+# Comprueba el resultado con W.shape: tiene que ser (2, 2), de 2 filas y 2 columnas,
+# porque lleva la entrada de 2 números a una salida de 2.
 W = None
+
+# PASO 2. y: la salida de esa capa única para la entrada x.
+# Por qué: tiene que dar lo mismo que dar x a W1 y lo que salga a W2.
+# La salida de una capa lineal es la matriz multiplicada por la entrada.
+# El resultado es un array de 2 números.
 y = None
+
+# Para ver qué vale algo antes de entregar: print(W) y pulsa «Ejecutar».
 `,
           checks: `_arr = isinstance(W, np.ndarray) and np.issubdtype(W.dtype, np.number)
 _w = _arr and W.shape == (2, 2)
