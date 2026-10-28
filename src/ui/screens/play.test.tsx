@@ -378,6 +378,20 @@ describe('Despegue', () => {
     expect(saved(store).attempts).toHaveLength(1);
   });
 
+  it('abandonarla a mitad y volver: sigue en la pregunta donde se dejó', async () => {
+    const { store, user, unmount } = await setup(`/j/${GAME}/despegue`);
+    await solve(user);
+    unmount();
+    const again = await setup(`/j/${GAME}/despegue`, store);
+    // contract: petición de Oliver 2026-10-28 («que se guarde el nivel en el que lo dejé»)
+    expect(screen.getByText('2 de 2')).toBeInTheDocument();
+    await solve(again.user);
+    expect(saved(store).summary.launch).toBe(true);
+    expect(
+      screen.getByText('Despegue completado: 2 de 2 acertadas, 2 a la primera.'),
+    ).toBeVisible();
+  });
+
   it('en StrictMode no duplica intentos ni marcas', async () => {
     const { store, user } = await setup(`/j/${GAME}/despegue`, newStore().store, true);
     await solve(user);
@@ -467,6 +481,19 @@ describe('Repaso de un ejercicio ya entregado', () => {
     expect(screen.queryByRole('region', { name: 'Resultado' })).toBeNull();
   });
 
+  it('con una tanda nueva a medias se abre en esa tanda, donde se dejó, no en repaso', async () => {
+    const store = handedIn();
+    const { user, unmount } = await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    await user.click(screen.getByRole('button', { name: 'Volver a hacerlo (cuenta)' }));
+    await solve(user);
+    unmount();
+    await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    // contract: petición de Oliver 2026-10-28 («que se guarde el nivel en el que lo dejé»)
+    expect(screen.queryByRole('navigation', { name: 'Preguntas del ejercicio' })).toBeNull();
+    expect(screen.getByText('2 de 5')).toBeInTheDocument();
+    expect(screen.getByText('A la primera: 1')).toBeInTheDocument();
+  });
+
   it('un ejercicio sin entregar se abre en la tanda normal, no en repaso', async () => {
     await setup(`/j/${GAME}/p/p/ex/1?abierto`, handedIn());
     // contract: solo lo entregado se repasa
@@ -543,17 +570,50 @@ describe('Ejercicio', () => {
     expect(within(result).getByText('Proyecto validado.')).toBeVisible();
   });
 
-  it('abandonar en la pregunta 3 y volver: empieza en la 1, la marca no cambia y quedan 2 intentos', async () => {
+  it('abandonar en la pregunta 3 y volver: sigue en la 3 con sus 2 a la primera, y al terminar cuentan las 5', async () => {
     const { store, user, unmount } = await setup(`/j/${GAME}/p/p/ex/0?abierto`);
     await solve(user);
     await solve(user);
     expect(screen.getByText('3 de 5')).toBeInTheDocument();
     unmount();
-    // contract: brief tarea 13, tabla de casos («Abandonar un ejercicio en la pregunta 3 y volver»)
+    // contract: brief tarea 13, tabla de casos («Abandonar un ejercicio en la pregunta 3 y volver»): la marca no cambia hasta entregar
     expect(saved(store).summary.firsts).toEqual({});
     expect(saved(store).attempts).toHaveLength(2);
-    await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    const again = await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    // contract: petición de Oliver 2026-10-28 («que se guarde el nivel en el que lo dejé; los niveles que ya he superado no los quiero volver a hacer»)
+    expect(screen.getByText('3 de 5')).toBeInTheDocument();
+    expect(screen.getByText('Enunciado pa3')).toBeVisible();
+    expect(screen.getByText('A la primera: 2')).toBeInTheDocument();
+    for (let n = 0; n < 3; n++) await solve(again.user);
+    // contract: motor handInExercise: la marca suma las preguntas de antes de salir y las de después
+    expect(saved(store).summary.firsts['p/0']).toBe(5);
+    expect(saved(store).attempts).toHaveLength(5);
+    // contract: una tanda terminada no se retoma: «Repetir» y la próxima visita empiezan de cero
+    expect(store.loadRun(GAME, 'p/0')).toBeNull();
+  });
+
+  it('salir tras un fallo y volver: sigue con la segunda oportunidad y no cuenta como a la primera', async () => {
+    const { store, user, unmount } = await setup(`/j/${GAME}/p/p/ex/0?abierto`);
+    await answer(user, '9');
+    expect(screen.getByText('EXPLICACION pa1')).toBeVisible();
+    unmount();
+    const again = await setup(`/j/${GAME}/p/p/ex/0?abierto`, store);
+    // contract: motor step (submit): salir no reinicia la pregunta; si lo hiciera, tras fallar se acertaría «a la primera»
+    expect(screen.getByText('EXPLICACION pa1')).toBeVisible();
+    await answer(again.user, '5');
+    await again.user.click(nextButton());
+    expect(screen.getByText('2 de 5')).toBeInTheDocument();
+    expect(screen.getByText('A la primera: 0')).toBeInTheDocument();
+  });
+
+  it('la tanda a medias de un ejercicio no se mezcla con la de otro', async () => {
+    const { store, user, unmount } = await setup(`/j/${GAME}/p/p/ex/0?abierto`);
+    await solve(user);
+    unmount();
+    await setup(`/j/${GAME}/p/p/ex/1?abierto`, store);
+    // contract: cada ejercicio guarda su tanda con su propio id (`<proyecto>/<n>`)
     expect(screen.getByText('1 de 5')).toBeInTheDocument();
+    expect(screen.getByText('Enunciado pb1')).toBeVisible();
   });
 
   it('cambiar de ejercicio en la misma ruta monta una tanda nueva', async () => {
@@ -923,6 +983,9 @@ describe('Examen', () => {
       // contract: brief tarea 13, regla («Salir a mitad de una tanda no guarda… el examen; los intentos ya cerrados sí quedan»)
       expect(saved(store).summary.examsPassed).toEqual([]);
       expect(saved(store).attempts.map((a) => a.context)).toEqual(Array(5).fill('examen'));
+      // contract: el examen no se retoma a medias (se sortea de nuevo); retomar es solo para ejercicios y despegue
+      await setup(`/j/${GAME}/examen/0`, store);
+      expect(screen.getByText('1 de 6')).toBeInTheDocument();
     });
 
     it('el foco no cae en body al pasar de pregunta ni al terminar', async () => {

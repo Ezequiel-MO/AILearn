@@ -135,6 +135,9 @@ export const createCloudStore = (
     },
     loadDraft: (gameId, questionId) => local.loadDraft(gameId, questionId),
     saveDraft: (gameId, questionId, code) => local.saveDraft(gameId, questionId, code),
+    // Las tandas a medias, como los borradores, se quedan en este navegador.
+    loadRun: (gameId, runId) => local.loadRun(gameId, runId),
+    saveRun: (gameId, runId, run) => local.saveRun(gameId, runId, run),
     warning: () => local.warning(),
     onExternalChange: (listener) => {
       changeListeners.add(listener);

@@ -299,6 +299,61 @@ describe('createLocalStore', () => {
     expect(storage.keysWith('borradores:apartado:')).toHaveLength(1);
   });
 
+  it('tandas a medias: saveRun y loadRun en su propia clave; otra tanda devuelve null', () => {
+    const storage = new FakeStorage();
+    const store = createLocalStore(storage);
+    const run = { questionIds: ['a', 'b'], events: [{ type: 'submit' as const, correct: true }] };
+    expect(store.loadRun('vectores', 'p/0')).toBeNull();
+    store.saveRun('vectores', 'p/0', run);
+    // contract: petición de Oliver 2026-10-28 («que se guarde el nivel en el que lo dejé»)
+    expect(store.loadRun('vectores', 'p/0')).toEqual(run);
+    expect(store.loadRun('vectores', 'p/1')).toBeNull();
+    // contract: clave aparte `ailearn:v1:local:<juego>:tandas`, como los borradores; el progreso no se escribe
+    expect(JSON.parse(storage.data.get(`${KEY}:tandas`) as string)).toEqual({ 'p/0': run });
+    expect(storage.data.has(KEY)).toBe(false);
+    expect(createLocalStore(storage).loadRun('vectores', 'p/0')).toEqual(run);
+  });
+
+  it('tandas a medias: saveRun con null quita solo esa tanda', () => {
+    const storage = new FakeStorage();
+    const store = createLocalStore(storage);
+    const run = { questionIds: ['a'], events: [] };
+    store.saveRun('vectores', 'p/0', run);
+    store.saveRun('vectores', 'despegue', run);
+    store.saveRun('vectores', 'p/0', null);
+    // contract: al terminar la tanda se quita; las demás siguen
+    expect(store.loadRun('vectores', 'p/0')).toBeNull();
+    expect(store.loadRun('vectores', 'despegue')).toEqual(run);
+    expect(JSON.parse(storage.data.get(`${KEY}:tandas`) as string)).toEqual({ despegue: run });
+  });
+
+  it('tandas a medias: quitar una que no existe no escribe nada', () => {
+    const storage = new FakeStorage();
+    const store = createLocalStore(storage);
+    store.saveRun('vectores', 'p/0', null);
+    // contract: nada que quitar, nada que escribir
+    expect(storage.data.size).toBe(0);
+  });
+
+  it('tandas a medias ilegibles: se apartan, devuelven null y avisan con su propio texto', () => {
+    const storage = new FakeStorage();
+    storage.data.set(`${KEY}:tandas`, '[1,2');
+    const store = createLocalStore(storage);
+    expect(store.loadRun('vectores', 'p/0')).toBeNull();
+    // contract: spec sección 8, un documento ilegible no borra nada y el jugador ve un aviso
+    expect(store.warning()).toBe(WARNINGS.runsCorrupt);
+    expect(storage.keysWith('tandas:apartado:').map((k) => storage.data.get(k))).toEqual(['[1,2']);
+  });
+
+  it('tandas a medias: setItem que lanza no lanza y avisa', () => {
+    const storage = new FakeStorage();
+    storage.failSet = true;
+    const store = createLocalStore(storage);
+    // contract: el almacén nunca lanza (ProgressStore)
+    expect(() => store.saveRun('vectores', 'p/0', { questionIds: [], events: [] })).not.toThrow();
+    expect(store.warning()).toBe(WARNINGS.runsWriteFailed);
+  });
+
   it('lectura que falla y luego se recupera: el save aparta el documento anterior antes de escribir', () => {
     const storage = new FakeStorage();
     const antiguo = sampleDoc();

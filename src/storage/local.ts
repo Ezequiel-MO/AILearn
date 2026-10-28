@@ -27,6 +27,16 @@ export const WARNINGS = {
     'No se ha podido guardar una copia aparte de los borradores anteriores, así que no se sobrescribirán. Los borradores nuevos no se guardarán.',
   draftsRecovered:
     'Los borradores de código guardados no se pudieron leer al empezar. Se ha guardado una copia aparte de lo que había; tu progreso no se ha tocado.',
+  runsReadFailed:
+    'No se ha podido leer dónde dejaste los ejercicios a medias. Puedes seguir, pero no se sobrescribirá lo anterior mientras no se pueda leer.',
+  runsWriteFailed:
+    'No se ha podido guardar por qué pregunta vas (¿almacenamiento lleno?). Si sales del ejercicio, tendrás que empezarlo de nuevo.',
+  runsCorrupt:
+    'Lo guardado de los ejercicios a medias estaba dañado. Se ha guardado una copia aparte; tu progreso no se ha tocado.',
+  runsKeptAside:
+    'No se ha podido guardar una copia aparte de los ejercicios a medias anteriores, así que no se sobrescribirán. No se guardará por qué pregunta vas.',
+  runsRecovered:
+    'Lo guardado de los ejercicios a medias no se pudo leer al empezar. Se ha guardado una copia aparte de lo que había; tu progreso no se ha tocado.',
 } as const;
 
 interface SlotTexts {
@@ -51,6 +61,14 @@ const DRAFTS_TEXTS: SlotTexts = {
   corrupt: WARNINGS.draftsCorrupt,
   keptAside: WARNINGS.draftsKeptAside,
   recovered: WARNINGS.draftsRecovered,
+};
+
+const RUNS_TEXTS: SlotTexts = {
+  readFailed: WARNINGS.runsReadFailed,
+  writeFailed: WARNINGS.runsWriteFailed,
+  corrupt: WARNINGS.runsCorrupt,
+  keptAside: WARNINGS.runsKeptAside,
+  recovered: WARNINGS.runsRecovered,
 };
 
 const PREFIX = 'ailearn:v1:local:';
@@ -249,10 +267,18 @@ export const createLocalStore = (injected?: Storage): ProgressStore => {
     >;
   };
 
+  /** Cada tanda se guarda tal cual; el motor la valida al retomarla (`resumeSession`). */
+  const parseRuns = (raw: string): Record<string, unknown> | null => {
+    const value = parseJson(raw);
+    if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+    return value as Record<string, unknown>;
+  };
+
   const emptyDoc = (): ProgressDoc => ({ schema: 1, summary: emptySummary(), attempts: [] });
 
   const docSlots = new Map<string, Slot<ProgressDoc>>();
   const draftSlots = new Map<string, Slot<Record<string, string>>>();
+  const runSlots = new Map<string, Slot<Record<string, unknown>>>();
 
   const docSlot = (gameId: string): Slot<ProgressDoc> => {
     let slot = docSlots.get(gameId);
@@ -274,6 +300,16 @@ export const createLocalStore = (injected?: Storage): ProgressStore => {
     return slot;
   };
 
+  const runSlot = (gameId: string): Slot<Record<string, unknown>> => {
+    let slot = runSlots.get(gameId);
+    if (slot === undefined) {
+      const key = `${PREFIX}${gameId}:tandas`;
+      slot = makeSlot(key, RUNS_TEXTS, parseRuns, () => ({}));
+      runSlots.set(gameId, slot);
+    }
+    return slot;
+  };
+
   return {
     load: (gameId) => docSlot(gameId).load(),
     save: (gameId, doc) => docSlot(gameId).save(doc),
@@ -284,6 +320,22 @@ export const createLocalStore = (injected?: Storage): ProgressStore => {
     saveDraft: (gameId, questionId, code) => {
       const slot = draftSlot(gameId);
       slot.save({ ...slot.load(), [questionId]: code });
+    },
+    loadRun: (gameId, runId) => {
+      const runs = runSlot(gameId).load();
+      return Object.hasOwn(runs, runId) ? runs[runId] : null;
+    },
+    saveRun: (gameId, runId, run) => {
+      const slot = runSlot(gameId);
+      const runs = slot.load();
+      if (run === null) {
+        if (!Object.hasOwn(runs, runId)) return;
+        const rest = { ...runs };
+        delete rest[runId];
+        slot.save(rest);
+      } else {
+        slot.save({ ...runs, [runId]: run });
+      }
     },
     warning: () => {
       const all = [

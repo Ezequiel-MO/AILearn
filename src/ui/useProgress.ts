@@ -5,7 +5,7 @@ import {
   handInExercise as applyHandInExercise,
   solveSheet as applySolveSheet,
 } from '../engine/progression';
-import type { QuestionResult } from '../engine/session';
+import type { QuestionResult, SavedRun } from '../engine/session';
 import type { Summary } from '../engine/types';
 import { createLocalStore } from '../storage/local';
 import { migrate } from '../storage/migrate';
@@ -32,6 +32,10 @@ export interface Progress {
   /** Lee el borrador de una pregunta de código; null si no hay. */
   getDraft(questionId: string): string | null;
   saveDraft(questionId: string, code: string): void;
+  /** La tanda a medias guardada con este id, sin validar (la valida `resumeSession`); null si no hay. */
+  getRun(runId: string): unknown;
+  /** Guarda la tanda a medias; null la quita. */
+  saveRun(runId: string, run: SavedRun | null): void;
 }
 
 interface Snapshot {
@@ -166,6 +170,16 @@ const createHub = (store: ProgressStore, gameId: string): Hub => {
     },
     saveDraft: (questionId, code) => {
       store.saveDraft(gameId, questionId, code);
+      refreshWarning(false);
+    },
+    // Como `getDraft`: se lee mientras React pinta, así que el aviso se publica después.
+    getRun: (runId) => {
+      const run = store.loadRun(gameId, runId);
+      refreshWarning(true);
+      return run;
+    },
+    saveRun: (runId, run) => {
+      store.saveRun(gameId, runId, run);
       refreshWarning(false);
     },
   };

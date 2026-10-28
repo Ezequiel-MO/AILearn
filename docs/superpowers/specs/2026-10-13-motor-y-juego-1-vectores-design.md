@@ -187,6 +187,7 @@ Una única puerta, la interfaz de progreso, con una implementación sobre `local
   - El **registro de intentos**, que solo crece: pregunta, fecha, si fue correcta, número de entregas y si hubo pista.
 - En esta entrega nada lee el registro salvo una vista de estadísticas sencilla. Se guarda desde el primer día porque el repaso espaciado lo necesitará y no se puede reconstruir después.
 - Los borradores de código van en una clave aparte.
+- Un ejercicio o un despegue a medias se retoma donde se dejó: lo contestado antes de salir cuenta al terminarlo, y una pregunta fallada sigue en su segunda oportunidad. Se guarda en otra clave aparte, solo en el navegador. El examen no se retoma: se sortea de nuevo (petición de Oliver, 2026-10-28).
 - Un documento ilegible o de versión desconocida no borra nada: se aparta con otra clave y el jugador ve un aviso.
 
 ## 9. Pruebas

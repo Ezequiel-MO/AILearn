@@ -62,7 +62,7 @@ Dónde viven las cosas:
 
 - Reglas de puntuación y desbloqueo: solo en `src/engine`. `src/engine` no importa nada de fuera de `src/engine` (lo impone ESLint).
 - Textos fijos de la interfaz: `src/ui/strings.ts`, un grupo `t.<área>` por área.
-- Almacenamiento: solo `src/storage` toca `localStorage`. Clave de progreso `ailearn:v1:local:<juego>`; los borradores de código van en `ailearn:v1:local:<juego>:borradores`.
+- Almacenamiento: solo `src/storage` toca `localStorage`. Clave de progreso `ailearn:v1:local:<juego>`; los borradores de código van en `ailearn:v1:local:<juego>:borradores` y las tandas a medias (un ejercicio o el despegue sin terminar) en `ailearn:v1:local:<juego>:tandas`.
 - Constantes de las reglas: `src/engine/types.ts`.
 - Rutas (con `HashRouter`): `src/App.tsx`.
 

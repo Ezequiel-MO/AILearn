@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router';
 import type { Game } from '../../content/schema';
 import { toShape } from '../../content/schema';
 import { level, xp } from '../../engine/progression';
-import type { QuestionResult } from '../../engine/session';
+import type { QuestionResult, SavedRun } from '../../engine/session';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
@@ -20,12 +20,19 @@ export function LaunchScreen() {
   return <LaunchPlay key={game.id} game={game} />;
 }
 
+/** Id de la tanda a medias del despegue (los de los ejercicios son `<proyecto>/<n>`: no chocan). */
+const LAUNCH_RUN = 'despegue';
+
 function LaunchPlay({ game }: { game: Game }) {
-  const { summary, warning, record, completeLaunch, getDraft, saveDraft } = useProgress(game.id);
+  const { summary, warning, record, completeLaunch, getDraft, saveDraft, getRun, saveRun } =
+    useProgress(game.id);
   const [run, setRun] = useState(0);
   const [result, setResult] = useState<RunSummary | null>(null);
   useFocusTitle(run);
 
+  // El despegue a medias se retoma donde se dejó.
+  const loadRun = useCallback(() => getRun(LAUNCH_RUN), [getRun]);
+  const onRun = useCallback((r: SavedRun | null) => saveRun(LAUNCH_RUN, r), [saveRun]);
   const onResult = useCallback((r: QuestionResult) => record(r, 'despegue'), [record]);
   const onDone = useCallback(
     (s: RunSummary) => {
@@ -51,6 +58,8 @@ function LaunchPlay({ game }: { game: Game }) {
           onDone={onDone}
           getDraft={getDraft}
           onDraft={saveDraft}
+          loadRun={loadRun}
+          onRun={onRun}
         />
       </div>
       {result && (

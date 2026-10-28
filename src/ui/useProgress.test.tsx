@@ -292,6 +292,8 @@ describe('useProgress: reglas del almacén (storage-risks.md)', () => {
       save: (g, d) => (log.push('save'), inner.save(g, d)),
       loadDraft: (g, q) => inner.loadDraft(g, q),
       saveDraft: (g, q, c) => inner.saveDraft(g, q, c),
+      loadRun: (g, r) => inner.loadRun(g, r),
+      saveRun: (g, r, run) => inner.saveRun(g, r, run),
       warning: () => inner.warning(),
     };
     const { result: hook } = mount(spy);
@@ -361,6 +363,8 @@ describe('useProgress: reglas del almacén (storage-risks.md)', () => {
       },
       loadDraft: () => null,
       saveDraft: () => undefined,
+      loadRun: () => null,
+      saveRun: () => undefined,
       warning: () => null,
     };
     const initial = current;

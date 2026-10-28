@@ -1,3 +1,4 @@
+import type { SavedRun } from '../engine/session';
 import type { Summary } from '../engine/types';
 
 export interface Attempt {
@@ -26,6 +27,10 @@ export interface ProgressStore {
   save(gameId: string, doc: ProgressDoc): void;
   loadDraft(gameId: string, questionId: string): string | null;
   saveDraft(gameId: string, questionId: string, code: string): void;
+  /** La tanda a medias guardada con este id, sin validar (la valida el motor), o null si no hay. */
+  loadRun(gameId: string, runId: string): unknown;
+  /** Guarda la tanda a medias; null la quita (al terminarla). Nunca lanza. */
+  saveRun(gameId: string, runId: string, run: SavedRun | null): void;
   /** Aviso pendiente para el jugador (en castellano), o null. */
   warning(): string | null;
   /**

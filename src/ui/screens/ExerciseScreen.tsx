@@ -10,7 +10,7 @@ import {
   projectMark,
   xp,
 } from '../../engine/progression';
-import type { QuestionResult } from '../../engine/session';
+import { resumeSession, type QuestionResult, type SavedRun } from '../../engine/session';
 import { QUESTIONS_PER_EXERCISE, VALID } from '../../engine/types';
 import { ExerciseReview } from '../ExerciseReview';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
@@ -59,14 +59,29 @@ function ExercisePlay({
   project: Project;
   ex: 0 | 1 | 2;
 }) {
-  const { summary, warning, record, handInExercise, getDraft, saveDraft } = useProgress(game.id);
+  const { summary, warning, record, handInExercise, getDraft, saveDraft, getRun, saveRun } =
+    useProgress(game.id);
   const override = useOpenOverride();
   const [run, setRun] = useState(0);
   const [result, setResult] = useState<RunSummary | null>(null);
-  // Un ejercicio ya entregado se abre en repaso: se inspecciona sin que cuente.
-  const [reviewing, setReviewing] = useState(() => exerciseDone(summary, project.id, ex));
+  const questions = project.exercises[ex]!.questions;
+  // La tanda a medias de este ejercicio, para seguir donde se dejó (la misma clave que su marca).
+  const runId = `${project.id}/${ex}`;
+  // Un ejercicio ya entregado se abre en repaso (se inspecciona sin que cuente), salvo que se dejara a
+  // medias una tanda nueva: entonces se sigue con ella.
+  const [reviewing, setReviewing] = useState(
+    () =>
+      exerciseDone(summary, project.id, ex) &&
+      resumeSession(
+        'proyecto',
+        questions.map((q) => q.id),
+        getRun(runId),
+      ) === null,
+  );
   useFocusTitle(run);
 
+  const loadRun = useCallback(() => getRun(runId), [getRun, runId]);
+  const onRun = useCallback((r: SavedRun | null) => saveRun(runId, r), [saveRun, runId]);
   const onResult = useCallback((r: QuestionResult) => record(r, 'proyecto'), [record]);
   const onDone = useCallback(
     (s: RunSummary) => {
@@ -82,7 +97,6 @@ function ExercisePlay({
     return <Gate kind="closed" gameId={game.id} level={currentLevel} warning={warning} />;
   }
 
-  const questions = project.exercises[ex]!.questions;
   const mark = projectMark(summary, project.id);
   const best = summary.firsts[`${project.id}/${ex}`] ?? 0;
   return (
@@ -118,6 +132,8 @@ function ExercisePlay({
             onDone={onDone}
             getDraft={getDraft}
             onDraft={saveDraft}
+            loadRun={loadRun}
+            onRun={onRun}
           />
         )}
       </div>

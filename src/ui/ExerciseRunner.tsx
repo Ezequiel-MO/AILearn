@@ -3,10 +3,12 @@ import type { Question } from '../content/schema';
 import {
   correctCount,
   firsts,
+  resumeSession,
   startSession,
   step,
   type Mode,
   type QuestionResult,
+  type SavedRun,
   type SessionEvent,
   type SessionState,
 } from '../engine/session';
@@ -31,6 +33,10 @@ export interface ExerciseRunnerProps {
   /** Se lee una vez, al montar cada pregunta de código. */
   getDraft?: (questionId: string) => string | null;
   onDraft?: (questionId: string, code: string) => void;
+  /** La tanda a medias guardada, para seguir donde se dejó. Se lee una vez, al montar. */
+  loadRun?: () => unknown;
+  /** Tras cada paso, la tanda a medias que guardar; null al terminarla. Sin él, salir la pierde. */
+  onRun?: (run: SavedRun | null) => void;
 }
 
 /**
@@ -45,19 +51,28 @@ export function ExerciseRunner({
   onDone,
   getDraft,
   onDraft,
+  loadRun,
+  onRun,
 }: ExerciseRunnerProps) {
-  const [state, setState] = useState(() =>
-    startSession(
-      mode,
-      questions.map((q) => q.id),
-    ),
-  );
+  // Una tanda a medias guardada se retoma donde se dejó; si no hay (o ya no vale), se empieza de cero.
+  const [start] = useState(() => {
+    const ids = questions.map((q) => q.id);
+    return (
+      resumeSession(mode, ids, loadRun?.()) ?? {
+        state: startSession(mode, ids),
+        events: [],
+      }
+    );
+  });
+  const [state, setState] = useState(start.state);
   // Espejo síncrono del estado: la entrega de una pregunta de código llega segundos después del clic,
   // con el cierre de entonces; el evento se aplica siempre sobre el estado actual.
   const current = useRef(state);
-  const callbacks = useRef({ onResult, onDone });
+  // Los eventos que han traído la tanda hasta aquí: es lo que se guarda para retomarla.
+  const events = useRef(start.events);
+  const callbacks = useRef({ onResult, onDone, onRun });
   useEffect(() => {
-    callbacks.current = { onResult, onDone };
+    callbacks.current = { onResult, onDone, onRun };
   });
 
   const dispatch = (event: SessionEvent) => {
@@ -65,7 +80,11 @@ export function ExerciseRunner({
     const next = step(prev, event);
     if (next === prev) return;
     current.current = next;
+    events.current = [...events.current, event];
     setState(next);
+    callbacks.current.onRun?.(
+      next.done ? null : { questionIds: next.questionIds, events: events.current },
+    );
     const closed = next.results[next.results.length - 1];
     if (next.results.length > prev.results.length && closed) callbacks.current.onResult(closed);
     if (next.done && !prev.done) callbacks.current.onDone(summaryOf(next));

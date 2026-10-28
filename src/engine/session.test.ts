@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   correctCount,
   firsts,
+  resumeSession,
   startSession,
   step,
   type SessionEvent,
@@ -245,5 +246,64 @@ describe('firsts y correctCount', () => {
     expect(s.done).toBe(true);
     expect(correctCount(s)).toBe(5);
     expect(firsts(s)).toBe(5);
+  });
+});
+
+describe('resumeSession', () => {
+  const played: SessionEvent[] = [ok, next, bad, ok, next, hint, ok, next];
+
+  it('repetir los eventos guardados devuelve la tanda tal como estaba, con sus eventos', () => {
+    // contract: petición de Oliver 2026-10-28 («que se guarde el nivel en el que lo dejé»)
+    const resumed = resumeSession('proyecto', ids(5), { questionIds: ids(5), events: played });
+    expect(resumed?.state).toEqual(run(startSession('proyecto', ids(5)), ...played));
+    expect(resumed?.state.index).toBe(3);
+    expect(firsts(resumed!.state)).toBe(1);
+    expect(resumed?.events).toEqual(played);
+  });
+
+  it('un fallo antes de salir se conserva: al volver queda la segunda oportunidad, no un intento nuevo', () => {
+    // contract: motor step (submit): salir no reinicia la pregunta; si lo hiciera, se acertaría «a la primera» tras fallar
+    const resumed = resumeSession('proyecto', ids(5), {
+      questionIds: ids(5),
+      events: [ok, next, bad],
+    });
+    expect(resumed?.state.phase).toBe('explained');
+    const closed = run(resumed!.state, ok, next);
+    expect(closed.results[1]?.firstTry).toBe(false);
+  });
+
+  it('los eventos que no cambian nada se descartan', () => {
+    // contract: motor step (next en answering y submit en solved no cambian el estado)
+    const resumed = resumeSession('proyecto', ids(5), {
+      questionIds: ids(5),
+      events: [next, ok, ok, next],
+    });
+    expect(resumed?.events).toEqual([ok, next]);
+  });
+
+  it('sin eventos, la tanda empieza en la primera pregunta', () => {
+    // contract: startSession
+    const resumed = resumeSession('despegue', ids(2), { questionIds: ids(2), events: [] });
+    expect(resumed?.state).toEqual(startSession('despegue', ids(2)));
+  });
+
+  it.each([
+    ['nada guardado', null],
+    [
+      'otras preguntas (el contenido cambió)',
+      { questionIds: ['q0', 'q1', 'qx', 'q3', 'q4'], events: [ok] },
+    ],
+    ['menos preguntas', { questionIds: ids(4), events: [ok] }],
+    ['eventos que no son lista', { questionIds: ids(5), events: 'ok' }],
+    ['un evento desconocido', { questionIds: ids(5), events: [ok, { type: 'saltar' }] }],
+    ['una entrega sin «correct»', { questionIds: ids(5), events: [{ type: 'submit' }] }],
+    [
+      'una pista con «available» negativo',
+      { questionIds: ids(5), events: [{ type: 'hint', available: -1 }] },
+    ],
+    ['la tanda ya terminada', { questionIds: ids(5), events: Array(5).fill([ok, next]).flat() }],
+  ])('devuelve null con %s', (_name, saved) => {
+    // contract: lo guardado que no es de esta tanda o está dañado no se retoma: se empieza de nuevo
+    expect(resumeSession('proyecto', ids(5), saved)).toBeNull();
   });
 });
