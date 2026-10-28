@@ -39,6 +39,12 @@ export const rango: Project = {
         {
           id: 'rango.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'En la tabla de datos con la que se entrena un modelo, cada rasgo es una columna. Si dos columnas son la misma medida en otras unidades, como el precio en euros y en céntimos, la segunda no aporta nada: la tabla tiene menos direcciones independientes que columnas. El **rango** cuenta esas direcciones, y mirarlo destapa los rasgos redundantes.',
+            aim: 'Vas a poner la segunda columna sobre la recta de la primera y a ver cómo toda la rejilla se aplasta sobre esa recta: de dos direcciones queda una.',
+            takeaway:
+              'Dos columnas paralelas dan $\\det=0$ y rango $1$: la imagen es una recta y la segunda columna no añade ninguna dirección nueva. En datos reales pasa lo mismo con rasgos que son múltiplos unos de otros, y basta quedarse con uno.',
+          },
           prompt:
             'Cuando $\\det=0$ el plano se aplasta. El **rango** de una matriz mide cuánto: es la dimensión de su imagen, el número de direcciones que sobreviven. Si la imagen es todo el plano, el rango es $2$; si es una recta, $1$; si es un solo punto, $0$.\n\n$\\hat{\\imath}$ está fijo en $(2, 1)$. Mueve $\\hat{\\jmath}$ hasta que toda la rejilla quede aplastada sobre la recta de $\\hat{\\imath}$, con determinante $0$. Para que $\\hat{\\jmath}$ no sea el vector nulo, pon su coordenada $x$ en $-2$.',
           hints: [
@@ -65,6 +71,12 @@ export const rango: Project = {
         {
           id: 'rango.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Para dibujar en una pantalla embeddings de cientos de dimensiones, se proyectan con una transformación lineal, como PCA, a un espacio de dos, y casi todas las direcciones se pierden. Lo que se pierde es el **núcleo**: dos textos que solo se diferencian a lo largo de él caen en el mismo punto del dibujo, aunque en el espacio original estén lejos.',
+            aim: 'Vas a encontrar una entrada que la matriz envía al origen sin ser el vector nulo, y a ver que con ella llega una recta entera de entradas que desaparecen.',
+            takeaway:
+              'Todo múltiplo de la entrada que encuentras acaba en $\\vec{0}$: el núcleo es una recta. Lo que cae en el núcleo no deja rastro en la salida, así que dos puntos que se solapan en un dibujo de embeddings pueden estar lejos en el espacio original.',
+          },
           prompt:
             'Lo que una matriz aplasta hasta el vector nulo es su **núcleo**: los vectores $\\vec{v}$ con $A\\vec{v}=\\vec{0}$. Esta matriz, $A=\\begin{pmatrix}1&-2\\\\-1&2\\end{pmatrix}$, tiene las dos columnas sobre una misma recta: $\\hat{\\imath}$ queda en $(1, -1)$ y $\\hat{\\jmath}$ en $(-2, 2)$.\n\nMueve $\\vec{v}$ hasta que la flecha discontinua, $A\\vec{v}$, llegue a $(0, 0)$. El vector nulo siempre lo cumple, así que no vale: pon la coordenada $x$ de $\\vec{v}$ en $2$.',
           hints: [
@@ -91,6 +103,12 @@ export const rango: Project = {
         {
           id: 'rango.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Si entrenas una regresión lineal con dos rasgos que son uno múltiplo del otro, hay infinitas combinaciones de pesos que dan exactamente las mismas predicciones. El modelo predice bien, pero sus pesos no se pueden interpretar: cuánto «importa» cada rasgo depende de cuál de esas soluciones elija el algoritmo.',
+            aim: 'Vas a buscar una entrada que llegue a un punto de la imagen y a descubrir que no hay una sola: muchas entradas distintas acaban en el mismo resultado.',
+            takeaway:
+              'Con rango $1$, todas las $\\vec{v}$ con $a-2b=3$ llegan a $(3, -3)$, y a un punto fuera de la recta no llega ninguna. Muchas soluciones o ninguna: así se comporta un sistema cuyo rango es menor que su número de incógnitas, y por eso su matriz no tiene inversa.',
+          },
           prompt:
             'La misma $A=\\begin{pmatrix}1&-2\\\\-1&2\\end{pmatrix}$ tiene rango $1$: su imagen es la recta de $(1, -1)$, y todos los resultados $A\\vec{v}$ caen en ella. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, -3)$, un punto de esa recta. Hay muchos $\\vec{v}$ que sirven: vale cualquiera.',
           hints: [
@@ -116,8 +134,14 @@ export const rango: Project = {
         {
           id: 'rango.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Para adaptar un modelo de lenguaje enorme a una tarea sin reentrenarlo entero, **LoRA** suma a cada matriz de pesos una corrección de rango pequeño. Una matriz de rango $1$ como esta tiene todas las columnas sobre la misma recta, así que basta guardar un vector y un número por columna: en una matriz de $4096\\times4096$ son unos $8000$ números en vez de más de $16$ millones.',
+            aim: 'Vas a elegir la imagen de una matriz, una recta concreta, colocando las dos columnas sobre ella, y a ver que un solo vector describe la matriz entera.',
+            takeaway:
+              'Con las dos columnas múltiplos de $(1, 2)$, la matriz se reduce a esa dirección y a dos números. Una matriz de rango bajo se guarda en muy poco espacio, y esa es la razón de que LoRA sea tan barato de entrenar y de guardar.',
+          },
           prompt:
-            'Ahora se mueven las dos columnas. Haz que la imagen de la matriz sea **la recta que pasa por el origen y por $(1, 2)$**: tanto $\\hat{\\imath}$ como $\\hat{\\jmath}$ tienen que quedar sobre ella. Coloca $\\hat{\\imath}$ en $(-1, -2)$ y pon la coordenada $x$ de $\\hat{\\jmath}$ en $2$; la coordenada $y$ de $\\hat{\\jmath}$ la decide la recta.',
+            'Ahora se mueven las dos columnas. Haz que la imagen de la matriz sea **la recta que pasa por el origen y por $(1, 2)$**: tanto $\\hat{\\imath}$ como $\\hat{\\jmath}$ tienen que quedar sobre ella. Coloca $\\hat{\\imath}$ en $(-1, -2)$ y pon la coordenada $x$ de $\\hat{\\jmath}$ en $2$; la coordenada $y$ de $\\hat{\\jmath}$ la decide la recta. Mira la rejilla: cuando las dos columnas están sobre la recta, el plano entero cae en ella.',
           hints: [
             'Los puntos de esa recta son los múltiplos $t\\cdot(1, 2)$: su coordenada $y$ es siempre el doble de la $x$.',
             'Un $\\hat{\\jmath}$ con $x=2$ está en la recta si su $y$ es el doble.',
@@ -137,6 +161,12 @@ export const rango: Project = {
         {
           id: 'rango.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Al empezar un ajuste con LoRA, la corrección arranca a cero (uno de sus dos factores es la matriz nula), así que el modelo empieza siendo exactamente el original y el entrenamiento la va haciendo crecer. La matriz **nula**, de rango $0$, es también lo que queda de una capa que se poda por completo: no deja pasar nada.',
+            aim: 'Vas a llevar las dos columnas al origen y a ver el caso extremo del rango: toda la rejilla, con todas sus direcciones, cae en un solo punto.',
+            takeaway:
+              'Rango $0$ es la matriz nula: su imagen es solo el origen y no sobrevive ninguna dirección. En el plano el rango va de $0$ a $2$, y una corrección de LoRA empieza en $0$ para no cambiar el modelo hasta que el entrenamiento lo decida.',
+          },
           prompt:
             'Queda el caso más extremo: que **todo el plano caiga en un solo punto**, el origen. Es la matriz con todos sus números iguales a $0$, y tiene rango $0$: no sobrevive ninguna dirección. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ hasta lograrlo.',
           hints: [

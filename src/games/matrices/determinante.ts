@@ -28,6 +28,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Hay modelos generativos, los **flujos normalizadores**, que convierten ruido simple en datos (imágenes, sonido) encadenando transformaciones invertibles. Para saber qué probabilidad dan a cada resultado necesitan saber cuánto estira o encoge las áreas cada paso, y eso es justo el determinante: llevan la cuenta de $\\log\\lvert\\det\\rvert$ capa a capa.',
+            aim: 'Vas a fijar el área del paralelogramo que forman las dos columnas y a ver que el determinante es eso, un factor de área: lo que medía $1$ pasa a medir $3$.',
+            takeaway:
+              'El determinante es el factor por el que se multiplican todas las áreas, y con la base en el eje basta mirar la altura. En un flujo normalizador, una capa con $\\det=3$ reparte la probabilidad sobre un área tres veces mayor, así que la densidad en cada punto se divide entre $3$.',
+          },
           prompt:
             'El **determinante** de una matriz es el factor por el que multiplica las áreas. El cuadrado unidad, de área $1$, se convierte en el paralelogramo que forman las columnas de la matriz, y su área es el determinante. Aquí $\\hat{\\imath}$ está fijo en $(1, 0)$. Mueve la punta de $\\hat{\\jmath}$ para que el paralelogramo tenga **área 3**, con la punta por encima del eje $x$. Razónalo como base por altura.',
           hints: [
@@ -44,6 +50,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Calcular el determinante de una capa de $1000\\times1000$ es una cuenta cara, salvo que la matriz sea **triangular**: entonces es el producto de la diagonal. Por eso muchos flujos normalizadores diseñan sus capas para que la matriz que hay que medir sea triangular. La de esta pregunta lo es: el número de arriba a la derecha inclina el paralelogramo y no cuenta en el área.',
+            aim: 'Vas a inclinar el paralelogramo sin cambiar su área y a ver cuál de los cuatro números de la matriz no interviene en el determinante.',
+            takeaway:
+              'En $\\begin{pmatrix}1&2\\\\0&2\\end{pmatrix}$ el $2$ de arriba a la derecha inclina, pero el determinante sigue siendo $1\\cdot 2=2$, el producto de la diagonal. Una matriz triangular da su determinante casi gratis, y por eso se elige esa forma cuando un modelo tiene que calcularlo en cada paso.',
+          },
           prompt:
             'Aquí $\\hat{\\imath}=(1, 0)$ está fijo y $\\hat{\\jmath}$ parte de $(0, 2)$: el paralelogramo es un rectángulo de área $2$. Desliza la punta de $\\hat{\\jmath}$ hasta que tenga $x=2$ **sin cambiar el área**: el determinante tiene que seguir en $2$.',
           hints: [
@@ -60,8 +72,14 @@ export const determinante: Project = {
         {
           id: 'determinante.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Cuando unos datos se modelan con una distribución normal de varias variables, como en un modelo de mezcla gaussiana, la fórmula de la probabilidad lleva el determinante de la matriz de covarianza. Ese determinante mide cuánto se esparcen los datos en todas las direcciones a la vez. Con datos reales, esa matriz casi nunca tiene las columnas sobre los ejes, como la de esta pregunta.',
+            aim: 'Vas a construir una matriz con las dos columnas inclinadas y a calcular su determinante con la regla en cruz $ad-bc$, porque ya no se lee a ojo como base por altura.',
+            takeaway:
+              'Con $\\hat{\\imath}=(2, 1)$ y $\\hat{\\jmath}=(2, 4)$ el área es $2\\cdot 4-2\\cdot 1=6$, aunque ninguna columna esté sobre un eje. La regla $ad-bc$ vale para cualquier matriz de $2\\times2$; para matrices de cualquier tamaño, NumPy hace la cuenta con `np.linalg.det`.',
+          },
           prompt:
-            'Construye una transformación con $\\det A=6$ en la que **ninguna columna esté sobre un eje**. Coloca $\\hat{\\imath}$ en $(2, 1)$ y deja a $\\hat{\\jmath}$ con $x=2$; elige la $y$ de $\\hat{\\jmath}$ para que el determinante valga $6$.',
+            'Construye una transformación con $\\det A=6$ en la que **ninguna columna esté sobre un eje**. Coloca $\\hat{\\imath}$ en $(2, 1)$ y deja a $\\hat{\\jmath}$ con $x=2$; elige la $y$ de $\\hat{\\jmath}$ para que el determinante valga $6$. Mira la lectura del determinante mientras subes o bajas la punta de $\\hat{\\jmath}$.',
           hints: [
             'Con $\\hat{\\imath}=(2, 1)$ y $\\hat{\\jmath}=(2, y)$, la matriz es $\\begin{pmatrix}2&2\\\\1&y\\end{pmatrix}$. Escribe su determinante $ad-bc$ en función de $y$.',
             'Resuelve la ecuación $2y-2\\cdot 1=6$.',
@@ -86,6 +104,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'En IA el signo del determinante rara vez decide nada: los flujos normalizadores, por ejemplo, usan su valor absoluto. Donde sí aparece es en visión: voltear una imagen como en un espejo, un aumento de datos muy común al entrenar clasificadores, es una transformación de determinante negativo. Un gato volteado sigue siendo un gato, pero las letras de un cartel volteado ya no se leen igual.',
+            aim: 'Vas a colocar $\\hat{\\jmath}$ al otro lado de la recta de $\\hat{\\imath}$ y a ver cómo el determinante pasa a negativo y el paralelogramo se pinta de rojo, mientras su área sigue siendo un número positivo.',
+            takeaway:
+              'El valor absoluto del determinante es el área y el signo es la orientación: con $\\det A=-2$ las áreas se duplican y el plano queda volteado. Un aumento de datos con volteos solo tiene sentido si la etiqueta no depende de la orientación: vale para fotos de animales, no para texto.',
+          },
           prompt:
             'Si el determinante es **negativo**, la transformación da la vuelta al plano, como un espejo, y el paralelogramo se pinta de rojo. Con $\\hat{\\imath}=(1, 1)$ fijo, mueve $\\hat{\\jmath}$ hasta que $\\det A=-2$. Fíjate en de qué lado de la recta de $\\hat{\\imath}$ queda $\\hat{\\jmath}$.',
           hints: [
@@ -102,8 +126,14 @@ export const determinante: Project = {
         {
           id: 'determinante.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Si una capa de una red neuronal tiene determinante $0$, aplasta una dirección entera: dos entradas distintas pueden salir iguales, y ninguna capa posterior podrá distinguirlas. Por eso los modelos que necesitan volver atrás, como los flujos normalizadores, exigen capas **invertibles**: con determinante $0$ no hay camino de vuelta.',
+            aim: 'Vas a llevar $\\hat{\\jmath}$ a la recta de $\\hat{\\imath}$ y a ver cómo el paralelogramo se adelgaza hasta un segmento: el plano entero cae sobre una recta.',
+            takeaway:
+              'Determinante $0$ es área $0$: las columnas son paralelas y una dirección del plano se pierde. Lo perdido no se recupera con ninguna operación posterior, así que una matriz con $\\det A=0$ no tiene inversa.',
+          },
           prompt:
-            'Con $\\hat{\\imath}=(2, 1)$ fijo, aplasta el plano sobre una recta: mueve $\\hat{\\jmath}$ hasta que $\\det A=0$. Para descartar la solución trivial de poner $\\hat{\\jmath}$ en el origen, la punta de $\\hat{\\jmath}$ tiene que quedar en $x=-2$.',
+            'Con $\\hat{\\imath}=(2, 1)$ fijo, aplasta el plano sobre una recta: mueve $\\hat{\\jmath}$ hasta que $\\det A=0$. Para descartar la solución trivial de poner $\\hat{\\jmath}$ en el origen, la punta de $\\hat{\\jmath}$ tiene que quedar en $x=-2$. Mira el paralelogramo: cuanto más se acerca el determinante a $0$, más se adelgaza.',
           hints: [
             'Para que el área sea $0$, $\\hat{\\jmath}$ tiene que estar en la recta que pasa por $\\hat{\\imath}$ y por el origen. ¿Qué punto de esa recta tiene $x=-2$?',
             'En esa recta, la $y$ vale la mitad de la $x$. También puedes plantear $2y-x\\cdot 1=0$.',

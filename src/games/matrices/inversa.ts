@@ -33,6 +33,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Antes de entrenar un modelo se suelen escalar los datos para que cada rasgo tenga un tamaño parecido: dividir los precios entre mil, los metros entre diez. Ese escalado es una matriz **diagonal**. Cuando el modelo predice en las unidades escaladas, hay que deshacerlo para dar la respuesta en euros o en metros, y eso es aplicar la inversa.',
+            aim: 'Vas a buscar la entrada que una matriz diagonal lleva a un punto dado y a descubrir que deshacerla es tratar cada coordenada por separado.',
+            takeaway:
+              'La inversa de una diagonal pone los inversos de su diagonal: $\\tfrac13$ y $\\tfrac12$. Si un rasgo se multiplicó por un número, para volver a sus unidades originales se divide entre ese mismo número, rasgo a rasgo.',
+          },
           prompt:
             'Una matriz $A$ lleva cada vector $\\vec{v}$ a otro, $A\\vec{v}$. Su **inversa** $A^{-1}$ hace el camino contrario: si $A\\vec{v}=\\vec{b}$, entonces $A^{-1}\\vec{b}=\\vec{v}$. Por eso resolver $A\\vec{x}=\\vec{b}$ es buscar la entrada que $A$ lleva hasta $\\vec{b}$.\n\nAquí $A=\\begin{pmatrix}3&0\\\\0&2\\end{pmatrix}$ y la flecha discontinua es $A\\vec{v}$. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(3, -4)$.',
           hints: [
@@ -56,6 +62,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Para ajustar una regresión lineal, las librerías resuelven un sistema de ecuaciones, y no suelen calcular la inversa: transforman el sistema en uno **triangular** y lo resuelven en orden, una incógnita cada vez, empezando por la que sale sola. Esta inclinación es un sistema triangular pequeño.',
+            aim: 'Vas a buscar la entrada de una inclinación y a ver que, aunque las coordenadas se mezclen, se pueden deshacer una detrás de otra.',
+            takeaway:
+              'Con $A=\\begin{pmatrix}1&-1\\\\0&1\\end{pmatrix}$ la altura sale directa y la otra coordenada se despeja con ella. Resolver en orden es más rápido y más preciso que calcular $A^{-1}$, y por eso en NumPy se prefiere `np.linalg.solve` a `np.linalg.inv`.',
+          },
           prompt:
             'Esta matriz **inclina** el plano: $A=\\begin{pmatrix}1&-1\\\\0&1\\end{pmatrix}$, con $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(-1, 1)$. Busca de nuevo la entrada: mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(3, -1)$.',
           hints: [
@@ -79,8 +91,14 @@ export const inversa: Project = {
         {
           id: 'inversa.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Ajustar una recta $y=mx+c$ a unos datos por mínimos cuadrados acaba en un sistema de dos ecuaciones con dos incógnitas, la pendiente y la ordenada, como este. Con más rasgos el sistema crece, y cuando dos rasgos casi se repiten, su determinante se acerca a $0$. Como la solución lleva $1/\\det$, los pesos salen enormes e inestables: es la **multicolinealidad**.',
+            aim: 'Vas a resolver un sistema en el que cada coordenada de la salida mezcla las dos de la entrada, y a ver de dónde sale el divisor $\\det A$ que lleva toda inversa.',
+            takeaway:
+              'Aquí salen medios porque $A^{-1}$ lleva delante $1/\\det A=\\tfrac12$. Un determinante pequeño hace grande ese factor: los pesos de una regresión con rasgos casi repetidos saltan mucho con un pequeño cambio en los datos.',
+          },
           prompt:
-            '$A=\\begin{pmatrix}1&1\\\\-1&1\\end{pmatrix}$ gira el plano y lo agranda: su determinante es $2$. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(1, 2)$. Esta vez la solución no tiene coordenadas enteras: la rejilla es de $0{,}5$ en $0{,}5$.',
+            '$A=\\begin{pmatrix}1&1\\\\-1&1\\end{pmatrix}$ gira el plano y lo agranda: su determinante es $2$. La flecha discontinua es $A\\vec{v}$. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(1, 2)$. Esta vez la solución no tiene coordenadas enteras: la rejilla es de $0{,}5$ en $0{,}5$.',
           hints: [
             'Con $\\vec{v}=(x, y)$, $A\\vec{v}=(x+y,\\ -x+y)$. Hacen falta $x+y=1$ y $-x+y=2$.',
             'Si sumas las dos ecuaciones, $x$ desaparece y puedes despejar $y$. El $2$ del determinante aparece como divisor.',
@@ -103,6 +121,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Al entrenar, el **dropout** apaga al azar una parte de las neuronas de una capa, y la señal que llega a la siguiente se encoge. Para compensarlo, la mayoría de las implementaciones multiplican lo que sobrevive por el inverso de la fracción que queda: si sobrevive la mitad, por $2$. Compensar un escalado con su inverso es la idea de esta pregunta.',
+            aim: 'Vas a construir la matriz que deshace un escalado por $2$ y a comprobar que, aplicada después, devuelve cada flecha a su tamaño.',
+            takeaway:
+              'La inversa de escalar por $2$ es escalar por $0{,}5$, y juntas dan $A^{-1}A=I$, la identidad, que deja todo como estaba. Un escalado se deshace siempre que no sea por $0$: ese no cambia el tamaño de la información, la borra.',
+          },
           prompt:
             'Escalar por $2$ es la matriz $A=\\begin{pmatrix}2&0\\\\0&2\\end{pmatrix}$: duplica todas las distancias. Su inversa $A^{-1}$ tiene que **deshacerlo**: aplicada después de $A$, deja cada vector donde estaba. Construye $A^{-1}$ colocando $\\hat{\\imath}$ y $\\hat{\\jmath}$ en las columnas que le corresponden. La rejilla es de $0{,}5$ en $0{,}5$.',
           hints: [
@@ -119,6 +143,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Muchos transformers, como los de la familia Llama, codifican la posición de cada palabra girando su consulta y su clave un ángulo que depende de la posición: es **RoPE**. Al comparar dos palabras, el giro de una se combina con el inverso del giro de la otra y solo queda la diferencia de posiciones. Por eso, en la atención, lo que cuenta de la posición es lo lejos que están dos palabras, no dónde está cada una.',
+            aim: 'Vas a construir el giro que deshace un cuarto de vuelta y a comparar su matriz con la del giro original, número a número.',
+            takeaway:
+              'La inversa de un giro es el giro opuesto, y su matriz es la **traspuesta**: basta cambiar filas por columnas, sin cuentas. Vale para toda matriz que conserva longitudes y ángulos, y por eso deshacerlas no cuesta nada.',
+          },
           prompt:
             'El giro de un cuarto de vuelta en sentido antihorario es $R=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$. Para deshacerlo hay que girar el plano **al revés**. Construye $R^{-1}$: coloca $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde los lleva el giro que deshace $R$.',
           hints: [
