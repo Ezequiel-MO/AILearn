@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -100,6 +101,23 @@ const rejects = (
     }
   });
 };
+
+// ---------- pistas de las cinco preguntas de código del ejercicio Programar ----------
+
+// Lo que va en cada `___` del esqueleto de la última pista, en orden.
+const SKELETON_FILLS: Record<string, string[]> = {
+  'pca.ex02.1': ['0', '-', 'Xc.T', '-1', 'Xc'],
+  'pca.ex02.2': ['0', 'Xc.T', '::-1', 'Xc'],
+  'pca.ex02.3': ['::-1', '0.9', '1'],
+  'pca.ex02.4': ['-1', 'media', 'z', '1'],
+  'pca.ex02.5': ['-', '-1', '-2', '-1', '-2'],
+};
+
+defineHintTests(
+  projectQuestions(pca).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
 
 // ---------- pca.ex02.1: la cadena de pasos hasta la primera componente ----------
 

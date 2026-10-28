@@ -1,4 +1,5 @@
 import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { pcaWarmup } from './pca.calentamiento';
 import { transformPlane, type TransformPlaneOptions } from './plane';
 
@@ -263,8 +264,33 @@ export const pca: Project = {
           prompt:
             '`X` guarda seis datos con dos variables cada uno (seis filas y dos columnas), **sin centrar**. El PCA sigue una cadena de pasos, y cada uno usa el anterior. Guarda en `media` la media de cada variable; en `Xc`, los datos con la media restada; en `C`, la matriz de covarianza de las dos variables (de 2 filas y 2 columnas, con la división entre $n-1$); en `pc1`, la **primera componente principal**: el autovector de norma 1 de `C` con el autovalor mayor; y en `z`, la coordenada de cada dato centrado en esa componente, un número por dato.\n\n`np.linalg.eigh(C)` devuelve los autovalores y los autovectores de una matriz simétrica como `C`; lee en la guía su orden y su forma. El signo de `pc1` es arbitrario: si cambia, cambia el de `z`, y las dos soluciones valen.',
           hints: [
-            'Para centrar, resta a `X` la media de cada columna: NumPy resta ese array de 2 números a todas las filas. `np.cov` espera una variable por fila.',
-            'Con `eigh`, los autovalores salen de menor a mayor. La coordenada de cada dato en `pc1` es el producto de los datos centrados por `pc1`.',
+            'El plan son cinco líneas, y cada una usa la anterior. `media`: la media de cada columna de `X`. `Xc`: `X` menos `media`. `C`: la covarianza de `Xc`; ojo, `np.cov` espera una variable por fila y `Xc` tiene una por columna, así que hay que darle la traspuesta (`.T`): con `np.cov(Xc)` sale de 6 por 6 en vez de 2 por 2. Con `np.linalg.eigh(C)` sacas los autovalores y los autovectores: recógelos en `vals, vecs`. `pc1` es una **columna** de `vecs` (los autovectores van en columnas, no en filas): la del autovalor mayor, y `eigh` ordena los autovalores de menor a mayor. Por último `z`: los datos centrados por `pc1`.',
+            'Las piezas, con otros datos (tres puntos en vez de seis):\n\n' +
+              py(
+                'datos = np.array([[1, 2], [3, 6], [5, 4]])',
+                'm = datos.mean(axis=0)',
+                'print(m)                   # [3. 4.]: una media por columna',
+                'c = datos - m',
+                'print(c[0])                # [-2. -2.]: a cada dato se le resta la media de su columna',
+                'cov = np.cov(c.T)',
+                'print(cov.shape)           # (2, 2): con la traspuesta, una variable por fila',
+                'vals, vecs = np.linalg.eigh(cov)',
+                'print(vals)                # [2. 6.]: los autovalores, de menor a mayor',
+                'u = vecs[:, 0]             # la columna 0 de vecs (-1 sería la última)',
+                'print(u.shape)             # (2,): un autovector, con 2 números',
+                'print((c @ u).shape)       # (3,): una coordenada por dato',
+              ) +
+              '\n\nCada autovalor va con la columna de `vecs` que ocupa su misma posición. El signo de la columna es arbitrario: si sale al revés, `z` sale al revés y vale igual.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'media = X.mean(axis=___)',
+                'Xc = X ___ media',
+                'C = np.cov(___)',
+                'vals, vecs = np.linalg.eigh(C)',
+                'pc1 = vecs[:, ___]',
+                'z = ___ @ pc1',
+              ) +
+              '\n\nEl error típico es coger `vecs[:, 0]`: es la dirección de **menor** varianza. La de mayor es la última columna.',
           ],
           explain:
             'Cada paso usa el anterior. Sin centrar, la componente apunta al promedio de los datos y no a su dirección de mayor variación. Revisa también qué devuelve `eigh`: en qué orden salen los autovalores y dónde están los autovectores. Comprueba que `pc1` mide 1 y que `C` solo la estira.',
@@ -280,13 +306,53 @@ export const pca: Project = {
           starter: `import numpy as np
 
 X = np.array([[2, 3], [3, 1], [5, 6], [6, 4], [8, 8], [10, 7]])
-# Guarda en media la media de cada columna, en Xc los datos centrados, en C su covarianza,
-# en pc1 la primera componente principal (norma 1) y en z la coordenada de cada dato en ella
+# X: un array de NumPy de 6 filas y 2 columnas. Cada fila es un dato (X[0] es el primero, [2 3])
+# y cada columna es una variable (X[:, 0] son los seis valores de la primera variable).
+
+# PASO 1. media: la media de cada variable, o sea, de cada columna.
+# Por qué: el PCA mira cómo se reparten los datos alrededor de su centro, y para
+# eso primero hay que saber dónde está.
+# X.mean(axis=0) promedia hacia abajo, a lo largo de las filas, y da una media por
+# columna. Por ejemplo, con np.array([[1, 10], [3, 20]]) da 2 y 15.
+# Resultado esperado: un array con 2 números.
 media = None
+
+# PASO 2. Xc: los datos centrados, o sea, X menos la media.
+# Por qué: al restar la media, el centro de los datos pasa al origen, y las
+# direcciones de variación se miden desde ahí. Sin esto la primera componente
+# apuntaría hacia el promedio de los datos y no hacia donde más se reparten.
+# Restar a un array de 6 filas y 2 columnas otro de 2 números resta ese par a cada fila:
+# NumPy lo repite solo.
+# Resultado esperado: un array de 6 filas y 2 columnas.
 Xc = None
+
+# PASO 3. C: la matriz de covarianza de las dos variables.
+# Por qué: C guarda cuánto varía cada variable (en la diagonal) y cuánto varían
+# juntas (fuera de ella). Sus autovectores serán las direcciones que buscamos.
+# np.cov(M) divide entre n - 1 por su cuenta, pero espera UNA VARIABLE POR FILA, y
+# Xc tiene una por columna. M.T (la traspuesta) cambia filas por columnas: de 6 por 2 a 2 por 6.
+# Resultado esperado: un array de 2 filas y 2 columnas.
 C = None
+
+# PASO 4. pc1: la primera componente principal, la dirección de mayor varianza.
+# Por qué: es el autovector de C con el autovalor mayor, y mide 1.
+# np.linalg.eigh(C) devuelve DOS cosas a la vez, y se recogen así: vals, vecs = np.linalg.eigh(C)
+#   vals: los autovalores, ordenados de menor a mayor.
+#   vecs: una matriz cuyas COLUMNAS son los autovectores; la columna j va con vals[j].
+# Escribe esa línea antes de pc1.
+# M[:, j] saca la columna j entera de una matriz M; el índice -1 es el último.
+# Resultado esperado: un array con 2 números.
 pc1 = None
+
+# PASO 5. z: la coordenada de cada dato centrado sobre pc1.
+# Por qué: es el «dónde cae» cada dato a lo largo de la componente, un número por dato.
+# El producto de matrices a @ b, con a de 6 por 2 y b de 2 números, hace el
+# producto escalar de cada fila de a con b y da 6 números.
+# El signo de pc1 es arbitrario: si cambia, z cambia con él, y las dos soluciones valen.
+# Resultado esperado: un array con 6 números.
 z = None
+
+# Para ver qué vale algo antes de entregar: print(z) y pulsa «Ejecutar».
 `,
           checks: `_X = np.array([[2, 3], [3, 1], [5, 6], [6, 4], [8, 8], [10, 7]], dtype=float)
 _m = _X.mean(axis=0)
@@ -346,8 +412,27 @@ z = Xc @ pc1
           prompt:
             'Escribe `pca(X, k)`: recibe `X`, un array de NumPy con un dato por fila y una variable por columna, sin centrar, y un entero `k`, y devuelve `Z`, un array de `n` filas y `k` columnas con las **coordenadas** de los datos en las `k` primeras componentes principales. Las columnas van ordenadas de la componente de mayor varianza a la de menor. Así, `Z` es una versión de los datos en `k` dimensiones que conserva la mayor parte de la varianza posible.',
           hints: [
-            'Sigue los pasos de antes: centra, calcula la covarianza, saca los autovectores con `eigh`, y proyecta los datos centrados sobre los `k` de mayor autovalor.',
-            '`eigh` ordena los autovalores de menor a mayor. Necesitas las `k` últimas columnas de los autovectores, y en orden inverso.',
+            'El plan, dentro de `pca`, son los pasos del ejercicio anterior hechos con `X` y `k` en vez de con datos fijos. Centra `X` (le restas la media de cada columna). Calcula la covarianza de los datos centrados; `np.cov` quiere una variable por fila, así que recibe `Xc.T`. Saca los autovalores y autovectores con `np.linalg.eigh`. `eigh` ordena los autovalores de menor a mayor, y tú quieres de mayor a menor: da la vuelta a las columnas de `vecs` y quédate con las `k` primeras. Por último proyecta: los datos centrados por esas columnas. Lo que devuelves son las coordenadas de los datos, no las componentes.',
+            'Las piezas, con una matriz pequeña en vez de los datos:\n\n' +
+              py(
+                'datos = np.array([[1, 2, 3], [4, 5, 6]])',
+                'print(datos[0])                      # [1 2 3]: la primera fila',
+                'print(datos[:, ::-1][0])             # [3 2 1]: las mismas columnas, en orden inverso',
+                'print(datos[:, :2].shape)            # (2, 2): solo las 2 primeras columnas',
+                'print(datos[:, ::-1][:, :2][0])      # [3 2]: primero al revés y luego las 2 primeras',
+                'print((datos - datos.mean(axis=0))[0])   # [-1.5 -1.5 -1.5]: la primera fila ya centrada',
+                'print((datos @ np.array([[1], [0], [0]])).shape)   # (2, 1): una columna de coordenadas',
+              ) +
+              '\n\nEn una función todo lo de dentro lleva 4 espacios de sangría, y lo que devuelve va con `return`. `k` te dice cuántas columnas quedarte: `[:, :k]`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def pca(X, k):',
+                '    Xc = X - X.mean(axis=___)',
+                '    vals, vecs = np.linalg.eigh(np.cov(___))',
+                '    mejores = vecs[:, ___][:, :k]',
+                '    return ___ @ mejores',
+              ) +
+              '\n\nEl error típico es dejar las columnas en el orden de `eigh`, de menor a mayor varianza: primero hay que darles la vuelta.',
           ],
           explain:
             'Lo que devuelve la función son las coordenadas de los datos, una fila por dato, no las componentes. Comprueba el orden de las columnas: con `eigh`, el autovalor mayor es el último. Un resultado con la media de cada columna distinta de cero señala que los datos no estaban centrados.',
@@ -362,9 +447,39 @@ z = Xc @ pc1
           starter: `import numpy as np
 
 
+# Aquí no hay datos hechos: la función recibe los suyos. Las comprobaciones la llaman
+# con varios conjuntos de datos y distintos valores de k.
+
 def pca(X, k):
-    # Devuelve Z, de n filas y k columnas: las coordenadas de los datos en las k primeras componentes principales
+    # X: un array de NumPy de n filas (un dato cada una) y d columnas (una variable cada una),
+    # SIN centrar. k: cuántas componentes principales quieres, un número entero.
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella. Usa X y k, no datos escritos a mano.
+
+    # PASO 1. Centrar X: restarle la media de cada columna.
+    # Por qué: las componentes se miden desde el centro de los datos.
+    # X.mean(axis=0) da una media por columna, y restarla a X la resta a todas las filas.
+
+    # PASO 2. La covarianza de los datos centrados.
+    # np.cov(M) espera UNA VARIABLE POR FILA; tus datos tienen una por columna,
+    # así que dale la traspuesta M.T. Divide entre n - 1 por su cuenta.
+
+    # PASO 3. Los autovalores y autovectores: vals, vecs = np.linalg.eigh(...)
+    # vals va de menor a mayor, y la columna j de vecs va con vals[j].
+
+    # PASO 4. Quedarte con las k componentes de mayor varianza, de mayor a menor.
+    # Por qué: eigh las deja al revés de lo que se pide.
+    # M[:, ::-1] da la vuelta al orden de las columnas de M.
+    # M[:, :k] se queda con las k primeras columnas.
+
+    # PASO 5. Proyectar los datos centrados sobre esas columnas y devolverlos.
+    # a @ b con a de n por d y b de d por k da n filas y k columnas: una fila por dato
+    # y una columna por componente. Devuelve ese array con return.
+    # Por qué: Z son las coordenadas de cada dato en las nuevas direcciones.
     return None
+
+# Para probarla antes de entregar: crea unos datos con np.array(...), llama a pca(datos, 1),
+# imprime el resultado con print(...) y pulsa «Ejecutar».
 `,
           checks: `_data = [
     (np.array([[3, 2, 3], [6, 8, 6], [3, 3, 5], [10, 7, 4], [2, 7, 7], [0, 3, 4], [3, 3, 4]], dtype=float), 2),
@@ -413,8 +528,25 @@ def pca(X, k):
           prompt:
             '`vals` guarda los autovalores de una covarianza tal como los devuelve `eigh`: de **menor a mayor**. Cada componente explica la fracción de la varianza total que es su autovalor entre la suma de todos. Guarda en `ratio` esa fracción de cada componente, ordenadas de **mayor a menor** (un array con tantos números como autovalores, que suman 1) y en `k90` el **menor número de componentes**, empezando por la de mayor varianza, que conserva al menos el 90 % de la varianza (un entero que cuenta componentes, no posiciones).',
           hints: [
-            'Da la vuelta a `vals` para tenerlos de mayor a menor y divide entre su suma. Con `np.cumsum` se acumula.',
-            '`np.argmax` de una comparación da la posición del primer `True`. Las posiciones empiezan en 0.',
+            'El plan son dos líneas. `ratio`: `vals` al revés, para que vaya de mayor a menor, dividido entre la suma de todos los autovalores. `k90`: primero los acumulados de `ratio` con `np.cumsum`; después se compara cada acumulado con 0,9 y `np.argmax` da la posición del primer `True`. Esa posición empieza en 0, y tú quieres un número de componentes: súmale 1. Si la dejas sin sumar 1, te sale una componente de menos.',
+            'Las piezas, con otros autovalores:\n\n' +
+              py(
+                'parte = np.array([1, 3, 6])',
+                'print(parte[::-1])                  # [6 3 1]: el mismo array, al revés',
+                'print(parte / parte.sum())          # [0.1 0.3 0.6]: cada uno entre la suma, que es 10',
+                'acum = np.cumsum([0.5, 0.3, 0.2])',
+                'print(acum)                         # [0.5 0.8 1. ]: cada número suma los anteriores',
+                'print(acum >= 0.7)                  # [False  True  True]: ¿llega ya al 70 %?',
+                'print(np.argmax(acum >= 0.7))       # 1: la posición del primer True, contando desde 0',
+              ) +
+              '\n\nAhí la posición 1 es la segunda componente, así que harían falta 2. Para que `k90` sea un entero, envuelve el resultado en `int(...)`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'ratio = vals[___] / vals.sum()',
+                'acumulado = np.cumsum(ratio)',
+                'k90 = int(np.argmax(acumulado >= ___)) + ___',
+              ) +
+              '\n\nEl error típico es dejar `k90` como la posición, sin sumar 1: te quedas con una componente de menos y no llegas al 90 %.',
           ],
           explain:
             'Dos errores habituales: acumular en el orden de `eigh`, que empieza por las componentes que menos explican, y confundir la posición con el número de componentes. Cuando una posición vale `p`, ya llevas `p + 1` componentes.',
@@ -427,11 +559,32 @@ def pca(X, k):
           ],
           starter: `import numpy as np
 
+# vals: un array de NumPy con 6 autovalores, tal como los devuelve eigh: de MENOR a MAYOR.
+# Cada autovalor es la varianza de una componente principal. vals[0] es el primero (0.3)
+# y vals[-1] es el último (10.0).
 vals = np.array([0.3, 0.7, 1.4, 2.2, 5.4, 10.0])
-# Guarda en ratio la fracción de varianza de cada componente, de mayor a menor,
-# y en k90 el menor número de componentes que conserva al menos el 90 %
+
+# PASO 1. ratio: qué fracción de la varianza total explica cada componente, de mayor a menor.
+# Por qué: la varianza de una componente, entre la suma de todas, dice cuánto de la
+# variación de los datos se queda en ella.
+# vals[::-1] es vals al revés (de mayor a menor). vals.sum() suma todos los autovalores.
+# Un array dividido entre un número divide cada uno de sus elementos:
+# np.array([1, 3]) / 4 da 0.25 y 0.75.
+# Resultado esperado: un array de 6 números (fracciones entre 0 y 1 que suman 1, no porcentajes).
 ratio = None
+
+# PASO 2. k90: cuántas componentes hacen falta, de la mayor en adelante, para llegar al 90 %.
+# Por qué: es la pregunta de la compresión, cuántas dimensiones puedes quedarte sin perder
+# demasiado.
+# Tres herramientas, una detrás de otra:
+#   np.cumsum(x) da los acumulados: np.cumsum([0.5, 0.3, 0.2]) da 0.5, 0.8 y 1.0.
+#   acum >= 0.7 compara cada número y da un array de True y False.
+#   np.argmax(...) de ese array da la POSICIÓN del primer True, y las posiciones empiezan en 0.
+# Con los acumulados 0.5, 0.8 y 1.0 y un 70 %, la posición es 1, pero ahí ya llevas 2 componentes.
+# Resultado esperado: un número entero.
 k90 = None
+
+# Para ver qué vale algo antes de entregar: print(ratio) y pulsa «Ejecutar».
 `,
           checks: `_want = np.array([0.5, 0.27, 0.11, 0.07, 0.035, 0.015])
 _r = isinstance(ratio, np.ndarray) and ratio.shape == (6,) and np.issubdtype(ratio.dtype, np.floating)
@@ -461,8 +614,29 @@ k90 = int(np.argmax(np.cumsum(ratio) >= 0.9)) + 1
           prompt:
             'Comprimir datos de dos variables a una sola componente pierde información. `X` guarda seis datos, uno por fila. Calcula su primera componente principal `pc1` y la coordenada `z` de cada dato centrado en ella, y **reconstruye** los datos con solo esa componente: `X_rec` vale la media más cada coordenada multiplicada por `pc1`. Guarda en `X_rec` los datos reconstruidos (seis filas y dos columnas) y en `error` la suma de las distancias al cuadrado entre cada dato de `X` y su reconstrucción, dividida entre $n-1$. Ese número coincide con el autovalor de la componente que se ha descartado.',
           hints: [
-            'Reconstruir es deshacer la proyección: cada dato vuelve al plano como la media más su coordenada `z` por la dirección `pc1`. `np.outer` hace el producto de cada `z` por `pc1`.',
-            'La distancia al cuadrado entre un dato y su reconstrucción es la suma de los cuadrados de las diferencias de sus dos coordenadas.',
+            'El plan: primero la cadena de siempre, `media`, `Xc`, `pc1` (con `np.linalg.eigh` de la covarianza, la columna del autovalor mayor) y `z`. Después `X_rec`: reconstruir es deshacer la proyección, así que cada dato vuelve al plano como la media más su coordenada `z` por la dirección `pc1`; `np.outer(z, pc1)` hace ese producto para los seis datos a la vez. Por último `error`: las diferencias entre `X` y `X_rec`, al cuadrado, sumadas todas, y divididas entre $n-1$.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'a = np.array([1, 2, 3])',
+                'u = np.array([10, 20])',
+                'print(np.outer(a, u).shape)      # (3, 2): una fila por cada número de a',
+                'print(np.outer(a, u)[1])         # [20 40]: la fila 1 es a[1] por u',
+                'dif = np.array([[1, 2], [3, 4]]) - np.array([[0, 2], [1, 1]])',
+                'print((dif ** 2).sum())          # 14: 1 + 0 + 4 + 9, todos los cuadrados sumados',
+                'print(len(dif))                  # 2: el número de filas, o sea, de datos',
+              ) +
+              '\n\nSumar un array de 2 números a una matriz de 6 filas y 2 columnas lo suma a cada fila, igual que al restar. Y `len(X) - 1` es $n-1$.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'media = X.mean(axis=0)',
+                'Xc = X - media',
+                'vals, vecs = np.linalg.eigh(np.cov(Xc.T))',
+                'pc1 = vecs[:, ___]',
+                'z = Xc @ pc1',
+                'X_rec = ___ + np.outer(___, pc1)',
+                'error = ((X - X_rec) ** 2).sum() / (len(X) - ___)',
+              ) +
+              '\n\nEl error típico es olvidar sumar la media: sin ella, la reconstrucción queda centrada en el origen en vez de sobre los datos.',
           ],
           explain:
             'La reconstrucción vive en el mismo sitio que los datos, no en el de los datos centrados: hay que devolverle la media. Y se reconstruye con la componente de mayor varianza, no con la otra. El error de la compresión es la varianza que se tira.',
@@ -474,11 +648,51 @@ k90 = int(np.argmax(np.cumsum(ratio) >= 0.9)) + 1
           ],
           starter: `import numpy as np
 
+# X: un array de NumPy de 6 filas (los datos) y 2 columnas (las variables).
 X = np.array([[1, 4], [2, 2], [4, 5], [5, 3], [6, 6], [8, 4]])
-# Reconstruye los datos con solo la primera componente principal: guarda en X_rec la reconstrucción
-# y en error la suma de las distancias al cuadrado entre X y X_rec, dividida entre n - 1
+
+# PASO 1. media: la media de cada columna de X (X.mean(axis=0)).
+# Resultado esperado: un array con 2 números.
+media = None
+
+# PASO 2. Xc: los datos centrados, X menos la media.
+# Por qué: las componentes se miden desde el centro de los datos.
+# Resultado esperado: un array de 6 filas y 2 columnas.
+Xc = None
+
+# PASO 3. pc1: la primera componente principal, como en el ejercicio de la cadena de pasos.
+# Calcula la covarianza de Xc con np.cov (que espera una variable por fila: dale Xc.T),
+# recoge los resultados con vals, vecs = np.linalg.eigh(...) (escribe esa línea antes de pc1)
+# y coge de vecs la COLUMNA del autovalor mayor. eigh ordena los autovalores de menor a mayor.
+# M[:, j] saca la columna j de una matriz M; el índice -1 es el último.
+# Resultado esperado: un array con 2 números.
+pc1 = None
+
+# PASO 4. z: la coordenada de cada dato centrado sobre pc1 (Xc @ pc1).
+# Por qué: es lo único que se guarda de cada dato al comprimirlo a una sola componente.
+# Resultado esperado: un array con 6 números.
+z = None
+
+# PASO 5. X_rec: los datos reconstruidos con solo esa componente.
+# Por qué: reconstruir es deshacer la compresión. Cada dato vuelve a ser su punto sobre la
+# recta de pc1, que es z veces pc1, y como al centrar se restó la media, hay que sumársela otra vez.
+# np.outer(a, b) con a de 6 números y b de 2 da una matriz de 6 filas y 2 columnas
+# cuya fila i es a[i] * b. Por ejemplo, np.outer([1, 2], [10, 20]) tiene las filas
+# [10 20] y [20 40].
+# Sumar a una matriz de 6 por 2 un array de 2 números lo suma a cada fila.
+# Resultado esperado: un array de 6 filas y 2 columnas.
 X_rec = None
+
+# PASO 6. error: la suma de las distancias al cuadrado entre cada dato de X y su reconstrucción,
+# dividida entre n - 1.
+# Por qué: es lo que se pierde al comprimir, la varianza de la componente que se ha descartado.
+# X - X_rec resta dato a dato; ** 2 eleva cada número al cuadrado; .sum() los suma todos
+# (los de las dos columnas, que juntos dan las distancias al cuadrado).
+# len(X) es el número de datos, 6, y n - 1 es len(X) - 1.
+# Resultado esperado: un solo número.
 error = None
+
+# Para ver qué vale algo antes de entregar: print(error) y pulsa «Ejecutar».
 `,
           checks: `_X = np.array([[1, 4], [2, 2], [4, 5], [5, 3], [6, 6], [8, 4]], dtype=float)
 _m = _X.mean(axis=0)
@@ -519,8 +733,31 @@ error = ((X - X_rec) ** 2).sum() / (len(X) - 1)
           prompt:
             'El módulo `embeddings` trae embeddings **reales** de 32 palabras: `palabras` es la lista y `P`, la matriz de 32 filas y 384 columnas, una fila por palabra. Para verlos en una pantalla hay que bajar a dos dimensiones con PCA. Guarda en `mapa` un array de 32 filas y 2 columnas con las coordenadas de cada palabra, en el mismo orden que `palabras`, en las dos primeras componentes principales de `P`; en `explicada`, la fracción de la varianza total que conservan esas dos componentes; y dibuja el mapa con `plt.scatter` y, junto a cada punto, el nombre de su palabra (con `plt.annotate` o `plt.text`).\n\nEl mapa es una vista parcial: `explicada` te dice cuánta variación se queda fuera. Con 32 palabras la covarianza de 384 variables tiene como mucho 31 autovalores distintos de cero, y las demás direcciones valen cero.',
           hints: [
-            'Es el mismo PCA de antes, ahora con 384 variables en lugar de 2: centra `P`, saca la covarianza y los autovectores con `eigh`, y proyecta sobre los dos de mayor autovalor.',
-            '`explicada` es la suma de los dos autovalores mayores entre la suma de todos. Para dibujar, recorre las palabras con `enumerate`.',
+            'Es el mismo PCA de antes, ahora con 384 variables en lugar de 2. El plan: centra `P` (le restas la media de cada columna); saca los autovalores y autovectores con `np.linalg.eigh` de la covarianza de los datos centrados (`np.cov` quiere una variable por fila: dale la traspuesta). `mapa` son los datos centrados por las dos columnas de `vecs` de mayor autovalor, la mayor primero. `explicada` es la suma de los dos autovalores mayores dividida entre la suma de todos. Para dibujar: `plt.scatter` con la primera columna de `mapa` en horizontal y la segunda en vertical, y un `plt.annotate` por palabra.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'M = np.array([[1, 2, 3], [4, 5, 6]])',
+                'print(M[:, 0])                  # [1 4]: la columna 0 entera',
+                'print(M[:, [2, 0]][0])          # [3 1]: las columnas 2 y 0, en ese orden',
+                'print(np.cov(M.T).shape)        # (3, 3): tres variables, una por columna de M',
+                'frutas = ["pera", "uva", "kiwi"]',
+                'for i, fruta in enumerate(frutas):',
+                '    print(i, fruta)             # 0 pera, luego 1 uva, luego 2 kiwi',
+                'plt.scatter(M[:, 0], M[:, 1])    # un punto por fila de M: las columnas 0 y 1 son x e y',
+                'plt.annotate("a", (1, 4))       # escribe «a» junto al punto de coordenadas (1, 4)',
+              ) +
+              '\n\nEn `vals`, que va de menor a mayor, el índice `-1` es el mayor y `-2` el siguiente.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'Pc = P ___ P.mean(axis=0)',
+                'vals, vecs = np.linalg.eigh(np.cov(Pc.T))',
+                'mapa = Pc @ vecs[:, [___, ___]]',
+                'explicada = (vals[___] + vals[___]) / vals.sum()',
+                'plt.scatter(mapa[:, 0], mapa[:, 1])',
+                'for i, palabra in enumerate(palabras):',
+                '    plt.annotate(palabra, (mapa[i, 0], mapa[i, 1]))',
+              ) +
+              '\n\nEl error típico es coger las columnas del principio de `vecs`: son las de menor varianza, y el mapa mostraría lo menos importante.',
           ],
           explain:
             'Comprueba la forma de `mapa`, una fila por palabra y una columna por componente, y que las dos componentes son las de mayor autovalor, no las de menor. `explicada` es una fracción entre 0 y 1 y no la suma de dos varianzas. Mira cuánto vale: si es baja, el mapa deja fuera casi todo.',
@@ -536,11 +773,45 @@ error = ((X - X_rec) ** 2).sum() / (len(X) - 1)
 import matplotlib.pyplot as plt
 from embeddings import palabras, P
 
-# P tiene una fila por palabra y 384 columnas. Guarda en mapa las coordenadas de cada palabra en las
-# dos primeras componentes principales, en explicada la fracción de varianza que conservan,
-# y dibuja el mapa con el nombre de cada palabra
+# palabras: la lista de las 32 palabras (palabras[0] es la primera).
+# P: una matriz de 32 filas y 384 columnas. La fila i es el embedding de palabras[i]: cada
+# palabra es un dato, y cada una de las 384 columnas, una variable.
+# plt es matplotlib, para dibujar.
+
+# PASO 1. Pc: P centrada, o sea, P menos la media de cada columna.
+# Por qué: las componentes se miden desde el centro de los datos.
+# P.mean(axis=0) da 384 medias, una por columna, y restarlas a P las resta de cada fila.
+# Resultado esperado: un array de 32 filas y 384 columnas.
+Pc = None
+
+# PASO 2. mapa: las coordenadas de cada palabra en las dos primeras componentes principales.
+# Por qué: con dos números por palabra se pueden dibujar en una pantalla.
+# Es el mismo cálculo que con dos variables, solo que más grande:
+#   - np.cov(M) espera una variable por fila, así que dale la traspuesta M.T: la covarianza
+#     sale de 384 por 384.
+#   - vals, vecs = np.linalg.eigh(...) (escribe esa línea antes de mapa): los autovalores van de
+#     menor a mayor y las COLUMNAS de vecs son los autovectores.
+#   - M[:, [a, b]] saca las columnas a y b de M, en ese orden. El índice -1 es la última columna
+#     y -2 la penúltima.
+#   - Pc @ (esas dos columnas) da una fila por palabra y una columna por componente.
+# Resultado esperado: un array de 32 filas y 2 columnas, con la componente de mayor varianza primero.
 mapa = None
+
+# PASO 3. explicada: la fracción de la varianza total que conservan esas dos componentes.
+# Por qué: el mapa es una vista parcial, y este número dice cuánto de la variación enseña.
+# vals[-1] es el mayor autovalor y vals[-2] el siguiente; vals.sum() es la varianza total.
+# Resultado esperado: un número entre 0 y 1.
 explicada = None
+
+# PASO 4. Dibuja el mapa (no hay variable que guardar).
+# plt.scatter(x, y) pone un punto por cada pareja de x e y: usa la primera columna de mapa para x
+# y la segunda para y (mapa[:, 0] es la primera columna).
+# plt.annotate(texto, (x, y)) escribe un texto junto al punto (x, y).
+# for i, palabra in enumerate(palabras): da en cada vuelta la posición i y la palabra; con
+# mapa[i, 0] y mapa[i, 1] tienes las coordenadas de esa palabra. Lo que va dentro del for
+# lleva 4 espacios de sangría.
+
+# Para ver qué vale algo antes de entregar: print(explicada) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _P = _e.P
