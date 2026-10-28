@@ -18,6 +18,9 @@ const arrow = (
   label: string = id,
 ): PlaneVector => ({ id, label, x, y, movable });
 
+/** Bloque de código Python para una pista, una línea por argumento. */
+const py = (...lines: string[]): string => ['```python', ...lines, '```'].join('\n');
+
 /** Segundo proyecto de la Órbita 3: aritmética con significados, a − b + c y relaciones como diferencias. */
 export const analogias: Project = {
   id: 'analogias',
@@ -276,8 +279,22 @@ export const analogias: Project = {
           prompt:
             'El módulo `embeddings` trae embeddings **reales** del modelo paraphrase-multilingual-MiniLM-L12-v2: `vector("rey")` devuelve el de «rey», un array de NumPy de 384 números y norma 1. No hay modelo en el navegador: solo valen las 32 palabras del módulo. La aritmética de una analogía es la de siempre: `vector("rey") - vector("hombre") + vector("mujer")`. Pero esa suma ya no mide 1, así que su producto escalar con otra palabra no es el coseno: hay que dividir entre su norma (la de la otra palabra vale 1).\n\nGuarda en `w` el vector rey − hombre + mujer, en `w_unit` ese vector normalizado y en `cos_reina` su coseno con el vector de «reina».',
           hints: [
-            'Para `w` basta una línea con los tres `vector(...)` y sus signos. Para normalizar, `np.linalg.norm(w)` da la longitud de `w`.',
-            'Si `w_unit` mide 1, su producto escalar con «reina» ya es un coseno, porque «reina» también mide 1.',
+            'El plan son tres líneas, una por variable, y cada una usa la anterior. Primero `w`: la cuenta con las tres palabras y sus signos. Después `w_unit`: `w` dividido entre su longitud, para que mida 1. Por último `cos_reina`: el producto escalar de `w_unit` con el vector de «reina». Es un coseno porque los dos miden 1.',
+            'Así se escribe cada pieza, con otras palabras para que veas la forma sin que sea la respuesta:\n\n' +
+              py(
+                'v = vector("padre") - vector("hombre")   # restar embeddings da otro array de 384 números',
+                'largo = np.linalg.norm(v)                # la longitud de v: un solo número',
+                'v_unit = v / largo                       # cada componente entre la longitud: ahora mide 1',
+                'print(v_unit @ vector("madre"))          # @ es el producto escalar: un número',
+              ) +
+              '\n\nPulsa «Ejecutar» con `print(...)` para ver cada valor antes de entregar.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'w = vector("rey") ___ vector("hombre") ___ vector("mujer")',
+                'w_unit = w / ___',
+                'cos_reina = ___ @ vector("reina")',
+              ) +
+              '\n\nEn el último hueco va `w_unit`, no `w`: con `w`, que no mide 1, te saldría el producto escalar y no el coseno.',
           ],
           explain:
             'Normalizar es dividir un vector entre su norma. El coseno de `w` con «reina» no cambia si antes normalizas `w`, así que `w_unit` te da el mismo número que la fórmula completa. Comprueba que `cos_reina` no es el producto escalar sin normalizar.',
@@ -291,12 +308,29 @@ export const analogias: Project = {
           starter: `import numpy as np
 from embeddings import vector
 
-# Embeddings reales (paraphrase-multilingual-MiniLM-L12-v2, 384 dimensiones), de norma 1
-# Guarda en w el resultado de rey - hombre + mujer, en w_unit ese vector normalizado
-# y en cos_reina su coseno con el vector de "reina"
+# vector("rey") te da el embedding de «rey»: un array de NumPy con 384 números.
+# Todos los embeddings del módulo miden 1 (norma 1).
+# Con arrays, + y - suman y restan componente a componente, igual que las flechas del plano.
+
+# PASO 1. La analogía: rey - hombre + mujer.
+# Escribe la cuenta tal cual, con tres vector("...") y sus signos.
+# Por qué: quitarle a «rey» lo de «hombre» y ponerle lo de «mujer» debería
+# dejarte cerca de «reina».
 w = None
+
+# PASO 2. Normalizar w: que mida 1 sin cambiar hacia dónde apunta.
+# Por qué: al sumar y restar, w ya no mide 1, y el producto escalar solo
+# es un coseno si los dos vectores miden 1.
+# np.linalg.norm(w) te da la longitud de w: un solo número.
+# Dividir un array entre un número divide cada una de sus componentes.
 w_unit = None
+
+# PASO 3. El coseno entre w_unit y el vector de «reina».
+# a @ b es el producto escalar: multiplica componente a componente y lo suma todo.
+# Como w_unit y vector("reina") miden 1, su producto escalar ya es el coseno.
 cos_reina = None
+
+# Para ver qué vale algo antes de entregar: print(cos_reina) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _v = _e.vector
@@ -334,8 +368,28 @@ cos_reina = w_unit @ vector("reina")
           prompt:
             'Una analogía se resuelve en dos pasos: la aritmética, $\\vec{w}=\\vec{a}-\\vec{b}+\\vec{c}$, y la búsqueda de la palabra más cercana por coseno. El resultado se parece mucho a $\\vec{a}$ y a $\\vec{c}$, porque `a - b + c` es `a + (c - b)`: sin más, la palabra que gana suele ser una entrada. Por eso la búsqueda **excluye** `a`, `b` y `c`.\n\nEn `embeddings`, `palabras` es la lista de las 32 palabras y `P`, la matriz con sus vectores en las filas, todos de norma 1, así que `P @ w` da los cosenos salvo la división entre la norma de `w`, que no cambia el orden. `np.argsort` devuelve las posiciones de menor a mayor. Define `analogia(a, b, c)`, que devuelve la palabra de `palabras` más parecida a `vector(a) - vector(b) + vector(c)` sin contar `a`, `b` ni `c`, aunque el modelo no acierte. Guarda en `sale_rey` lo que devuelve para «rey», «hombre» y «mujer».',
           hints: [
-            'Calcula `w`, puntúa todas las palabras con `P @ w` y ordénalas de mayor a menor puntuación.',
-            'Recorre la lista ordenada y devuelve la primera palabra que no sea ninguna de las tres entradas.',
+            'El plan, dentro de `analogia`: calcula `w` con `a`, `b` y `c` (no con palabras escritas a mano); puntúa las 32 palabras con `P @ w`; ordena las posiciones de la puntuación más alta a la más baja; y recórrelas hasta la primera palabra que no sea ninguna de las tres entradas. Esa es la que devuelves. Fuera de la función, `sale_rey` es una llamada: `analogia(...)` con las tres palabras del rey entre comillas.',
+            'Las piezas, probadas con unas notas en vez de con palabras:\n\n' +
+              py(
+                'notas = np.array([5, 9, 2])',
+                'print(np.argsort(notas))         # [2 0 1]: posiciones, de la nota más baja a la más alta',
+                'print(np.argsort(notas)[::-1])   # [1 0 2]: al revés, de la más alta a la más baja',
+                '',
+                'for i in np.argsort(notas)[::-1]:',
+                '    print(i, notas[i])           # 1 9, después 0 5, después 2 2',
+              ) +
+              '\n\nPara saltarte las entradas: `if palabras[i] not in (a, b, c):` y, dentro de ese `if`, `return palabras[i]`. El `return` sale de la función en cuanto encuentra la primera que vale, así que el bucle no sigue.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def analogia(a, b, c):',
+                '    w = vector(a) ___ vector(b) ___ vector(c)',
+                '    for i in np.argsort(P @ w)[::-1]:',
+                '        if palabras[i] not in ___:',
+                '            return ___',
+                '',
+                'sale_rey = analogia(___, ___, ___)',
+              ) +
+              '\n\nLo que devuelve es una palabra, no la posición `i`: la posición se convierte en palabra con `palabras[i]`. Fíjate en la sangría: lo que va dentro de `def`, de `for` y de `if` lleva 4 espacios más que la línea de arriba.',
           ],
           explain:
             'La función tiene que devolver una palabra, no una posición: `palabras[i]` convierte una posición en palabra. Comprueba con «Roma», «Italia» y «Alemania»: si te devuelve una de ellas, falta dejar las entradas fuera de la búsqueda.',
@@ -350,13 +404,38 @@ cos_reina = w_unit @ vector("reina")
           starter: `import numpy as np
 from embeddings import palabras, P, vector
 
-# P tiene una fila por palabra de palabras, todas de norma 1
+# palabras: la lista de las 32 palabras. palabras[0] es "rey" y palabras[1] es "reina".
+# P: una matriz de 32 filas. La fila i es el embedding de palabras[i], y todas miden 1.
+# vector("rey"): el embedding de una palabra, un array de 384 números.
+
 def analogia(a, b, c):
-    # Devuelve la palabra de palabras más parecida (por coseno) a vector(a) - vector(b) + vector(c),
-    # sin contar a, b ni c
+    # a, b y c llegan como textos, por ejemplo "rey", "hombre" y "mujer".
+    # Usa a, b y c, no palabras escritas a mano: así la función sirve para
+    # cualquier analogía, y las comprobaciones la prueban con otras.
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella.
+
+    # PASO 1. El vector de la analogía: a - b + c, con vector(...) en cada una.
+
+    # PASO 2. Puntuar las 32 palabras.
+    # P @ w multiplica cada fila de P por w: da un array de 32 números, uno por
+    # palabra y en el orden de palabras. Cuanto más alto, más se parece a w.
+    # (No hace falta dividir entre la norma de w: dividirlos todos entre el mismo
+    # número no cambia cuál es más alto.)
+
+    # PASO 3. Ordenar las palabras de la más parecida a la menos.
+    # np.argsort(x) da las POSICIONES de x ordenadas de menor a mayor valor.
+    # Añadirle [::-1] le da la vuelta: de mayor a menor.
+
+    # PASO 4. Recorrer esas posiciones y devolver la primera palabra que no sea a, b ni c.
+    # Por qué: w = a + (c - b) se parece mucho a a y a c, y sin este filtro
+    # casi siempre ganaría una de las palabras que acabas de dar.
+    # palabras[i] convierte una posición i en su palabra.
+    # x not in (a, b, c) vale True si x no es ninguna de las tres.
+    # return devuelve un valor y termina la función en ese momento.
     return None
 
-# Guarda en sale_rey lo que devuelve analogia para rey, hombre y mujer
+# PASO 5. Llama a la función con «rey», «hombre» y «mujer» y guarda lo que devuelve.
 sale_rey = None
 `,
           checks: `import embeddings as _e
@@ -407,8 +486,30 @@ sale_rey = analogia("rey", "hombre", "mujer")
           prompt:
             'Ver qué gana **sin** excluir las entradas explica por qué se excluyen. Ya tienes `puntos(a, b, c)`, que devuelve los cosenos de `vector(a) - vector(b) + vector(c)` con las 32 palabras (un array de 32 números, en el orden de `palabras`), y `lista_casos`, con seis analogías. `np.argmax(x)` devuelve la posición del valor mayor de `x`.\n\nGuarda en `ganadoras` la palabra que gana en cada caso **sin excluir nada** (una lista de seis palabras) y en `n_entradas` en cuántos casos esa palabra es una de las tres entradas de **ese** caso.',
           hints: [
-            '`puntos(a, b, c)` toma tres palabras; cada caso de `lista_casos` es una tupla con las tres. `puntos(*caso)` las desempaqueta.',
-            'Para contar, compara cada ganadora con las entradas de su propio caso: una palabra puede ser entrada de otro caso sin serlo del suyo.',
+            'El plan son dos bucles. El primero recorre `lista_casos` y, en cada caso, busca la palabra de coseno más alto y la añade a `ganadoras`. El segundo recorre a la vez `ganadoras` y `lista_casos` y suma 1 cada vez que la ganadora es una de las tres palabras de su caso. Compara cada ganadora solo con su caso: «París» es entrada del cuarto caso, pero gana en el tercero.',
+            'Las piezas, con un solo caso:\n\n' +
+              py(
+                'cosenos = puntos("rey", "hombre", "mujer")   # 32 números, uno por palabra',
+                'pos = np.argmax(cosenos)                     # la posición del más alto',
+                'print(palabras[pos])                         # la palabra de esa posición',
+                '',
+                'print("rey" in ("rey", "hombre", "mujer"))     # True: es una de las tres',
+                'print("reina" in ("rey", "hombre", "mujer"))   # False',
+              ) +
+              '\n\n`for a, b, c in lista_casos:` saca en cada vuelta las tres palabras de un caso. `zip(ganadoras, lista_casos)` las junta por parejas: la ganadora 1 con el caso 1, la 2 con el 2, y así.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'ganadoras = []',
+                'for a, b, c in lista_casos:',
+                '    pos = np.argmax(___)',
+                '    ganadoras.append(___)',
+                '',
+                'n_entradas = 0',
+                'for ganadora, caso in zip(ganadoras, lista_casos):',
+                '    if ganadora ___ caso:',
+                '        n_entradas = n_entradas + 1',
+              ) +
+              '\n\nA `ganadoras` se añade la palabra, no la posición `pos`.',
           ],
           explain:
             '`np.argmax` da una posición y `palabras` la convierte en palabra. Para el recuento necesitas, de cada caso, su ganadora y sus tres entradas a la vez: `zip` los junta.',
@@ -422,11 +523,16 @@ sale_rey = analogia("rey", "hombre", "mujer")
           starter: `import numpy as np
 from embeddings import palabras, P, vector
 
+# palabras: la lista de las 32 palabras. palabras[i] es la palabra de la posición i.
+
 def puntos(a, b, c):
-    # Cosenos de vector(a) - vector(b) + vector(c) con las 32 palabras, en el orden de palabras
+    # Ya está hecha: no hace falta tocarla.
+    # Devuelve un array de 32 cosenos: el de la posición i es el coseno entre
+    # vector(a) - vector(b) + vector(c) y palabras[i].
     w = vector(a) - vector(b) + vector(c)
     return P @ w / np.linalg.norm(w)
 
+# Seis analogías. Cada caso es una tupla con tres palabras: (a, b, c).
 lista_casos = [
     ("rey", "hombre", "mujer"),
     ("Roma", "Italia", "Alemania"),
@@ -435,10 +541,27 @@ lista_casos = [
     ("Madrid", "España", "Italia"),
     ("gato", "tigre", "lobo"),
 ]
-# Guarda en ganadoras la palabra que gana en cada caso sin excluir nada (una lista de seis palabras)
-# y en n_entradas en cuántos casos esa palabra es una de las tres entradas de ese mismo caso
+
+# PASO 1. La palabra que gana en cada caso, SIN excluir nada.
+# Para un caso son tres pasos:
+#   puntos(a, b, c)   -> los 32 cosenos
+#   np.argmax(...)    -> la POSICIÓN del coseno más alto (un número entero)
+#   palabras[...]     -> la palabra de esa posición
+# Para los seis casos: empieza con una lista vacía, ganadoras = [], y recorre
+# lista_casos con for a, b, c in lista_casos: (cada vuelta saca las tres palabras
+# de un caso). Dentro del for, añade la ganadora con ganadoras.append(...).
+# Al terminar, ganadoras tiene que tener seis palabras.
 ganadoras = None
+
+# PASO 2. ¿En cuántos casos la ganadora es una de las tres entradas de SU caso?
+# Por qué: si a menudo gana una entrada, la búsqueda de una analogía tiene que excluirlas.
+# zip(ganadoras, lista_casos) recorre las dos listas a la vez, por parejas:
+# la ganadora 1 con el caso 1, la 2 con el 2, y así.
+# x in caso vale True si x es una de las tres palabras de la tupla caso.
+# Empieza un contador en 0 y súmale 1 cada vez que se cumpla.
 n_entradas = None
+
+# Para ver qué vale algo antes de entregar: print(ganadoras) y pulsa «Ejecutar».
 `,
           checks: `_bien = ["reina", "Alemania", "París", "España", "Madrid", "gato"]
 _excl = ["reina", "Berlín", "París", "Lisboa", "Roma", "perro"]
@@ -483,8 +606,33 @@ n_entradas = sum(g in caso for g, caso in zip(ganadoras, lista_casos))
           prompt:
             'Una relación es la diferencia entre dos palabras, y se mide si dos relaciones son la misma con el **coseno entre las dos diferencias**. Ya tienes `coseno(u, v)`, `lista_pares` (cuatro parejas de género: origen y destino) y `otra`, una pareja de capital y país. La relación de referencia es `vector("mujer") - vector("hombre")`, y la de una pareja, `vector(destino) - vector(origen)`.\n\nGuarda en `cos_rel` el coseno entre la relación de referencia y la de cada pareja de `lista_pares`, en su orden; en `floja` la pareja de `lista_pares` con el coseno más bajo (la tupla, no su posición); y en `cos_otra` el coseno entre la relación de referencia y la de `otra`.',
           hints: [
-            'Para cada pareja `(origen, destino)`, la relación es `vector(destino) - vector(origen)`. Recorre `lista_pares` con una lista por comprensión.',
-            'La posición del valor menor la da `np.argmin`; con esa posición se elige la pareja en `lista_pares`.',
+            'El plan: primero la flecha de referencia, de «hombre» a «mujer». Después, un bucle por `lista_pares` que calcula la flecha de cada pareja, de su origen a su destino, y guarda su `coseno` con la referencia. Con los cuatro cosenos, `np.argmin` señala la posición de la pareja floja, y con esa posición la sacas de `lista_pares`. `cos_otra` es la misma cuenta que dentro del bucle, pero con la pareja `otra`.',
+            'Las piezas, con otras parejas y otros datos:\n\n' +
+              py(
+                'ref = vector("mujer") - vector("hombre")   # el paso 1',
+                '',
+                'for origen, destino in [("gato", "perro"), ("tren", "avión")]:',
+                '    flecha = vector(destino) - vector(origen)   # del origen al destino',
+                '    print(origen, destino, coseno(ref, flecha))',
+                '',
+                'notas = [7, 3, 9]',
+                'pos = np.argmin(notas)              # 1: la posición del 3, el más bajo',
+                'print(["Ana", "Bea", "Carla"][pos])   # Bea: lo que hay en esa posición',
+              ) +
+              '\n\nUna tupla se lee por posición igual que una lista: si `otra = ("Italia", "Roma")`, `otra[0]` es `"Italia"` y `otra[1]` es `"Roma"`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'ref = vector("mujer") - vector("hombre")',
+                '',
+                'cos_rel = []',
+                'for origen, destino in lista_pares:',
+                '    flecha = vector(___) - vector(___)',
+                '    cos_rel.append(coseno(ref, flecha))',
+                '',
+                'floja = lista_pares[___]',
+                'cos_otra = coseno(ref, vector(___) - vector(___))',
+              ) +
+              '\n\nLas dos flechas van en el mismo sentido: la de referencia es destino («mujer») menos origen («hombre»), así que la de cada pareja también es destino menos origen.',
           ],
           explain:
             'Los cuatro cosenos cuentan lo parecida que es cada relación a «hombre» → «mujer». Compara el valor de `cos_otra` con los de `cos_rel` para ver qué es un coseno alto y qué es uno bajo, y mira qué pareja de género destaca por lo bajo.',
@@ -500,17 +648,39 @@ n_entradas = sum(g in caso for g, caso in zip(ganadoras, lista_casos))
 from embeddings import vector
 
 def coseno(u, v):
+    # Ya está hecha: el coseno entre dos vectores, un número entre -1 y 1.
     return u @ v / (np.linalg.norm(u) * np.linalg.norm(v))
 
 # Parejas (origen, destino) de género y una pareja de otra relación
 lista_pares = [("rey", "reina"), ("padre", "madre"), ("príncipe", "princesa"), ("hijo", "hija")]
 otra = ("Italia", "Roma")
-# Relación de referencia: vector("mujer") - vector("hombre")
-# Guarda en cos_rel el coseno de la referencia con la relación de cada pareja de lista_pares, en su orden,
-# en floja la pareja de lista_pares con el coseno más bajo y en cos_otra el coseno de la referencia con la relación de otra
+
+# Una relación entre dos palabras es la flecha que va de una a otra:
+# vector(destino) - vector(origen). Si dos relaciones son la misma, sus flechas
+# apuntan hacia el mismo sitio y su coseno es alto.
+
+# PASO 1. La relación de referencia: la flecha de «hombre» a «mujer».
+# Destino menos origen: vector("mujer") - vector("hombre").
+# La guardas en ref para no repetir la cuenta en cada paso.
+ref = None
+
+# PASO 2. Un coseno por cada pareja de lista_pares, en su orden.
+# for origen, destino in lista_pares: saca en cada vuelta las dos palabras de una pareja.
+# Dentro del for: la flecha de la pareja es vector(destino) - vector(origen),
+# en el mismo sentido que ref (destino menos origen), y coseno(ref, flecha) da su coseno.
+# Empieza con cos_rel = [] y añade cada coseno con cos_rel.append(...).
 cos_rel = None
+
+# PASO 3. La pareja con el coseno más bajo: la relación que menos se parece a la de referencia.
+# np.argmin(cos_rel) da la POSICIÓN del valor más bajo (0, 1, 2 o 3).
+# lista_pares[posición] es la pareja de esa posición: eso es lo que se guarda, no el número.
 floja = None
+
+# PASO 4. El coseno entre ref y la relación de otra.
+# otra[0] es su origen ("Italia") y otra[1] su destino ("Roma").
 cos_otra = None
+
+# Para ver qué vale algo antes de entregar: print(cos_rel) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _v = _e.vector
@@ -566,8 +736,31 @@ cos_otra = coseno(ref, vector(otra[1]) - vector(otra[0]))
           prompt:
             'Una analogía que sale bien en una demostración no prueba nada: hay que medirla sobre una lista de casos. Ya tienes `ranking(a, b, c)`, que devuelve las palabras ordenadas de más a menos parecida a `vector(a) - vector(b) + vector(c)` sin contar `a`, `b` ni `c`, y `lista_casos`, con 11 analogías `(a, b, c, esperada)`. La lista de Python `x.index(y)` devuelve la posición de `y` en `x`, contando desde 0. Con `plt.bar(posiciones, alturas)` se dibuja una barra por cada posición, con esa altura.\n\nGuarda en `lista_puestos` el puesto de la palabra esperada en el ranking de cada caso (el 1 es el primero), dibuja una barra por caso con su puesto y guarda en `n_aciertos` en cuántos casos la esperada ocupa el puesto 1.',
           hints: [
-            '`ranking(a, b, c).index(esperada)` cuenta desde 0: el puesto 1 es la posición 0.',
-            'Un acierto es la esperada en el puesto 1; estar segunda no cuenta. Las barras altas de la figura son los fallos.',
+            'El plan: un bucle por `lista_casos` que, en cada caso, pide su `ranking`, busca en qué posición está la palabra esperada y guarda esa posición más 1 (el puesto). Después, `plt.bar` con una barra por caso y los puestos como alturas. Por último, cuenta cuántos puestos valen 1: estar segunda no es acertar.',
+            'Las piezas, con un solo caso:\n\n' +
+              py(
+                'lista = ranking("rey", "hombre", "mujer")   # 29 palabras, de más a menos parecida',
+                'pos = lista.index("reina")                  # su posición: 0 si es la primera',
+                'print(pos + 1)                              # su puesto, contando desde 1',
+                '',
+                'plt.bar([0, 1, 2], [5, 1, 3])               # tres barras, de alturas 5, 1 y 3',
+              ) +
+              '\n\n`for a, b, c, esperada in lista_casos:` saca en cada vuelta las cuatro palabras de un caso. Para comparar se escribe `==`: `puesto == 1` vale `True` si el puesto es el primero.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'lista_puestos = []',
+                'for a, b, c, esperada in lista_casos:',
+                '    pos = ranking(a, b, c).index(___)',
+                '    lista_puestos.append(___)',
+                '',
+                'plt.bar(range(11), lista_puestos)',
+                '',
+                'n_aciertos = 0',
+                'for puesto in lista_puestos:',
+                '    if ___:',
+                '        n_aciertos = n_aciertos + 1',
+              ) +
+              '\n\nEl puesto cuenta desde 1 y `.index` desde 0: lo que se añade a `lista_puestos` es la posición más 1.',
           ],
           explain:
             'Los puestos cuentan desde 1, y las barras te dejan ver de un vistazo cuántos casos fallan y por cuánto. Comprueba que `n_aciertos` es un número de casos, no una proporción.',
@@ -583,7 +776,9 @@ import matplotlib.pyplot as plt
 from embeddings import palabras, P, vector
 
 def ranking(a, b, c):
-    # Las palabras ordenadas de más a menos parecida a vector(a) - vector(b) + vector(c), sin contar a, b ni c
+    # Ya está hecha: no hace falta tocarla.
+    # Devuelve una lista con las palabras ordenadas de más a menos parecida a
+    # vector(a) - vector(b) + vector(c), sin a, b ni c. ranking(a, b, c)[0] es la que gana.
     w = vector(a) - vector(b) + vector(c)
     orden = [palabras[i] for i in np.argsort(P @ w)[::-1]]
     return [p for p in orden if p not in (a, b, c)]
@@ -602,10 +797,29 @@ lista_casos = [
     ("gato", "tigre", "lobo", "perro"),
     ("coche", "camión", "tren", "bici"),
 ]
-# Guarda en lista_puestos el puesto de la esperada en el ranking de cada caso (el primero es el 1),
-# dibuja una barra por caso con su puesto y guarda en n_aciertos cuántas veces es la primera
+
+# PASO 1. El puesto de la palabra esperada en el ranking de cada caso.
+# Por qué: que una analogía salga bien una vez no prueba nada; el puesto en muchos
+# casos dice cuántas veces acierta el modelo y por cuánto falla cuando falla.
+# for a, b, c, esperada in lista_casos: saca en cada vuelta las cuatro palabras de un caso.
+# lista.index(x) da la posición de x en la lista, contando desde 0:
+#   ["sol", "luna", "mar"].index("luna") vale 1.
+# El puesto cuenta desde 1 (el primero es el puesto 1): súmale 1 a la posición.
+# Empieza con lista_puestos = [] y añade cada puesto con lista_puestos.append(...).
 lista_puestos = None
+
+# PASO 2. Una barra por caso, con la altura de su puesto.
+# plt.bar(posiciones, alturas) dibuja una barra en cada posición, con su altura.
+# range(11) da las posiciones 0, 1, 2 y así hasta 10: una por caso.
+# Las barras altas serán los casos en que la esperada quedó lejos del primer puesto.
+
+# PASO 3. En cuántos casos la esperada es la primera (puesto 1).
+# Estar segunda no cuenta: solo vale el puesto 1.
+# Recorre lista_puestos con un for y suma 1 a un contador por cada puesto igual a 1
+# (en Python, «igual a» se escribe ==).
 n_aciertos = None
+
+# Para ver qué vale algo antes de entregar: print(lista_puestos) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 def _rank(a, b, c):

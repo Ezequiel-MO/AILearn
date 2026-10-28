@@ -2,10 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import type { CodigoQ } from '../../content/schema';
 import { runInPyodide } from '../../python/core';
 import {
+  HOLE,
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
   describeRun,
+  fillSkeleton,
   getPyodide,
+  hintBlocks,
 } from '../../../tests/content/python-helpers';
 import {
   NUMPY_ENGLISH,
@@ -616,6 +619,40 @@ n_aciertos = 8
     failures: 1,
   },
 ]);
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'analogias.ex02.1': ['-', '+', 'np.linalg.norm(w)', 'w_unit'],
+  'analogias.ex02.2': ['-', '+', '(a, b, c)', 'palabras[i]', '"rey"', '"hombre"', '"mujer"'],
+  'analogias.ex02.3': ['puntos(a, b, c)', 'palabras[pos]', 'in'],
+  'analogias.ex02.4': ['destino', 'origen', 'np.argmin(cos_rel)', 'otra[1]', 'otra[0]'],
+  'analogias.ex02.5': ['esperada', 'pos + 1', 'puesto == 1'],
+};
+
+describe('pistas de las preguntas de código del proyecto', { timeout: 60_000 }, () => {
+  it('las cinco preguntas de código tienen esqueleto en la última pista', () => {
+    // contract: petición de Oliver 2026-10-28: la pista lleva de la mano hasta un esqueleto con huecos
+    expect(Object.keys(SKELETON_FILLS)).toEqual([1, 2, 3, 4, 5].map((n) => `analogias.ex02.${n}`));
+  });
+  for (const [id, fills] of Object.entries(SKELETON_FILLS)) {
+    const q = question(id);
+    const examples = hintBlocks(q).filter((b) => !b.code.includes(HOLE));
+    for (const [k, block] of examples.entries()) {
+      it(`${id}: el ejemplo ${k + 1} de las pistas se ejecuta sin error tras el starter`, async () => {
+        const r = await runInPyodide(pyodide, q.starter + block.code, q.checks);
+        // contract: petición de Oliver 2026-10-28: los ejemplos de las pistas se pueden probar tal cual
+        expect(r.error, describeRun(r)).toBeNull();
+      });
+    }
+    it(`${id}: el esqueleto de la última pista, rellenado, aprueba`, async () => {
+      const r = await runInPyodide(pyodide, q.starter + fillSkeleton(q, fills), q.checks);
+      // contract: petición de Oliver 2026-10-28: la última pista lleva a una solución que aprueba
+      expect(r.passed, describeRun(r)).toBe(true);
+    });
+  }
+});
 
 // ---------- examen-3.consistencia ----------
 

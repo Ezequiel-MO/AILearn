@@ -58,3 +58,30 @@ export const codeQuestionProblems = async (pyodide: unknown, q: CodigoQ): Promis
   if (starter.passed) problems.push(`${q.id}: el starter ya supera las comprobaciones`);
   return problems;
 };
+
+// ---------- pistas con código (petición de Oliver 2026-10-28: pistas que llevan de la mano) ----------
+
+/** Hueco que el jugador rellena en el esqueleto de una pista. */
+export const HOLE = '___';
+
+/** Los bloques ```python de las pistas de una pregunta, en orden, con el número de su pista. */
+export const hintBlocks = (q: CodigoQ): { hint: number; code: string }[] =>
+  q.hints.flatMap((text, hint) =>
+    [...text.matchAll(/```python\n([\s\S]*?)\n```/g)].map((m) => ({ hint, code: `${m[1]!}\n` })),
+  );
+
+/**
+ * El esqueleto de la última pista (su último bloque ```python con huecos `___`) con cada hueco
+ * sustituido, en orden, por su relleno. Falla si no hay esqueleto o si sobran o faltan rellenos.
+ */
+export const fillSkeleton = (q: CodigoQ, fills: readonly string[]): string => {
+  const skeleton = hintBlocks(q)
+    .filter((b) => b.hint === q.hints.length - 1 && b.code.includes(HOLE))
+    .at(-1);
+  if (!skeleton) throw new Error(`${q.id}: la última pista no tiene un esqueleto con huecos`);
+  const holes = skeleton.code.split(HOLE).length - 1;
+  if (holes !== fills.length)
+    throw new Error(`${q.id}: el esqueleto tiene ${holes} huecos y hay ${fills.length} rellenos`);
+  let i = 0;
+  return skeleton.code.replaceAll(HOLE, () => fills[i++]!);
+};
