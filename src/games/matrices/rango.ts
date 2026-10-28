@@ -188,6 +188,12 @@ export const rango: Project = {
         {
           id: 'rango.ex01.1',
           type: 'numero',
+          purpose: {
+            why: 'Los sistemas de recomendación, como los de una plataforma de series, guardan las valoraciones en una matriz de usuarios por series, y la modelan con **pocos gustos** independientes. Si las valoraciones de dos usuarios son proporcionales, uno de ellos no aporta ningún gusto nuevo. El rango cuenta cuántos gustos independientes hay.',
+            aim: 'Vas a calcular el rango de una matriz de $2\\times 2$ comparando sus columnas. Verás si cada columna aporta una dirección nueva o si solo repite a la otra a otra escala.',
+            takeaway:
+              'Un rango de $1$ quiere decir que hay una única dirección: las dos columnas viven en la misma recta. En un recomendador, un rango bajo es una ventaja, porque permite predecir muchas valoraciones con muy pocos números, pero también quiere decir que la información es menos rica de lo que parece.',
+          },
           prompt:
             'El rango de una matriz es el número de columnas **independientes**: las que aportan una dirección nueva. Calcula el rango de $A=\\begin{pmatrix}2&-1\\\\-4&2\\end{pmatrix}$.',
           hints: [
@@ -204,6 +210,12 @@ export const rango: Project = {
         {
           id: 'rango.ex01.2',
           type: 'numero',
+          purpose: {
+            why: 'En una tabla de datos con una columna por categoría, como el tipo de cliente, si además de las columnas de cada categoría se añade una columna de unos, la suma de las primeras es igual a la última. La tabla tiene una columna sobrante, y una regresión sobre ella queda mal planteada. Es la «trampa de las variables ficticias».',
+            aim: 'Vas a calcular el rango de una matriz de $3\\times 3$ fijándote en cómo se relaciona su tercera columna con las otras. Verás cuántas columnas son realmente independientes.',
+            takeaway:
+              'Una columna que sale de sumar otras no aporta información: el rango es $2$, aunque la matriz tenga tres columnas. Quien prepara los datos lo arregla quitando una de las columnas ficticias, y así la regresión tiene una única solución.',
+          },
           prompt:
             'Calcula el rango de $A=\\begin{pmatrix}1&0&1\\\\2&1&3\\\\0&1&1\\end{pmatrix}$. Mira con atención cómo es su tercera columna.',
           hints: [
@@ -220,6 +232,12 @@ export const rango: Project = {
         {
           id: 'rango.ex01.3',
           type: 'numero',
+          purpose: {
+            why: 'Una capa de un modelo con miles de entradas y de salidas guarda millones de números. Si su matriz es, o se puede aproximar por, un producto $\\vec{u}\\vec{v}^{\\top}$ de dos vectores, basta guardar esos dos vectores: es la base de la **compresión de capas** por factorización de rango bajo, para que el modelo ocupe menos y corra más rápido.',
+            aim: 'Vas a calcular el rango de una matriz construida como producto de dos vectores y a ver qué tienen en común todas sus filas. Verás cuánto se puede resumir una matriz de nueve números.',
+            takeaway:
+              'Una matriz $\\vec{u}\\vec{v}^{\\top}$ tiene rango $1$, y toda ella se reconstruye con $3+3$ números en lugar de $9$. En una capa grande el ahorro es enorme. Cuando la matriz real no es de rango $1$, se aproxima y se pierde algo, y por eso se mide cuánto empeora el modelo antes de comprimir.',
+          },
           prompt:
             'Se construye $M=\\vec{u}\\vec{v}^{\\top}$ con $\\vec{u}=(1, 2, 3)$ y $\\vec{v}=(2, 0, -1)$: la fila $i$ de $M$ es $u_i$ veces $\\vec{v}^{\\top}$. Escrita entera,\n\n$$M=\\begin{pmatrix}2&0&-1\\\\4&0&-2\\\\6&0&-3\\end{pmatrix}.$$\n\nCalcula su rango.',
           hints: [
@@ -236,6 +254,12 @@ export const rango: Project = {
         {
           id: 'rango.ex01.4',
           type: 'vector',
+          purpose: {
+            why: 'Cuando un clasificador no usa cierta dirección de un embedding, esa dirección está en el **núcleo** de su matriz: se puede cambiar sin que la salida se entere. Hay técnicas que quitan de un embedding una propiedad no deseada, como el género de una palabra, proyectando para eliminar la dirección que el clasificador usa para predecirla.',
+            aim: 'Vas a encontrar un vector que una matriz de rango $1$ convierte en el vector cero. Verás que no es único: forma una recta entera, y basta con fijar una componente para elegir uno.',
+            takeaway:
+              'El vector $(2, -1)$ es invisible para la matriz: sumarlo a cualquier vector de entrada no cambia la salida. Por eso conocer el núcleo dice qué información no puede usar un modelo lineal, y qué se le puede borrar o añadir a un vector sin que cambie lo que el modelo predice.',
+          },
           prompt:
             'La matriz $A=\\begin{pmatrix}1&2\\\\3&6\\end{pmatrix}$ tiene rango $1$ y aplasta una recta entera de vectores en el origen: su núcleo. Escribe el vector $\\vec{v}$ del núcleo, el que cumple $A\\vec{v}=\\vec{0}$, cuya primera componente es $2$.',
           hints: [
@@ -252,6 +276,12 @@ export const rango: Project = {
         {
           id: 'rango.ex01.5',
           type: 'opcion',
+          purpose: {
+            why: 'En un autoencoder, un modelo que comprime los datos y los reconstruye, la capa estrecha del medio limita lo que puede llegar al final. Si las capas son lineales, la salida solo alcanza tantas direcciones independientes como el **rango** de esa capa. Es un cuello de botella, y se diseña a propósito para forzar un resumen.',
+            aim: 'Vas a decidir qué hace con el espacio una matriz de rango $1$ en tres coordenadas. Verás hasta dónde puede llegar su salida, aunque la entrada recorra todo el espacio.',
+            takeaway:
+              'Con rango $1$, todo lo que sale cae sobre una recta, por muchas entradas distintas que haya: la salida tiene un solo grado de libertad. Quien diseña el cuello de botella elige su anchura sabiendo que ese número es el límite de lo que pasa.',
+          },
           prompt:
             'Una matriz de $3\\times 3$ tiene rango $1$. ¿Qué hace con el espacio de 3 dimensiones?',
           hints: [

@@ -170,6 +170,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'Un modelo que supone que los rasgos son independientes, como Naive Bayes con distribuciones normales, usa la **inversa** de una matriz diagonal: en cada rasgo pone el inverso de su varianza. Un rasgo muy disperso pesa poco y uno muy estable pesa mucho. Las librerías llaman a esos pesos la matriz de precisión.',
+            aim: 'Vas a invertir una matriz diagonal, que estira cada eje por separado. Verás que se deshace eje a eje, y que solo vale si ningún número de la diagonal es cero.',
+            takeaway:
+              'Invertir una diagonal es invertir cada número de la diagonal. Por eso un modelo con rasgos independientes se evalúa con tanta rapidez: no resuelve ningún sistema. Y un rasgo con varianza $0$ rompe la cuenta, porque obliga a dividir entre cero, de modo que se quita antes de entrenar.',
+          },
           prompt:
             'Una matriz diagonal estira cada eje por separado, y su inversa los devuelve a su tamaño: pone en la diagonal los **inversos** de sus números. Calcula $A^{-1}$ para $A=\\begin{pmatrix}2&0\\\\0&4\\end{pmatrix}$ y escríbela en las cuatro casillas (los decimales, con coma).',
           hints: [
@@ -187,6 +193,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex01.2',
           type: 'vector',
+          purpose: {
+            why: 'Para detectar transacciones anómalas con dos rasgos que se mueven juntos, como el importe y la hora, se usa la **distancia de Mahalanobis**, que lleva dentro la inversa de la matriz de covarianza. Esa inversa descuenta la correlación, y así un punto raro de verdad se distingue de uno que solo es grande en los dos rasgos a la vez.',
+            aim: 'Vas a aplicar la fórmula de la inversa de una matriz de $2\\times 2$ paso a paso: determinante, intercambio de la diagonal y cambio de signo. Verás cómo el determinante decide si hay inversa y cuánto se escala.',
+            takeaway:
+              'Con determinante $1$, la inversa tiene entradas enteras: no hubo que dividir. Con un determinante cercano a $0$, todas las entradas se disparan, y una distancia de Mahalanobis calculada así se vuelve inestable. Por eso, antes de invertir una covarianza, se mira su determinante.',
+          },
           prompt:
             'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$ de $2\\times 2$ con $\\det A=ad-bc\\neq 0$, la inversa es $A^{-1}=\\frac{1}{\\det A}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}$. Calcula con ella la inversa de $A=\\begin{pmatrix}3&2\\\\1&1\\end{pmatrix}$ y escríbela en las cuatro casillas.',
           hints: [
@@ -204,6 +216,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex01.3',
           type: 'vector',
+          purpose: {
+            why: 'Hallar los coeficientes con los que se combinan dos direcciones para reproducir un vector, por ejemplo al descomponer un embedding en una base de ejes elegidos, es resolver $A\\vec{x}=\\vec{b}$. Con la inversa se hace $\\vec{x}=A^{-1}\\vec{b}$, que es la idea. En el código real se usa `np.linalg.solve`, que es más barato y más estable.',
+            aim: 'Vas a resolver un sistema de dos ecuaciones multiplicando la inversa por el vector, y a comprobar tu solución volviendo a multiplicar. Verás que la comprobación es la forma de fiarte del resultado.',
+            takeaway:
+              'La solución es $\\vec{x}=(3, -2)$, y se confirma porque $A\\vec{x}$ devuelve $\\vec{b}$. En la práctica no se calcula $A^{-1}$ para aplicarla una sola vez: se resuelve el sistema directamente, con el mismo resultado y menos error de redondeo.',
+          },
           prompt:
             'Resuelve $A\\vec{x}=\\vec{b}$ con $A=\\begin{pmatrix}2&1\\\\5&3\\end{pmatrix}$ y $\\vec{b}=(4, 9)$ calculando $\\vec{x}=A^{-1}\\vec{b}$. Comprueba antes de contestar que $A\\vec{x}$ da $\\vec{b}$. Escribe las dos coordenadas de $\\vec{x}$.',
           hints: [
@@ -220,6 +238,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex01.4',
           type: 'opcion',
+          purpose: {
+            why: 'Al ajustar una regresión lineal por mínimos cuadrados hay que invertir $X^{\\top}X$. Si dos rasgos son copia uno del otro, esa matriz **no tiene inversa** y el ajuste falla o da pesos sin sentido. En cuanto un conjunto de datos tiene un rasgo redundante, esta pregunta deja de ser teoría.',
+            aim: 'Vas a reconocer cuál de cuatro matrices no se puede invertir, mirando solo su determinante. Verás que los ceros no la delatan, y que una matriz sin ceros puede ser la que falle.',
+            takeaway:
+              'La que falla tiene las dos columnas paralelas: aplasta el plano sobre una recta, y lo perdido no vuelve. Para afrontarlo, quien ajusta la regresión quita el rasgo repetido o añade una regularización (regresión ridge), que suma a $X^{\\top}X$ un poco de diagonal y la hace invertible.',
+          },
           prompt:
             'Una matriz tiene inversa si y solo si su determinante no es $0$. ¿Cuál de estas cuatro matrices **no** tiene inversa?',
           hints: [
@@ -241,6 +265,12 @@ export const inversa: Project = {
         {
           id: 'inversa.ex01.5',
           type: 'vector',
+          purpose: {
+            why: 'Una tubería de preparación de datos encadena pasos, como centrar, escalar y girar los ejes, y después de predecir hay que devolver el resultado a las unidades originales. Para eso se aplican los pasos al revés. Es lo que hace `inverse_transform` en una tubería de scikit-learn, y la fórmula de $(AB)^{-1}$ es la razón.',
+            aim: 'Vas a calcular la inversa de un producto a partir de las inversas de sus factores, sin hallar el producto. Verás en qué orden hay que colocarlas, y qué pasa si lo olvidas.',
+            takeaway:
+              'La inversa del producto lleva las inversas en orden contrario: $B^{-1}A^{-1}$. Si en una tubería deshaces los pasos en el mismo orden en que los aplicaste, las predicciones vuelven a unidades equivocadas, y el modelo parece fallar cuando el fallo está en la cuenta.',
+          },
           prompt:
             'Sabes que $A^{-1}=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ y $B^{-1}=\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$. Calcula $(AB)^{-1}$ sin hallar antes $A$, $B$ ni $AB$, y escríbela en las cuatro casillas.',
           hints: [

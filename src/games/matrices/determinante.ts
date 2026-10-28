@@ -153,6 +153,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex01.1',
           type: 'numero',
+          purpose: {
+            why: 'Una matriz de $2\\times 2$ aparece como la covarianza de dos rasgos o como una capa de un modelo de juguete, y antes de usarla conviene saber si es **invertible** y cuánto escala. El determinante responde a las dos cosas con una sola cuenta, $ad-bc$, y es la comprobación rápida que se hace a mano antes de fiarse de un resultado de la máquina.',
+            aim: 'Vas a calcular el determinante de una matriz con una entrada negativa y a cuidar el signo de cada producto. Verás que una resta mal leída cambia el resultado entero, y con él lo que dirías de la matriz.',
+            takeaway:
+              'El número que sale es el factor de área de la matriz y, al ser distinto de cero, dice que no aplasta el plano. En la práctica, un determinante muy cercano a $0$ avisa de que los datos o la capa están a punto de perder una dirección, y se mira antes de invertir nada.',
+          },
           prompt:
             'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$, el determinante es $\\det A=ad-bc$. Calcula $\\det A$ con $A=\\begin{pmatrix}2&-3\\\\1&4\\end{pmatrix}$.',
           hints: [
@@ -169,6 +175,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex01.2',
           type: 'numero',
+          purpose: {
+            why: 'Hay sistemas que deben escoger elementos **variados**: las recomendaciones de una tienda, o las frases de un resumen. Un método los puntúa con el determinante de los vectores de los elementos: es grande si apuntan a sitios distintos y vale $0$ si dos son paralelos, es decir, repetidos. El área del paralelogramo es esa idea en el plano.',
+            aim: 'Vas a hallar el área que forman dos vectores usando el determinante y a quitarle el signo. Verás que el área mide cuánto se diferencian los dos, y que el orden en que los pongas no la cambia.',
+            takeaway:
+              'Con un área de $10$, los dos vectores aportan direcciones distintas; si fueran paralelos el área sería $0$ y uno sobraría. Un seleccionador de elementos variados prefiere los conjuntos de área grande, porque cada elemento añade algo que los demás no tienen.',
+          },
           prompt:
             'Un paralelogramo tiene por lados los vectores $\\vec{u}=(2, 3)$ y $\\vec{v}=(4, 1)$. Su área es $\\lvert\\det A\\rvert$, con $A$ la matriz que tiene a $\\vec{u}$ y $\\vec{v}$ por columnas. Calcula el área.',
           hints: [
@@ -185,6 +197,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex01.3',
           type: 'numero',
+          purpose: {
+            why: 'Para simular datos con varias variables correlacionadas, o para calcular la probabilidad de una distribución normal, se descompone la covarianza en una matriz **triangular** (la factorización de Cholesky). Se hace porque con una triangular las cuentas se simplifican: su determinante es el producto de la diagonal, sin más operaciones.',
+            aim: 'Vas a calcular el determinante de una matriz triangular y a descubrir qué número de la matriz no interviene. Verás cuánto trabajo te ahorra tener un cero en el sitio adecuado.',
+            takeaway:
+              'En una triangular el determinante se lee de la diagonal: $-8$ sale de $-2$ por $4$. Con matrices de miles de filas, esa diferencia separa una cuenta inmediata de una muy lenta, y por eso los métodos numéricos buscan una forma triangular antes de calcular nada.',
+          },
           prompt:
             'Una matriz de $2\\times 2$ es **triangular** si tiene un cero fuera de la diagonal, como esta. Calcula $\\det A$ con $A=\\begin{pmatrix}-2&5\\\\0&4\\end{pmatrix}$.',
           hints: [
@@ -201,6 +219,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex01.4',
           type: 'opcion',
+          purpose: {
+            why: 'En visión por ordenador con nubes de puntos en 3D, como las de un coche autónomo o un modelo de una molécula, hay que distinguir un **giro** de un espejo. Un giro conserva la orientación y se acepta como cambio de punto de vista. Un espejo cambia la mano de la figura, y se reconoce porque su matriz tiene el determinante negativo.',
+            aim: 'Vas a mirar cuatro matrices y a decidir cuál invierte la orientación, fijándote solo en el signo del determinante. Verás que mirar los signos de las entradas lleva a error.',
+            takeaway:
+              'Un determinante negativo es un espejo, y uno positivo, un giro o un estiramiento. Esta comprobación sirve para detectar un fallo en una tubería de datos: si una matriz que debía ser un giro sale con determinante $-1$, las figuras llegan reflejadas al modelo sin que nadie lo note.',
+          },
           prompt:
             'Una transformación **voltea la orientación** del plano, como un espejo, cuando su determinante es negativo. ¿Cuál de estas matrices la voltea?',
           hints: [
@@ -222,6 +246,12 @@ export const determinante: Project = {
         {
           id: 'determinante.ex01.5',
           type: 'numero',
+          purpose: {
+            why: 'Un flujo normalizador tiene decenas de capas, y calcular el determinante de la matriz que resulta de multiplicarlas todas sería costoso. No hace falta: el determinante de un producto es el producto de los determinantes. En la práctica se suman los **logaritmos** de cada capa, porque multiplicar muchos números pequeños acaba en cero en el ordenador.',
+            aim: 'Vas a calcular el determinante de dos capas seguidas sin multiplicarlas. Verás que cada capa aporta su factor de área y que el signo también se compone.',
+            takeaway:
+              'El factor de las dos capas juntas es $-6$, el producto de los dos. Un modelo con muchas capas toma el logaritmo del valor absoluto de cada una y los suma. La suma es estable, y el signo se anota aparte, porque solo dice si la pareja voltea la orientación.',
+          },
           prompt:
             'Dos capas lineales de $2\\times 2$ van seguidas, sin activación en medio: primero $W_1$, con $\\det W_1=2$, y después $W_2$, con $\\det W_2=-3$. Juntas equivalen a la matriz $W_2W_1$. Sin multiplicar las matrices, ¿cuánto vale $\\det(W_2W_1)$?',
           hints: [
