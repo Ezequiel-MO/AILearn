@@ -210,7 +210,7 @@ export const matrizVector: Project = {
           id: 'matriz-vector.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Cada número de salida de una capa densa es la respuesta de una **neurona**: el producto escalar de su fila de pesos con la entrada. Los pesos positivos suman, los negativos restan. Calcular una sola salida sin tocar las demás es lo que hace un framework cuando solo necesita una neurona.',
+            why: 'Cada número de salida de una capa densa es la respuesta de una **neurona**: el producto escalar de su fila de pesos con la entrada. Los pesos positivos suman, los negativos restan. Mirar una sola salida es lo que se hace al interpretar una red: ver a qué entradas responde una neurona y con qué fuerza.',
             aim: 'Vas a calcular una única componente de $A\\vec{v}$, la primera, con su fila y sin tocar la segunda, y a ver que cada salida depende solo de una fila.',
             takeaway:
               'La primera neurona da $-3$: sus pesos negativos pesaron más que los positivos sobre esta entrada. Con una activación como ReLU, una salida negativa se convierte en cero y esa neurona queda apagada para este ejemplo.',

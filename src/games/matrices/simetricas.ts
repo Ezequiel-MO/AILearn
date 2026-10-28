@@ -323,7 +323,7 @@ export const simetricas: Project = {
             why: 'Los ejes que devuelve `np.linalg.eigh` para una matriz simétrica son perpendiculares y de norma $1$. Eso permite calcular la coordenada de un dato en cada eje por separado, con un producto escalar, y descartar un eje sin tocar los demás. En $2\\times 2$, si ya tienes un eje, el otro sale sin resolver ninguna ecuación.',
             aim: 'Vas a deducir el segundo autovector de una matriz que no conoces, solo por ser simétrica y por tener un autovector dado. Verás qué ángulo lo fija y cómo se escribe con un producto escalar.',
             takeaway:
-              'Los autovectores de una matriz simétrica con autovalores distintos son perpendiculares, y el otro es $(-1, 2)$. Esa propiedad es lo que hace que los ejes de una covarianza sean independientes entre sí, y que los métodos de reducción de dimensiones puedan quedarse con unos ejes y tirar el resto sin interferencias.',
+              'Los autovectores de una matriz simétrica con autovalores distintos son perpendiculares, y el otro es $(-1, 2)$. Esa propiedad hace que los ejes de una covarianza sean perpendiculares y que las coordenadas de los datos en ellos no estén correlacionadas: por eso los métodos de reducción de dimensiones pueden quedarse con unos ejes y tirar el resto sin interferencias.',
           },
           prompt:
             'Una matriz simétrica de $2\\times 2$ tiene a $(2, 1)$ como autovector, y sus dos autovalores son distintos. Da la dirección del otro autovector, escrita con primera componente $-1$.',

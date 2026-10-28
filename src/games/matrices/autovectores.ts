@@ -266,7 +266,7 @@ export const autovectores: Project = {
             why: 'Algunos modelos de lenguaje codifican la posición de cada palabra girando pares de componentes de su vector. Una transformación así no estira nada, solo gira, y por eso no deja ninguna dirección en su sitio. Saber detectar a ojo qué matrices no tienen autovectores reales evita buscar direcciones propias donde no las hay.',
             aim: 'Vas a revisar cuatro matrices, cada una con su efecto sobre el plano, y a decidir cuál no conserva ninguna recta. Verás que la ecuación de segundo grado de los autovalores lo anuncia sin dibujar nada.',
             takeaway:
-              'Un giro tiene sus autovalores complejos: no hay recta que se conserve, solo se cambia la orientación. En una red recurrente, autovalores complejos con módulo cercano a $1$ son señal de oscilación, no de crecimiento ni de olvido. Cuando $\\lambda^2-t\\lambda+d=0$ no tiene solución real, hay que mirar los autovalores complejos.',
+              'Un giro tiene autovalores complejos: ninguna recta se conserva, porque todas las flechas giran el mismo ángulo. En un proceso que se repite paso a paso, como la parte lineal de una red recurrente, autovalores complejos de módulo cercano a $1$ dan oscilación: el estado gira sin crecer ni apagarse. Cuando $\\lambda^2-t\\lambda+d=0$ no tiene solución real, hay que mirar los autovalores complejos.',
           },
           prompt:
             'Un autovector real es un vector que la matriz deja en su recta. ¿Cuál de estas matrices **no deja ninguna recta en su sitio**, es decir, no tiene autovectores reales?',

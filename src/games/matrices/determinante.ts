@@ -157,7 +157,7 @@ export const determinante: Project = {
             why: 'Una matriz de $2\\times 2$ aparece como la covarianza de dos rasgos o como una capa de un modelo de juguete, y antes de usarla conviene saber si es **invertible** y cuánto escala. El determinante responde a las dos cosas con una sola cuenta, $ad-bc$, y es la comprobación rápida que se hace a mano antes de fiarse de un resultado de la máquina.',
             aim: 'Vas a calcular el determinante de una matriz con una entrada negativa y a cuidar el signo de cada producto. Verás que una resta mal leída cambia el resultado entero, y con él lo que dirías de la matriz.',
             takeaway:
-              'El número que sale es el factor de área de la matriz y, al ser distinto de cero, dice que no aplasta el plano. En la práctica, un determinante muy cercano a $0$ avisa de que los datos o la capa están a punto de perder una dirección, y se mira antes de invertir nada.',
+              'El número que sale es el factor de área de la matriz y, al ser distinto de cero, dice que no aplasta el plano: la matriz tiene inversa. Con entradas de este tamaño, un determinante muy cercano a $0$ avisaría de que está a punto de perder una dirección. En matrices grandes eso no basta, porque el determinante también crece o encoge con la escala de los números: para saber si una matriz está cerca de no tener inversa se mira otra medida, el **número de condición** (`np.linalg.cond`).',
           },
           prompt:
             'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$, el determinante es $\\det A=ad-bc$. Calcula $\\det A$ con $A=\\begin{pmatrix}2&-3\\\\1&4\\end{pmatrix}$.',
@@ -176,7 +176,7 @@ export const determinante: Project = {
           id: 'determinante.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Hay sistemas que deben escoger elementos **variados**: las recomendaciones de una tienda, o las frases de un resumen. Un método los puntúa con el determinante de los vectores de los elementos: es grande si apuntan a sitios distintos y vale $0$ si dos son paralelos, es decir, repetidos. El área del paralelogramo es esa idea en el plano.',
+            why: 'Hay sistemas que deben escoger elementos **variados**: las recomendaciones de una tienda, o las frases de un resumen. Un método, los procesos puntuales determinantales, los puntúa con un determinante hecho con los vectores de los elementos: es grande si apuntan a sitios distintos y vale $0$ si dos son paralelos, es decir, repetidos. El área del paralelogramo es esa idea en el plano.',
             aim: 'Vas a hallar el área que forman dos vectores usando el determinante y a quitarle el signo. Verás que el área mide cuánto se diferencian los dos, y que el orden en que los pongas no la cambia.',
             takeaway:
               'Con un área de $10$, los dos vectores aportan direcciones distintas; si fueran paralelos el área sería $0$ y uno sobraría. Un seleccionador de elementos variados prefiere los conjuntos de área grande, porque cada elemento añade algo que los demás no tienen.',
@@ -247,7 +247,7 @@ export const determinante: Project = {
           id: 'determinante.ex01.5',
           type: 'numero',
           purpose: {
-            why: 'Un flujo normalizador tiene decenas de capas, y calcular el determinante de la matriz que resulta de multiplicarlas todas sería costoso. No hace falta: el determinante de un producto es el producto de los determinantes. En la práctica se suman los **logaritmos** de cada capa, porque multiplicar muchos números pequeños acaba en cero en el ordenador.',
+            why: 'Un flujo normalizador encadena muchas capas, y calcular el determinante de la matriz que resulta de multiplicarlas todas sería costoso. No hace falta: el determinante de un producto es el producto de los determinantes. En la práctica se suman los **logaritmos** de cada capa, porque multiplicar muchos números pequeños acaba en cero en el ordenador.',
             aim: 'Vas a calcular el determinante de dos capas seguidas sin multiplicarlas. Verás que cada capa aporta su factor de área y que el signo también se compone.',
             takeaway:
               'El factor de las dos capas juntas es $-6$, el producto de los dos. Un modelo con muchas capas toma el logaritmo del valor absoluto de cada una y los suma. La suma es estable, y el signo se anota aparte, porque solo dice si la pareja voltea la orientación.',

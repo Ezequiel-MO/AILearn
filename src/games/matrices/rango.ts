@@ -233,7 +233,7 @@ export const rango: Project = {
           id: 'rango.ex01.3',
           type: 'numero',
           purpose: {
-            why: 'Una capa de un modelo con miles de entradas y de salidas guarda millones de números. Si su matriz es, o se puede aproximar por, un producto $\\vec{u}\\vec{v}^{\\top}$ de dos vectores, basta guardar esos dos vectores: es la base de la **compresión de capas** por factorización de rango bajo, para que el modelo ocupe menos y corra más rápido.',
+            why: 'Una capa de un modelo con miles de entradas y de salidas guarda millones de números. Si su matriz es, o se puede aproximar por, un producto $\\vec{u}\\vec{v}^{\\top}$ de dos vectores (o por una suma de unos pocos), basta guardar esos vectores: es la base de la **compresión de capas** por factorización de rango bajo, para que el modelo ocupe menos y corra más rápido.',
             aim: 'Vas a calcular el rango de una matriz construida como producto de dos vectores y a ver qué tienen en común todas sus filas. Verás cuánto se puede resumir una matriz de nueve números.',
             takeaway:
               'Una matriz $\\vec{u}\\vec{v}^{\\top}$ tiene rango $1$, y toda ella se reconstruye con $3+3$ números en lugar de $9$. En una capa grande el ahorro es enorme. Cuando la matriz real no es de rango $1$, se aproxima y se pierde algo, y por eso se mide cuánto empeora el modelo antes de comprimir.',

@@ -171,10 +171,10 @@ export const inversa: Project = {
           id: 'inversa.ex01.1',
           type: 'vector',
           purpose: {
-            why: 'Un modelo que supone que los rasgos son independientes, como Naive Bayes con distribuciones normales, usa la **inversa** de una matriz diagonal: en cada rasgo pone el inverso de su varianza. Un rasgo muy disperso pesa poco y uno muy estable pesa mucho. Las librerías llaman a esos pesos la matriz de precisión.',
+            why: 'Un modelo que supone que los rasgos son independientes, como Naive Bayes con distribuciones normales, usa la **inversa** de una matriz diagonal: en cada rasgo pone el inverso de su varianza. Un rasgo muy disperso pesa poco y uno muy estable pesa mucho. La inversa de una covarianza se llama matriz de precisión.',
             aim: 'Vas a invertir una matriz diagonal, que estira cada eje por separado. Verás que se deshace eje a eje, y que solo vale si ningún número de la diagonal es cero.',
             takeaway:
-              'Invertir una diagonal es invertir cada número de la diagonal. Por eso un modelo con rasgos independientes se evalúa con tanta rapidez: no resuelve ningún sistema. Y un rasgo con varianza $0$ rompe la cuenta, porque obliga a dividir entre cero, de modo que se quita antes de entrenar.',
+              'Invertir una diagonal es invertir cada número de la diagonal. Por eso un modelo con rasgos independientes se evalúa con tanta rapidez: no resuelve ningún sistema. Y un rasgo con varianza $0$ rompe la cuenta, porque obliga a dividir entre cero, de modo que se quita antes de entrenar o se le suma una varianza mínima.',
           },
           prompt:
             'Una matriz diagonal estira cada eje por separado, y su inversa los devuelve a su tamaño: pone en la diagonal los **inversos** de sus números. Calcula $A^{-1}$ para $A=\\begin{pmatrix}2&0\\\\0&4\\end{pmatrix}$ y escríbela en las cuatro casillas (los decimales, con coma).',
@@ -197,7 +197,7 @@ export const inversa: Project = {
             why: 'Para detectar transacciones anómalas con dos rasgos que se mueven juntos, como el importe y la hora, se usa la **distancia de Mahalanobis**, que lleva dentro la inversa de la matriz de covarianza. Esa inversa descuenta la correlación, y así un punto raro de verdad se distingue de uno que solo es grande en los dos rasgos a la vez.',
             aim: 'Vas a aplicar la fórmula de la inversa de una matriz de $2\\times 2$ paso a paso: determinante, intercambio de la diagonal y cambio de signo. Verás cómo el determinante decide si hay inversa y cuánto se escala.',
             takeaway:
-              'Con determinante $1$, la inversa tiene entradas enteras: no hubo que dividir. Con un determinante cercano a $0$, todas las entradas se disparan, y una distancia de Mahalanobis calculada así se vuelve inestable. Por eso, antes de invertir una covarianza, se mira su determinante.',
+              'Con determinante $1$, la inversa tiene entradas enteras: no hubo que dividir. Si el determinante fuera casi $0$, con entradas de este tamaño, la inversa tendría números enormes, y una distancia de Mahalanobis calculada con ella amplificaría cualquier ruido de los datos. Por eso, antes de invertir una covarianza, se comprueba que no esté cerca de ser singular (con su número de condición).',
           },
           prompt:
             'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$ de $2\\times 2$ con $\\det A=ad-bc\\neq 0$, la inversa es $A^{-1}=\\frac{1}{\\det A}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}$. Calcula con ella la inversa de $A=\\begin{pmatrix}3&2\\\\1&1\\end{pmatrix}$ y escríbela en las cuatro casillas.',

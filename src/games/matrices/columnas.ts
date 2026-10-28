@@ -181,7 +181,7 @@ export const columnas: Project = {
           id: 'columnas.ex01.2',
           type: 'vector',
           purpose: {
-            why: 'La tabla de embeddings de un modelo de lenguaje es una matriz con una columna por cada palabra o fragmento de palabra del vocabulario. Pedir el embedding de una palabra es leer su columna: no hace falta calcular nada. Esta pregunta es ese acceso, hecho con $\\hat{\\jmath}$.',
+            why: 'La tabla de embeddings de un modelo de lenguaje es una matriz con un vector por cada palabra o fragmento de palabra del vocabulario: aquí, uno por columna (muchas bibliotecas los guardan por filas, y la idea es la misma). Pedir el embedding de una palabra es leer su columna: no hace falta calcular nada. Esta pregunta es ese acceso, hecho con $\\hat{\\jmath}$.',
             aim: 'Vas a decir adónde va $\\hat{\\jmath}$ leyendo la segunda columna de la matriz, sin hacer ninguna cuenta, y a ver que esa columna es todo lo que $\\hat{\\jmath}$ pide.',
             takeaway:
               '$\\hat{\\jmath}$ va a $(1, 2)$, la segunda columna. Multiplicar la matriz por $(0, 1)$ devuelve exactamente esa columna. En un modelo de lenguaje, así se obtiene el vector de una palabra: se «consulta» su columna de la tabla en vez de multiplicar.',

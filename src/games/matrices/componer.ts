@@ -140,7 +140,7 @@ export const componer: Project = {
           id: 'componer.ex01.1',
           type: 'vector',
           purpose: {
-            why: 'En la atención, la puntuación entre una consulta y una clave sale de multiplicar dos matrices: $W_Q$ y $W_K$. Lo que importa para las puntuaciones es su producto, y se calcula columna a columna: cada columna del resultado es la columna de la segunda matriz ya pasada por la primera.',
+            why: 'Cuando dos pasos lineales van seguidos, como el escalado de una normalización y la capa que viene detrás, al poner un modelo en producción se suelen fundir en una sola matriz: se calcula el producto una vez y cada entrada pasa por una matriz en lugar de dos. Ese producto se arma columna a columna: cada columna de $AB$ es una columna de $B$ ya pasada por $A$.',
             aim: 'Vas a calcular $AB$ columna a columna, pasando cada columna de $B$ por $A$, y a ver cómo queda una matriz única que hace los dos pasos.',
             takeaway:
               '$AB$ tiene por columnas $(4, 6)$ y $(-2, 0)$: cada una es una columna de $B$ transformada por $A$. Por eso el producto actúa como las dos transformaciones seguidas, y por eso los modelos pueden precalcular un producto en vez de repetir los dos pasos.',
@@ -193,7 +193,7 @@ export const componer: Project = {
             why: 'Las filas de una matriz de datos son los ejemplos, y las columnas, sus rasgos. Multiplicarla por la matriz de pesos de una capa procesa **todo el lote** de una vez, en lugar de ejemplo a ejemplo. Prever el tamaño del resultado permite saber de antemano qué sale de la capa.',
             aim: 'Vas a deducir el tamaño de un producto de una matriz de $3\\times 5$ por otra de $5\\times 2$, mirando qué se conserva y qué desaparece de los tamaños.',
             takeaway:
-              'El resultado es de $3\\times 2$: una fila por ejemplo del lote y una columna por salida de la capa. El 5 interior se gasta en las sumas: cada entrada cuesta 5 multiplicaciones, así que el producto entero son $6\\cdot 5=30$.',
+              'El resultado es de $3\\times 2$: una fila por ejemplo del lote y una columna por salida de la capa. El 5 interior se gasta en las sumas: cada entrada cuesta 5 multiplicaciones, así que el producto entero cuesta $6\\cdot 5=30$ multiplicaciones.',
           },
           prompt:
             'Una matriz $A$ de $3\\times 5$ se multiplica por una matriz $B$ de $5\\times 2$. El producto $AB$ está definido, porque los tamaños interiores coinciden (5 y 5). ¿Qué tamaño tiene $AB$? Escribe primero las filas y después las columnas.',
