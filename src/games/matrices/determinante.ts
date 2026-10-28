@@ -1,4 +1,5 @@
 import type { Goal, PlaneSpec, Project } from '../../content/schema';
+import { py } from '../py';
 import { determinanteWarmup } from './determinante.calentamiento';
 import { transformPlane, type TransformPlaneOptions } from './plane';
 
@@ -215,8 +216,20 @@ export const determinante: Project = {
           prompt:
             'Para $A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$, el determinante exacto es $1\\cdot 4-2\\cdot 3=-2$, pero `np.linalg.det` calcula con decimales binarios y no devuelve justo ese número. Ya tienes `A`. Guarda en `d` su determinante con `np.linalg.det`; en `bien`, si `d` es $-2$, comparándolo con `np.isclose`; y en `d_int`, el determinante redondeado al entero más cercano con `round`.',
           hints: [
-            '`np.linalg.det(A)` devuelve el determinante como un número decimal.',
-            'Con `==` entre decimales, una diferencia en la última cifra da `False`. `np.isclose(x, y)` acepta diferencias diminutas.',
+            'El plan son tres líneas. `d` es el determinante de `A`, que calcula `np.linalg.det`. `bien` dice si `d` vale $-2$, y se compara con `np.isclose`, no con `==`, porque `d` es un decimal con un error diminuto en las últimas cifras. `d_int` es `d` redondeado al entero más cercano, con `round`. `d` es un número; `bien`, un `True` o `False`; y `d_int`, un entero.',
+            'Las piezas, con otra matriz y otros números:\n\n' +
+              py(
+                'M = np.array([[3, 1], [2, 5]])',
+                'x = np.linalg.det(M)           # el determinante de M: un número decimal, casi 13',
+                'print(np.isclose(x, 13))       # True: isclose acepta una diferencia diminuta',
+                'print(0.1 + 0.2 == 0.3)        # False: con == una diferencia en la última cifra ya cuenta',
+                'print(np.isclose(0.1 + 0.2, 0.3))  # True',
+                'print(round(12.6))             # 13: round da el entero más cercano',
+              ) +
+              '\n\n`np.isclose(x, y)` compara dos números y devuelve `True` si son casi iguales.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('d = np.linalg.det(___)', 'bien = np.isclose(d, ___)', 'd_int = round(___)') +
+              '\n\nEl error típico es comparar con `==`: sale `False` aunque `d` sea, para todo fin práctico, $-2$.',
           ],
           explain:
             'NumPy calcula el determinante con una factorización en decimales, y el resultado suele arrastrar un error de redondeo en las últimas cifras. Por eso se compara con tolerancia y no con una igualdad exacta; y si se espera un entero, se redondea.',
@@ -230,10 +243,31 @@ export const determinante: Project = {
           starter: `import numpy as np
 
 A = np.array([[1, 2], [3, 4]])
-# Guarda en d el determinante de A, en bien si d es -2 (con np.isclose) y en d_int el determinante redondeado
+# A es una matriz: un array de NumPy con 2 filas y 2 columnas.
+# Su determinante exacto es 1 por 4 menos 2 por 3, que vale -2.
+
+# PASO 1. El determinante de A, guardado en d.
+# Por qué: el determinante es el factor por el que A multiplica las áreas. Aquí te
+# interesa ver que el ordenador no lo da exacto.
+# np.linalg.det(M) devuelve el determinante de la matriz M como un número decimal.
+# Se espera un número en d.
 d = None
+
+# PASO 2. Si d vale -2, guardado en bien.
+# Por qué: d se calcula con decimales binarios y puede traer un error diminuto en las
+# últimas cifras, así que una igualdad exacta (==) diría False. Se compara "casi igual".
+# np.isclose(x, y) devuelve True si x e y son casi iguales (por ejemplo,
+# np.isclose(0.1 + 0.2, 0.3) vale True aunque 0.1 + 0.2 == 0.3 sea False).
+# Se espera un solo True o False en bien.
 bien = None
+
+# PASO 3. d redondeado al entero más cercano, guardado en d_int.
+# Por qué: si sabes que el resultado debe ser un entero, redondear quita ese error.
+# round(x) devuelve el entero más cercano a x (round(12.6) vale 13).
+# Se espera un número entero en d_int.
 d_int = None
+
+# Para ver qué vale algo antes de entregar: print(d, bien, d_int) y pulsa «Ejecutar».
 `,
           checks: `_n = lambda x: isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, (bool, np.bool_))
 _d = _n(d)
@@ -255,8 +289,28 @@ check((not _e) or d_int == -2, "\`d_int\` tiene que valer -2: el determinante re
           prompt:
             'El área de un triángulo de vértices `a`, `b` y `c` es la mitad de la del paralelogramo que forman `b - a` y `c - a`, y esa se obtiene con un determinante. Escribe `area_triangulo(a, b, c)`, que recibe tres arrays de NumPy con 2 números y devuelve el área. Después guarda en `area` el área del triángulo de vértices $(1, 1)$, $(2, 4)$ y $(5, 2)$.',
           hints: [
-            'Los dos lados que salen de `a` son `b - a` y `c - a`. Ponlos como las dos filas de una matriz de 2 filas y 2 columnas y calcula su determinante.',
-            'El determinante puede salir negativo según el orden de los vértices, y el triángulo tiene la mitad del área del paralelogramo.',
+            'El plan, dentro de la función: (1) los dos lados que salen de `a` son `b - a` y `c - a`; (2) con ellos como filas, arma una matriz de 2 filas y 2 columnas con `np.array([lado1, lado2])` y llámala `M`; (3) su determinante, `np.linalg.det(M)`, es el área del paralelogramo, pero puede salir negativo según el orden de los vértices, así que quítale el signo con `abs`; (4) el triángulo es la mitad del paralelogramo. Con `return` devuelves ese número. Fuera de la función, `area` es lo que devuelve `area_triangulo` con los vértices del enunciado, como arrays de NumPy.',
+            'Las piezas, con otros puntos:\n\n' +
+              py(
+                'p = np.array([1, 2])',
+                'q = np.array([4, 6])',
+                'print(q - p)                        # [3 4]: restar arrays resta componente a componente',
+                'M = np.array([p, q])                # una matriz con p y q como filas',
+                'print(M.shape)                      # (2, 2): 2 filas y 2 columnas',
+                'print(round(np.linalg.det(M)))      # -2: el determinante de M, redondeado',
+                'print(abs(-7))                      # 7: abs quita el signo',
+              ) +
+              '\n\nDentro de una función, las líneas llevan sangría (4 espacios) y `return` devuelve el resultado.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def area_triangulo(a, b, c):',
+                '    M = np.array([___, ___])',
+                '    return ___(np.linalg.det(M)) / ___',
+                '',
+                '',
+                'area = area_triangulo(np.array([1, 1]), np.array([2, 4]), np.array([5, 2]))',
+              ) +
+              '\n\nLos errores típicos son olvidar el valor absoluto, que puede dar un área negativa, y no dividir entre 2, que da el doble.',
           ],
           explain:
             'El determinante de los dos lados es el área del paralelogramo, con signo, y el triángulo ocupa la mitad. El signo depende del orden en que se dan los vértices, y un área no puede ser negativa.',
@@ -271,13 +325,34 @@ check((not _e) or d_int == -2, "\`d_int\` tiene que valer -2: el determinante re
           starter: `import numpy as np
 
 
+# Ya está hecha la importación de NumPy; no hace falta tocarla.
+
+
 def area_triangulo(a, b, c):
-    # Devuelve el área del triángulo de vértices a, b y c (arrays de 2 números)
+    # a, b y c son los tres vértices: cada uno es un array de NumPy con 2 números.
+    # Por ejemplo, a[0] y a[1] son las dos coordenadas de a.
+    # Todo lo de dentro de la función lleva sangría (4 espacios); eso es lo que le dice
+    # a Python qué líneas son de la función.
+    #
+    # Qué tienes que hacer (quita el return None y escribe tus líneas):
+    # 1. Los dos lados que salen de a son b - a y c - a (restar arrays resta componente
+    #    a componente, y el resultado es otro array de 2 números).
+    # 2. np.array([lado1, lado2]) con los dos lados como filas da una matriz de 2 por 2.
+    # 3. np.linalg.det(M) es el determinante de esa matriz: el área del paralelogramo
+    #    que forman los dos lados, pero con signo, que cambia según el orden de los vértices.
+    #    abs(x) quita el signo de x.
+    # 4. El triángulo ocupa la mitad del paralelogramo.
+    # return x termina la función y devuelve x: se espera un solo número (el área).
     return None
 
 
-# Guarda en area el área del triángulo de vértices (1, 1), (2, 4) y (5, 2)
+# PASO 1. El área del triángulo de vértices (1, 1), (2, 4) y (5, 2), guardada en area.
+# Por qué: es comprobar que tu función sirve con datos concretos.
+# Llama a la función con tres arrays de NumPy: area_triangulo(np.array([1, 1]), ...).
+# Se espera un número en area.
 area = None
+
+# Para ver qué vale algo antes de entregar: print(area) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("area_triangulo"))
 def _call(a, b, c):
@@ -316,8 +391,27 @@ area = area_triangulo(np.array([1, 1]), np.array([2, 4]), np.array([5, 2]))
           prompt:
             'El signo de un determinante dice de qué lado está un punto. Para la recta que pasa por `a` y `b`, recorrida de `a` a `b`, el punto `c` está a la **izquierda** si el determinante de `b - a` y `c - a` es positivo (como $\\hat{\\jmath}$ respecto de $\\hat{\\imath}$ en la identidad). Escribe `a_la_izquierda(a, b, c)`, que devuelve `True` si `c` está estrictamente a la izquierda, y `False` si está a la derecha o sobre la recta. Guarda en `lado` lo que devuelve para `a` $=(0, 0)$, `b` $=(4, 1)$ y `c` $=(1, 3)$.',
           hints: [
-            'Es el mismo determinante de los dos lados que salen de `a`, pero aquí solo importa su signo.',
-            'Si `c` está sobre la recta, el determinante es $0$, y $0$ no es positivo.',
+            'El plan, dentro de la función: (1) los dos lados que salen de `a` son `b - a` y `c - a`; (2) con ellos como filas, arma la matriz `M` con `np.array([lado1, lado2])`; (3) calcula `np.linalg.det(M)`: aquí solo importa su signo; (4) devuelve si ese determinante es mayor que cero, con una comparación. Fuera de la función, `lado` es lo que devuelve con los puntos del enunciado. Cuidado: un punto sobre la recta tiene determinante $0$, y $0$ no es positivo.',
+            'Las piezas, con otros números:\n\n' +
+              py(
+                'print(3 > 0)     # True',
+                'print(0 > 0)     # False: el cero no es mayor que cero',
+                'print(-2 > 0)    # False',
+                'print(0 >= 0)    # True: con >= el cero sí cuenta, y aquí no queremos eso',
+                'I = np.array([[1, 0], [0, 1]])',
+                'print(np.linalg.det(I) > 0)   # True: el determinante de la identidad es 1',
+              ) +
+              '\n\nUna comparación como `x > 0` da un `True` o `False`, y eso es lo que tiene que devolver `return`.',
+            'El esqueleto, con un hueco `___` donde decides tú:\n\n' +
+              py(
+                'def a_la_izquierda(a, b, c):',
+                '    M = np.array([b - a, c - a])',
+                '    return np.linalg.det(M) ___ 0',
+                '',
+                '',
+                'lado = a_la_izquierda(np.array([0, 0]), np.array([4, 1]), np.array([1, 3]))',
+              ) +
+              '\n\nEl error típico es poner `>=` (un punto sobre la recta contaría como izquierda) o `<` (la respuesta sale al revés).',
           ],
           explain:
             'El determinante de `b - a` y `c - a` es positivo si el giro de `b - a` hacia `c - a` es antihorario, y negativo si es horario. Vale $0$ cuando los tres puntos están alineados, y estar alineado no es estar a la izquierda.',
@@ -332,13 +426,33 @@ area = area_triangulo(np.array([1, 1]), np.array([2, 4]), np.array([5, 2]))
           starter: `import numpy as np
 
 
+# Ya está hecha la importación de NumPy; no hace falta tocarla.
+
+
 def a_la_izquierda(a, b, c):
-    # Devuelve True si c está estrictamente a la izquierda de la recta que va de a a b
+    # a, b y c son tres puntos: cada uno es un array de NumPy con 2 números.
+    # La recta va de a a b, y la pregunta es si c queda a su izquierda.
+    # Todo lo de dentro de la función lleva sangría (4 espacios); eso es lo que le dice
+    # a Python qué líneas son de la función.
+    #
+    # Qué tienes que hacer (quita el return None y escribe tus líneas):
+    # 1. Los dos lados que salen de a son b - a y c - a (restar arrays resta componente
+    #    a componente).
+    # 2. np.array([lado1, lado2]) con los dos lados como filas da una matriz de 2 por 2.
+    # 3. np.linalg.det(M) es su determinante. Es positivo si el giro de b - a hacia c - a
+    #    es antihorario (c a la izquierda), negativo si es horario y 0 si están alineados.
+    # 4. Una comparación como x > 0 da un solo True o False; return lo devuelve.
+    #    Piensa qué hace falta con un determinante de 0.
     return None
 
 
-# Guarda en lado lo que devuelve la función para a = (0, 0), b = (4, 1) y c = (1, 3)
+# PASO 1. Lo que devuelve la función para a = (0, 0), b = (4, 1) y c = (1, 3), guardado en lado.
+# Por qué: es comprobar que tu función sirve con datos concretos.
+# Llama a la función con tres arrays de NumPy: a_la_izquierda(np.array([0, 0]), ...).
+# Se espera un solo True o False en lado.
 lado = None
+
+# Para ver qué vale algo antes de entregar: print(lado) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("a_la_izquierda"))
 def _call(a, b, c):
@@ -377,8 +491,24 @@ lado = a_la_izquierda(np.array([0, 0]), np.array([4, 1]), np.array([1, 3]))
           prompt:
             'El determinante de un producto es el producto de los determinantes: $\\det(AB)=\\det A\\cdot\\det B$, porque las áreas se multiplican en cada paso. Compruébalo con `A` y `B`. Guarda en `dAB` el determinante de `A @ B`, en `dA_dB` el producto del determinante de `A` por el de `B`, y en `coincide` si los dos valores son iguales, comparados con `np.isclose` (un solo `True` o `False`).',
           hints: [
-            'Hay dos rutas al mismo número: multiplicar las matrices y calcular un determinante, o calcular dos determinantes y multiplicarlos.',
-            'Los dos valores son decimales con redondeos distintos: una igualdad exacta puede dar `False` aunque coincidan.',
+            'El plan son tres líneas. `dAB` es el determinante de la matriz `A @ B` (primero se multiplican las matrices y luego se calcula un determinante). `dA_dB` va por la otra ruta: el determinante de `A` por el determinante de `B`, multiplicados con `*`, no sumados. `coincide` compara los dos números con `np.isclose`, porque los redondeos son distintos y una igualdad exacta puede dar `False`.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'P = np.array([[1, 2], [0, 1]])',
+                'Q = np.array([[2, 0], [0, 3]])',
+                'print((P @ Q)[0])    # [2 6]: la primera fila del producto de matrices',
+                'print(np.isclose(np.linalg.det(P @ Q), np.linalg.det(P) * np.linalg.det(Q)))   # True: las dos rutas coinciden',
+                'print(0.1 + 0.2 == 0.3)               # False: con == una diferencia diminuta ya cuenta',
+                'print(np.isclose(0.1 + 0.2, 0.3))     # True',
+              ) +
+              '\n\n`@` multiplica matrices y `*` multiplica números (o, en arrays, entrada por entrada).',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'dAB = np.linalg.det(___)',
+                'dA_dB = np.linalg.det(A) ___ np.linalg.det(B)',
+                'coincide = np.isclose(___, ___)',
+              ) +
+              '\n\nEl error típico es sumar los dos determinantes en vez de multiplicarlos, o comparar con `==`.',
           ],
           explain:
             'En matemáticas las dos rutas dan el mismo número, pero NumPy las calcula con redondeos distintos y pueden diferir en la última cifra. Por eso se compara con tolerancia. Si sale un número muy distinto, comprueba que multiplicas los determinantes en lugar de sumarlos.',
@@ -394,10 +524,30 @@ lado = a_la_izquierda(np.array([0, 0]), np.array([4, 1]), np.array([1, 3]))
 
 A = np.array([[2, 1], [1, 3]])
 B = np.array([[1, -1], [2, 0]])
-# Guarda en dAB el determinante de A @ B, en dA_dB el producto de det(A) por det(B), y en coincide si son iguales (con np.isclose)
+# A y B son matrices: arrays de NumPy con 2 filas y 2 columnas.
+# A @ B es el producto de las dos matrices (otra matriz de 2 por 2).
+
+# PASO 1. El determinante de A @ B, guardado en dAB.
+# Por qué: es la primera ruta: multiplicar las matrices y calcular un solo determinante.
+# np.linalg.det(M) devuelve el determinante de la matriz M como un número decimal.
+# Se espera un número en dAB.
 dAB = None
+
+# PASO 2. El determinante de A multiplicado por el de B, guardado en dA_dB.
+# Por qué: es la segunda ruta: dos determinantes por separado y se multiplican. Las
+# áreas se multiplican en cada paso, y por eso las dos rutas deberían dar lo mismo.
+# Multiplicar dos números se escribe con *.
+# Se espera un número en dA_dB.
 dA_dB = None
+
+# PASO 3. Si dAB y dA_dB son iguales, guardado en coincide.
+# Por qué: cada ruta redondea distinto, y con == una diferencia en la última cifra ya
+# daría False. Se compara "casi igual".
+# np.isclose(x, y) devuelve True si x e y son casi iguales.
+# Se espera un solo True o False en coincide.
 coincide = None
+
+# Para ver qué vale algo antes de entregar: print(dAB, dA_dB, coincide) y pulsa «Ejecutar».
 `,
           checks: `_n = lambda x: isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, (bool, np.bool_))
 _1 = _n(dAB)
@@ -419,8 +569,22 @@ check((not _3) or bool(coincide), "\`coincide\` vale \`False\`: los dos valores 
           prompt:
             'Una capa lineal de $2\\times 2$ con pesos $W$ multiplica las áreas por $\\lvert\\det W\\rvert$. Si ese valor está cerca de $0$, la capa casi aplasta el plano sobre una recta y pierde información: entradas distintas acaban casi en el mismo punto. `pesos` guarda cinco matrices de pesos de una capa de juguete (las capas reales tienen cientos de dimensiones). Guarda en `colapsan` un array de cinco valores `True` o `False`: `True` si $\\lvert\\det W\\rvert<10^{-6}$ para esa matriz; y en `cuantas`, cuántas colapsan.',
           hints: [
-            '`np.linalg.det` acepta un array de matrices de forma `(5, 2, 2)` y devuelve un determinante por matriz.',
-            'Un determinante «cero» puede salir como `1e-17`, así que `== 0` no sirve. Y un determinante negativo grande no es un colapso, sino un volteo.',
+            'El plan son dos líneas. `colapsan` sale de los determinantes de las cinco matrices de una vez: `np.linalg.det(pesos)` devuelve un determinante por matriz, y de cada uno hay que mirar el valor absoluto (con `np.abs`, que actúa sobre todo el array) y ver si es menor que `1e-6`. Esa comparación da un array de cinco `True` o `False`. `cuantas` es cuántos `True` hay, y `.sum()` los cuenta; envuélvelo en `int(...)`. Dos errores típicos: un determinante «cero» puede salir como `1e-17`, así que `== 0` no sirve; y un determinante muy negativo no es un colapso sino un volteo, por eso el valor absoluto.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'pila = np.array([[[2, 0], [0, 1]], [[1, 2], [2, 4]], [[0, 1], [1, 0]]])',
+                'dets = np.linalg.det(pila)           # un determinante por matriz',
+                'print(dets.shape)                    # (3,): tres determinantes',
+                'print(np.abs(np.array([-3, 2, -5])))   # [3 2 5]: np.abs quita el signo de cada uno',
+                'peq = np.array([3, 1e-9, 5]) < 1e-6   # compara cada número con el umbral',
+                'print(peq)                           # [False  True False]',
+                'print(peq.sum())                     # 1: .sum() cuenta los True',
+                'print(1e-17 == 0)                    # False: un casi cero no es un cero exacto',
+              ) +
+              '\n\n`1e-6` es la forma de escribir $10^{-6}$ en Python.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('colapsan = ___(np.linalg.det(pesos)) < ___', 'cuantas = int(colapsan.sum())') +
+              '\n\nEl error típico es olvidar el valor absoluto: un espejo, con determinante negativo, contaría como colapso.',
           ],
           explain:
             'Una matriz que casi aplasta el plano tiene un factor de área casi nulo, y eso depende del tamaño del determinante, no de su signo. Los ceros calculados con decimales no son exactos, así que «casi cero» se mide con un umbral y no con una igualdad. Un determinante negativo da la vuelta al plano, pero no lo aplasta.',
@@ -440,9 +604,27 @@ pesos = np.array([
     [[0, 1], [1, 0]],
     [[1, 0], [0, 0.005]],
 ])
-# Guarda en colapsan cinco True/False (valor absoluto del determinante menor que 1e-6) y en cuantas cuántas colapsan
+# pesos es un array de NumPy de forma (5, 2, 2): cinco matrices de 2 por 2.
+# pesos[0] es la primera matriz, pesos[1] la segunda, y así (se empieza a contar en 0).
+
+# PASO 1. Cinco True o False, uno por matriz, guardados en colapsan.
+# Por qué: una capa colapsa si aplasta casi todo el plano sobre una recta, y eso pasa
+# cuando el valor absoluto de su determinante es casi 0. Un determinante muy negativo no
+# aplasta: solo da la vuelta al plano, por eso se mira el valor absoluto. Y "casi 0" no es
+# 0 exacto (puede salir 1e-17), así que se compara con un umbral, no con ==.
+# np.linalg.det(pesos) calcula el determinante de las cinco matrices a la vez y devuelve
+# un array de 5 números. np.abs(x) quita el signo de cada número de x. Comparar un array
+# con un número (x < 1e-6) da un array de True y False, uno por elemento.
+# Se espera un array de NumPy con 5 valores True o False.
 colapsan = None
+
+# PASO 2. Cuántas matrices colapsan, guardado en cuantas.
+# Por qué: contar los True de colapsan dice cuántas capas pierden información.
+# colapsan.sum() cuenta los True (cada True vale 1 y cada False vale 0).
+# Se espera un número entero en cuantas (envuélvelo en int(...)).
 cuantas = None
+
+# Para ver qué vale algo antes de entregar: print(colapsan, cuantas) y pulsa «Ejecutar».
 `,
           checks: `_c = isinstance(colapsan, np.ndarray) and colapsan.shape == (5,) and colapsan.dtype == bool
 _got = [bool(x) for x in colapsan] if _c else []

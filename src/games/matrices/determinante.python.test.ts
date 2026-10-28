@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -413,6 +414,23 @@ rejects('determinante.ex02.5', [
     failures: 1,
   },
 ]);
+
+// ---------- pistas de las preguntas de código del proyecto ----------
+
+/** Lo que va en cada `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'determinante.ex02.1': ['A', '-2', 'd'],
+  'determinante.ex02.2': ['b - a', 'c - a', 'abs', '2'],
+  'determinante.ex02.3': ['>'],
+  'determinante.ex02.4': ['A @ B', '*', 'dAB', 'dA_dB'],
+  'determinante.ex02.5': ['np.abs', '1e-6'],
+};
+
+defineHintTests(
+  projectQuestions(determinante).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
 
 // ---------- examen-1.capas-volteadas ----------
 
