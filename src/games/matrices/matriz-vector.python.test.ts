@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -363,6 +364,23 @@ rejects('matriz-vector.ex02.5', [
     failures: 1,
   },
 ]);
+
+// ---------- pistas: ejemplos y esqueleto de cada pregunta de código del proyecto ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'matriz-vector.ex02.1': ['@'],
+  'matriz-vector.ex02.2': ['A.shape[0]', 'len(v)', 'A[:, k]'],
+  'matriz-vector.ex02.3': ['A[0]', 'A[1]', 'c0', 'c1'],
+  'matriz-vector.ex02.4': ['X', 'A'],
+  'matriz-vector.ex02.5': ['W', 'b', '1', '2', '1', 'W.T', 'b'],
+};
+
+defineHintTests(
+  projectQuestions(matrizVector).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
 
 // ---------- examen-0.capa-lote: puntuaciones y clase de cada texto ----------
 

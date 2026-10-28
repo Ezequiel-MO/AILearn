@@ -1,4 +1,5 @@
 import type { PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { matrizVectorWarmup } from './matriz-vector.calentamiento';
 import { transformPlane } from './plane';
 
@@ -249,8 +250,18 @@ export const matrizVector: Project = {
           prompt:
             'El operador `@` multiplica una matriz por un vector, y cada componente del resultado sale de una fila de la matriz. Ya tienes `A`, una matriz de 3 filas y 2 columnas, y `v`, un vector de 2 componentes. Guarda en `w`, como array de NumPy, la imagen de `v` por `A`.',
           hints: [
-            'La matriz va a la izquierda del `@` y el vector, a la derecha.',
-            'El resultado tiene una componente por cada fila de `A`, o sea 3.',
+            'El plan es una sola línea: `w` es `A` y `v` unidos por el operador `@`, con la matriz a la izquierda y el vector a la derecha. Cuidado con `*`: en NumPy multiplica elemento a elemento, sin sumar, y deja una matriz en vez de un vector.',
+            'La forma de cada pieza, con otra matriz y otro vector:\n\n' +
+              py(
+                'M = np.array([[1, 2], [0, 1]])',
+                'u = np.array([3, 1])',
+                'print(M @ u)   # [5 1]: cada componente sale de una fila de M con u',
+                'print(M * u)   # [[3 2] [0 1]]: con * sale una matriz, no es lo que se pide',
+              ) +
+              '\n\nEl resultado de `@` tiene una componente por cada fila de la matriz. Aquí `A` tiene 3 filas, así que `w` tendrá 3 componentes.',
+            'El esqueleto, con el hueco `___` donde decides tú:\n\n' +
+              py('w = A ___ v') +
+              '\n\nEl operador es el de multiplicar matrices, no el `*` de siempre: con `*` te saldría una matriz de 3 filas y 2 columnas.',
           ],
           explain:
             'El operador `@` hace el producto de una matriz por un vector. Con `*` no sale lo mismo: multiplica elemento a elemento, sin sumar nada, y deja una matriz.',
@@ -264,8 +275,21 @@ export const matrizVector: Project = {
 
 A = np.array([[1, 0], [2, 1], [-1, 3]])
 v = np.array([2, -1])
-# Guarda en w la imagen de v por A
+# A es una matriz: un array de NumPy con 3 filas y 2 columnas.
+# Cada fila es una lista de 2 números, y A[0] es la primera fila.
+# v es un vector: un array de NumPy con 2 componentes.
+
+# PASO 1. La imagen de v por A: el vector que sale de pasar v por la matriz.
+# Por qué: esa es la idea del producto de una matriz por un vector. Cada
+# componente del resultado sale de una fila de A multiplicada por v, y como
+# A tiene 3 filas, w tiene 3 componentes.
+# En NumPy el producto de una matriz por un vector se escribe con el operador @,
+# con la matriz a la izquierda y el vector a la derecha.
+# No lo confundas con *: multiplica elemento a elemento, sin sumar nada, y deja
+# una matriz. El resultado que se espera es un array de 3 números.
 w = None
+
+# Para ver qué vale algo antes de entregar: print(w) y pulsa «Ejecutar».
 `,
           checks: `_arr = isinstance(w, np.ndarray) and np.issubdtype(w.dtype, np.number)
 _ok = _arr and w.shape == (3,)
@@ -283,8 +307,29 @@ check((not _ok) or np.allclose(w, [2, 3, -5]), "\`w\` tiene que valer (2, 3, -5)
           prompt:
             'Por columnas, $A\\vec{v}=v_1\\cdot\\text{col}_1+v_2\\cdot\\text{col}_2+\\dots$. En NumPy, `A[:, k]` es la columna `k` de `A` (se empieza a contar en 0) y `v[k]` es la componente `k` de `v`. `np.zeros(n)` crea un vector de `n` ceros.\n\nEscribe la función `aplicar(A, v)` para que devuelva `A` por `v` **construyéndolo con las columnas**, sin usar `@` ni `np.dot`. `A` tiene `m` filas y `n` columnas, y `v` tiene `n` componentes.',
           hints: [
-            'Empieza con un vector de `m` ceros y, por cada columna `k`, súmale `v[k]` por la columna `k`.',
-            '`A.shape[0]` es el número de filas y `len(v)`, el de componentes de `v`, que es el de columnas. Una columna de `A` es un vector con `m` componentes.',
+            'El plan, dentro de `aplicar`: crea `w`, un vector de ceros con una componente por cada fila de `A`. Después recorre las columnas, de la 0 a la última, y en cada vuelta súmale a `w` la columna `k` de `A` multiplicada por `v[k]`. Al terminar, devuelve `w`. Usa `len(v)` para saber cuántas columnas hay, y no un número escrito a mano, para que sirva con cualquier matriz.',
+            'Las piezas, con otra matriz:\n\n' +
+              py(
+                'M = np.array([[1, 2, 5], [3, 4, 6]])',
+                'print(M.shape)       # (2, 3): 2 filas y 3 columnas',
+                'print(M.shape[0])    # 2: el número de filas',
+                'print(M[:, 1])       # [2 4]: la columna 1 entera',
+                'print(len(np.array([7, 8, 9])))   # 3: cuántas componentes tiene el vector',
+                't = np.zeros(2)      # un vector de 2 ceros',
+                'for k in range(3):',
+                '    t = t + 10 * M[:, k]   # en cada vuelta se suma una columna',
+                '    print(k, t)            # imprime 0 [10. 30.], después 1 [30. 70.], después 2 [ 80. 130.]',
+              ) +
+              '\n\n`for k in range(n):` repite lo que va debajo, con 4 espacios más de sangría, con `k` valiendo 0, 1, y así hasta `n - 1`. `return w` va con la sangría de la función, fuera del `for`: si estuviera dentro, saldría en la primera vuelta.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def aplicar(A, v):',
+                '    w = np.zeros(___)',
+                '    for k in range(___):',
+                '        w = w + v[k] * ___',
+                '    return w',
+              ) +
+              '\n\nLa columna `k` de `A` no es `A[k]`, que es la fila `k`: se escribe con los dos puntos, `A[:, k]`.',
           ],
           explain:
             'El resultado es una suma con tantos términos como columnas tiene `A`, y cada término es una columna multiplicada por su componente de `v`. Con un bucle sobre las columnas sirve para cualquier forma de matriz.',
@@ -299,9 +344,35 @@ check((not _ok) or np.allclose(w, [2, 3, -5]), "\`w\` tiene que valer (2, 3, -5)
           starter: `import numpy as np
 
 
+# aplicar(A, v) recibe una matriz A (un array de NumPy de m filas y n columnas)
+# y un vector v (un array de n componentes), y tiene que devolver A por v.
 def aplicar(A, v):
-    # Devuelve A por v sumando las columnas de A, cada una multiplicada por su componente de v
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella. Si la función tiene un bucle, lo de
+    # dentro del bucle lleva otros 4 espacios más.
+    #
+    # PASO 1. Un vector de ceros donde ir acumulando el resultado.
+    # Por qué: A por v es una suma de columnas, y una suma empieza en cero.
+    # np.zeros(n) crea un array con n ceros. Tiene que haber un cero por cada
+    # fila de A, y A.shape[0] te da cuántas filas tiene (A.shape es (filas, columnas)).
+    #
+    # PASO 2. Un bucle que recorre las columnas de A.
+    # Por qué: A por v es v[0] por la columna 0, más v[1] por la columna 1, y así
+    # con todas. Un bucle sirve para cualquier número de columnas.
+    # for k in range(n): repite lo que va debajo con k valiendo 0, 1, ... hasta n - 1.
+    # len(v) te da cuántas componentes tiene v, que son tantas como columnas de A.
+    # Dentro del bucle, A[:, k] es la columna k de A y v[k] es la componente k de v.
+    # Para sumar a lo acumulado: w = w + (un número) * (un vector).
+    #
+    # PASO 3. Devolver el resultado con return, ya fuera del bucle (con la sangría
+    # de la función, no la del for). return termina la función y entrega ese valor.
+    # Se espera un array de NumPy con una componente por fila de A.
+    # No uses @ ni np.dot: la gracia es construir el resultado con las columnas.
     return None
+
+
+# Para ver qué vale algo antes de entregar: print(aplicar(np.array([[1, 2], [3, 4]]), np.array([1, 1])))
+# y pulsa «Ejecutar».
 `,
           checks: `_f = aplicar
 _usa = []
@@ -366,8 +437,20 @@ def aplicar(A, v):
           prompt:
             'Por filas, cada componente de $A\\vec{v}$ es el producto escalar de una fila de `A` con `v`. En NumPy, `A[0]` es la primera fila de `A` y `np.dot(a, b)` calcula el producto escalar de dos vectores.\n\nGuarda en `c0` el producto escalar de la primera fila de `A` con `v` y en `c1`, el de la segunda. Guarda en `w`, como array de NumPy, el vector con esas dos componentes, en ese orden.',
           hints: [
-            'Las filas de `A` son `A[0]` y `A[1]`. `c0` y `c1` son números sueltos, no vectores.',
-            '`np.dot(A[0], v)` multiplica las componentes de dos en dos y suma: da un solo número. Para `w`, junta `c0` y `c1` en un array.',
+            'El plan son tres líneas. `c0` es el producto escalar de la primera fila de `A`, que es `A[0]`, con `v`. `c1` es lo mismo con la segunda fila, `A[1]`. Y `w` junta los dos números en un array, con `c0` primero y `c1` después. Tanto `c0` como `c1` son un número suelto, no un vector: si te sale una lista de números, falta sumar los productos.',
+            'Las piezas, con otra matriz y otro vector:\n\n' +
+              py(
+                'M = np.array([[1, 2], [3, 4]])',
+                'u = np.array([5, 6])',
+                'print(M[1])              # [3 4]: la segunda fila de M',
+                'print(np.dot(M[1], u))   # 39: 3 por 5 más 4 por 6, un solo número',
+                'print(M[1] * u)          # [15 24]: con * se multiplica sin sumar, y sale una lista',
+                'print(np.array([7, 8]))  # [7 8]: así se junta una lista de números en un array',
+              ) +
+              '\n\nLas filas se cuentan desde 0: la primera es `[0]` y la segunda, `[1]`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('c0 = np.dot(___, v)', 'c1 = np.dot(___, v)', 'w = np.array([___, ___])') +
+              '\n\nEn `w` van `c0` y `c1`, en ese orden, y no las filas de `A`.',
           ],
           explain:
             'Cada componente del resultado es un producto escalar, y un producto escalar es un solo número. Cuidado con `*`: multiplica sin sumar y deja un vector, no un número.',
@@ -382,11 +465,25 @@ def aplicar(A, v):
 
 A = np.array([[1, 2, 0], [3, -1, 2]])
 v = np.array([2, 1, -1])
-# Guarda en c0 el producto escalar de la primera fila de A con v, y en c1 el de la segunda
+# A es una matriz: un array de NumPy con 2 filas y 3 columnas.
+# A[0] es su primera fila y A[1], la segunda (se empieza a contar en 0).
+# v es un vector: un array de NumPy con 3 componentes.
+
+# PASO 1. El producto escalar de la primera fila de A con v, y el de la segunda.
+# Por qué: cada componente de A por v es justo eso, el producto escalar de una
+# fila de A con v. Aquí lo haces a mano, componente a componente.
+# np.dot(a, b) multiplica las componentes de a y b de dos en dos y suma todo:
+# da UN solo número, no una lista.
+# Se espera un número en c0 (el de la primera fila) y otro en c1 (el de la segunda).
 c0 = None
 c1 = None
-# Guarda en w el vector con las dos componentes, c0 y c1
+
+# PASO 2. Juntar los dos números en un array de NumPy, c0 primero y c1 después.
+# Por qué: así w es el vector que sale de A por v, con una componente por fila.
+# np.array([x, y]) construye un array con los números de la lista, en ese orden.
 w = None
+
+# Para ver qué vale algo antes de entregar: print(c0, c1, w) y pulsa «Ejecutar».
 `,
           checks: `def _esc(x):
     if isinstance(x, (bool, np.bool_)):
@@ -421,8 +518,19 @@ check((not _w) or _cambio or np.allclose(w, [4, 3]), "\`w\` tiene que valer (4, 
           prompt:
             'Una matriz también puede guardar **muchos vectores a la vez**, uno por fila. Aquí, `X` guarda cuatro vectores de 2 componentes: $(1, 0)$, $(0, 1)$, $(2, 3)$ y $(-1, 1)$. Se quiere transformarlos todos con `A` de una sola vez.\n\nMultiplicar `X @ A` no sirve: usa las filas de `A` como si fueran sus columnas. La traspuesta `A.T` cambia filas por columnas. Guarda en `Y` las cuatro imágenes, una por fila: en la fila `k` de `Y` va la imagen de la fila `k` de `X`.',
           hints: [
-            'La imagen de un vector `x` es `A @ x`. Para que `X` deje sus vectores en filas, necesitas multiplicar `X` por la traspuesta de `A`.',
-            'Comprueba la primera fila de `Y`: la imagen de $(1, 0)$ es la primera columna de `A`, $(2, 0)$. `Y` tiene que tener 4 filas y 2 columnas.',
+            'El plan es una sola línea. Los vectores de `X` están en filas, y `@` combina las filas de la izquierda con las columnas de la derecha. Por eso `X` va a la izquierda, y a la derecha va la traspuesta de `A`, que es `A.T`: así las filas de `A` pasan a ser columnas. Si pones `A` sin trasponer, usarás sus filas como si fueran columnas y saldrá otra transformación.',
+            'Las piezas, con otra matriz y otros vectores:\n\n' +
+              py(
+                'M = np.array([[1, 2], [3, 4]])',
+                'print(M.T)          # [[1 3] [2 4]]: las filas de M pasan a ser columnas',
+                'P = np.array([[1, 0], [0, 1], [1, 1]])   # tres vectores, uno por fila',
+                'print(P.shape)      # (3, 2): 3 filas y 2 columnas',
+                'print(P @ M.T)      # [[1 3] [2 4] [3 7]]: una fila por vector, la imagen de cada uno',
+              ) +
+              '\n\nEl resultado tiene tantas filas como vectores hay en la matriz de la izquierda. Aquí, `X` tiene 4, así que `Y` tendrá 4 filas.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('Y = ___ @ ___.T') +
+              '\n\nLa traspuesta es la de la matriz que transforma, no la de los vectores: si escribes `A @ X.T`, `Y` te sale con 2 filas y 4 columnas, con cada resultado en una columna en vez de en una fila.',
           ],
           explain:
             'Cada fila de `X` es un vector que se transforma con `A`. Para hacerlo todo con una sola multiplicación, `A` tiene que ir a la derecha y traspuesta, porque así cada fila de `X` se empareja con las columnas de la traspuesta, que son las filas de `A`.',
@@ -435,10 +543,21 @@ check((not _w) or _cambio or np.allclose(w, [4, 3]), "\`w\` tiene que valer (4, 
           starter: `import numpy as np
 
 A = np.array([[2, 1], [0, 3]])
-# Un vector por fila: (1, 0), (0, 1), (2, 3) y (-1, 1)
+# A es la matriz que transforma: un array de NumPy con 2 filas y 2 columnas.
+# X guarda cuatro vectores, un vector por fila: (1, 0), (0, 1), (2, 3) y (-1, 1).
+# Es un array de 4 filas y 2 columnas; X[2] es el tercer vector.
 X = np.array([[1, 0], [0, 1], [2, 3], [-1, 1]])
-# Guarda en Y las imágenes de los cuatro vectores, una por fila
+
+# PASO 1. Transformar los cuatro vectores con A de una sola multiplicación.
+# Por qué: así no hace falta un bucle. Con @, cada fila de la matriz de la izquierda
+# se combina con las columnas de la de la derecha. Los vectores de X están en
+# filas, así que X va a la izquierda; y para que A los transforme bien, sus
+# filas tienen que pasar a ser columnas.
+# A.T es la traspuesta de A: cambia filas por columnas.
+# Se espera un array de 4 filas y 2 columnas: la fila k de Y es la imagen de la fila k de X.
 Y = None
+
+# Para ver qué vale algo antes de entregar: print(Y) y pulsa «Ejecutar».
 `,
           checks: `_A = np.array([[2, 1], [0, 3]])
 _X = np.array([[1, 0], [0, 1], [2, 3], [-1, 1]])
@@ -462,8 +581,26 @@ check((not _ok) or _sinT or np.allclose(Y, _bien), "\`Y\` no tiene los valores e
           prompt:
             'Una **capa lineal** de una red calcula $\\vec{y}=W\\vec{x}+\\vec{b}$. Tienes la capa `W`, de 2 filas y 3 columnas, con su sesgo `b` de 2 componentes, y `X`, con un vector de entrada de 3 componentes por fila.\n\nEscribe `capa(W, b, x)`, que devuelve la salida de la capa para un vector `x`, y guarda en `y` la salida para el vector $(1, 2, 1)$. Después guarda en `Y` las salidas para las tres filas de `X` de una sola vez, una por fila: se multiplica `X` por la traspuesta de `W`, y al sumar un vector de 2 componentes a una matriz de 3 filas y 2 columnas, NumPy se lo suma a cada fila.',
           hints: [
-            'Dentro de la función, `W @ x` es la parte de la matriz; el sesgo se suma después.',
-            'Para el lote, la matriz va a la derecha y traspuesta, igual que antes. El sesgo `b` se suma una sola vez al final, a toda la matriz, y NumPy lo reparte entre las filas.',
+            'El plan: la función devuelve `W @ x` más `b`, primero la multiplicación y después el sesgo. `y` es la llamada `capa(W, b, ...)` con el vector $(1, 2, 1)$ convertido en array con `np.array([...])`. `Y` hace lo mismo con las tres filas de `X` de una vez: `X` a la izquierda, la traspuesta de `W` a la derecha, y el sesgo `b` sumado al final, una sola vez. NumPy se lo suma a cada fila.',
+            'Las piezas, con otra capa:\n\n' +
+              py(
+                'M = np.array([[1, 0], [0, 2]])',
+                'c = np.array([10, 20])',
+                't = np.array([3, 4])',
+                'print(M @ t + c)    # [13 28]: primero M @ t, que es [3 8], y después se suma c',
+                'lote = np.array([[1, 1], [2, 0], [0, 3]])   # tres vectores, uno por fila',
+                'print(lote @ M.T + c)   # [[11 22] [12 20] [10 26]]: c se suma a cada fila',
+              ) +
+              '\n\nUna función termina con `return`, que entrega el valor, y todo lo de dentro lleva 4 espacios de sangría.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def capa(W, b, x):',
+                '    return ___ @ x + ___',
+                '',
+                'y = capa(W, b, np.array([___, ___, ___]))',
+                'Y = X @ ___ + ___',
+              ) +
+              '\n\nEl sesgo se suma después de multiplicar, y en el lote la matriz va traspuesta: `W.T`, y no `W`.',
           ],
           explain:
             'La capa para un vector y la capa para un lote hacen el mismo cálculo: el lote se escribe con la matriz traspuesta porque sus vectores están en filas. Fíjate en que el sesgo se suma después de multiplicar, no antes.',
@@ -479,19 +616,39 @@ check((not _ok) or _sinT or np.allclose(Y, _bien), "\`Y\` no tiene los valores e
           starter: `import numpy as np
 
 
+# PASO 1. La función capa(W, b, x): la salida de la capa lineal para UN vector x.
+# W es la matriz de la capa, b su sesgo y x el vector de entrada (arrays de NumPy).
 def capa(W, b, x):
-    # Devuelve la salida de la capa lineal para un solo vector x
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría):
+    # así sabe Python que es parte de ella.
+    # Por qué: la capa lineal calcula W por x y después le suma b. Primero se
+    # multiplica y luego se suma el sesgo. W por x se escribe W @ x, con la matriz
+    # a la izquierda; sumar b a un vector es b con un +, componente a componente.
+    # return devuelve un valor y termina la función. Se espera un array con una
+    # componente por cada fila de W.
     return None
 
 
+# W tiene 2 filas y 3 columnas; b tiene 2 componentes (uno por fila de W).
 W = np.array([[2, -1, 0], [1, 1, 3]])
 b = np.array([0, -2])
-# Un vector de entrada por fila
+# X guarda tres vectores de entrada, de 3 componentes cada uno, un vector por fila.
 X = np.array([[1, 2, 1], [0, 1, 0], [3, 0, -1]])
-# Guarda en y la salida de la capa para el vector (1, 2, 1)
+
+# PASO 2. La salida de la capa para el vector (1, 2, 1).
+# Llama a capa(W, b, ...) con ese vector. La función espera un array de NumPy,
+# así que conviértelo con np.array([...]), poniendo sus tres números entre corchetes.
 y = None
-# Guarda en Y las salidas para las tres filas de X, de una sola vez
+
+# PASO 3. Las salidas para los tres vectores de X, de una sola vez.
+# Por qué: es el mismo cálculo que la función, pero para todo el lote. Los vectores
+# de X están en filas, así que X va a la izquierda y la traspuesta de W (W.T,
+# que cambia filas por columnas) va a la derecha. El sesgo b se suma al final,
+# una sola vez: NumPy suma un vector de 2 componentes a cada fila de una matriz.
+# Se espera un array de 3 filas y 2 columnas: la fila k es la salida para la fila k de X.
 Y = None
+
+# Para ver qué vale algo antes de entregar: print(y) y print(Y) y pulsa «Ejecutar».
 `,
           checks: `_f = capa
 
