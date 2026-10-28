@@ -89,6 +89,8 @@ export function ExerciseRunner({
   const lastResult = closing.results[closing.results.length - 1];
   const firstTry = locked && lastResult?.firstTry === true;
   const exam = mode === 'examen';
+  // «Lo que te llevas» de una pregunta manipular: al cerrarla, acertada o con la solución a la vista.
+  const takeaway = question?.type === 'manipular' ? question.purpose?.takeaway : undefined;
   // Color de la barra del panel: acierto, fallo (con segunda oportunidad o definitivo); en examen, neutro.
   const feedbackTone = exam
     ? null
@@ -252,6 +254,12 @@ export function ExerciseRunner({
             <>
               <p className="runner__note">{t.runner.revealedIntro}</p>
               <Solution text={question.solution} />
+            </>
+          ) : null}
+          {locked && !exam && takeaway ? (
+            <>
+              <p className="runner__label">{t.runner.takeawayLabel}</p>
+              <Md>{takeaway}</Md>
             </>
           ) : null}
         </div>

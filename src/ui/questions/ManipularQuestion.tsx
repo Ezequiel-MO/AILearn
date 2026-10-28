@@ -18,6 +18,14 @@ export function ManipularQuestion({ question, locked, onSubmit }: QuestionProps<
   return (
     <div className="question">
       <div className="question__stem">
+        {question.purpose ? (
+          <section className="question__purpose" aria-label={t.questions.purposeLabel}>
+            <h3 className="question__purpose-label">{t.questions.whyLabel}</h3>
+            <Md>{question.purpose.why}</Md>
+            <h3 className="question__purpose-label">{t.questions.aimLabel}</h3>
+            <Md>{question.purpose.aim}</Md>
+          </section>
+        ) : null}
         <Md>{question.prompt}</Md>
         <VectorPlane
           spec={question.plane}

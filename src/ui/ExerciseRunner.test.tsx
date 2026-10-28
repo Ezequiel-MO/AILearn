@@ -5,7 +5,7 @@ import { StrictMode } from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { CodigoQ, NumeroQ, Question } from '../content/schema';
+import type { CodigoQ, ManipularQ, NumeroQ, Question } from '../content/schema';
 import type { Mode, QuestionResult } from '../engine/session';
 import type { RunResult } from '../python/core';
 import type { PythonRunner, RunnerStatus } from '../python/runner';
@@ -818,5 +818,64 @@ describe('ExerciseRunner: hoja de estilos', () => {
   it('el área de la pregunta puede encogerse (min-width: 0)', () => {
     // contract: ui-conventions, añadido 5 (un hijo de rejilla sin min-width: 0 ensancha la página)
     expect(ruleFor('.runner')).toMatch(/min-width:\s*0/);
+  });
+});
+
+describe('ExerciseRunner: «Lo que te llevas» de una pregunta manipular', () => {
+  // La meta (2, 1) está a una flecha a la derecha de la posición inicial (1, 1).
+  const manipular = (n: number): ManipularQ => ({
+    id: `m${n}`,
+    type: 'manipular',
+    prompt: `Mueve v ${n}`,
+    hints: [],
+    explain: `EXPLICACION m${n}`,
+    solution: `SOLUCION m${n}`,
+    plane: {
+      range: 4,
+      snap: 1,
+      vectors: [{ id: 'v', label: 'v', x: 1, y: 1, movable: true }],
+      readouts: ['components'],
+    },
+    goals: [
+      { metric: 'x', of: ['v'], target: 2, tol: 0.01 },
+      { metric: 'y', of: ['v'], target: 1, tol: 0.01 },
+    ],
+    purpose: { why: `PARA QUE m${n}`, aim: `OBJETIVO m${n}`, takeaway: `CONCLUSION m${n}` },
+  });
+  const toGoal = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(screen.getByRole('button', { name: /Asa del vector v/ }));
+    await user.keyboard('{ArrowRight}');
+    await user.click(submitButton());
+  };
+
+  // contract: petición de Oliver 2026-10-28: la conclusión se ve también al acertar a la primera
+  it('al acertar a la primera enseña la conclusión, sin la solución', async () => {
+    const { user } = setup([manipular(1)]);
+    expect(screen.queryByText('CONCLUSION m1')).toBeNull();
+    await toGoal(user);
+    expect(screen.getByText('¡Correcto!')).toBeInTheDocument();
+    expect(screen.getByText('Lo que te llevas')).toBeInTheDocument();
+    expect(screen.getByText('CONCLUSION m1')).toBeInTheDocument();
+    expect(screen.queryByText('SOLUCION m1')).toBeNull();
+  });
+
+  // contract: petición de Oliver 2026-10-28: también tras ver la solución
+  it('tras dos fallos enseña la solución y la conclusión', async () => {
+    const { user } = setup([manipular(1)]);
+    await user.click(submitButton());
+    // contract: con segunda oportunidad la pregunta sigue abierta: aún sin conclusión
+    expect(screen.queryByText('CONCLUSION m1')).toBeNull();
+    await waitFor(() => expect(submitButton()).toBeEnabled());
+    await user.click(submitButton());
+    expect(screen.getByText('SOLUCION m1')).toBeInTheDocument();
+    expect(screen.getByText('CONCLUSION m1')).toBeInTheDocument();
+  });
+
+  // contract: review-12 I4: en examen la entrega no delata nada
+  it('en examen no enseña la conclusión', async () => {
+    const { user } = setup([manipular(1)], { mode: 'examen' });
+    await toGoal(user);
+    expect(screen.getByText('Respuesta registrada')).toBeInTheDocument();
+    expect(screen.queryByText('CONCLUSION m1')).toBeNull();
   });
 });

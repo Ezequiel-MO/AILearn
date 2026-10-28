@@ -195,12 +195,26 @@ export const goalSchema = z
 
 const baseShape = { id, prompt: md, hints: z.array(md), explain: md, solution: md };
 
+/**
+ * El sentido de una pregunta `manipular` (petición de Oliver, 2026-10-28). `why` y `aim` se enseñan
+ * siempre, antes del enunciado; `takeaway`, al cerrar la pregunta (acertada o con la solución a la vista).
+ */
+export const purposeSchema = z.strictObject({
+  /** «Para qué sirve»: dónde aparece esto en un sistema de IA real y qué decisión ayuda a tomar. */
+  why: md,
+  /** «Qué vas a conseguir»: lo que construyes en el plano y lo que eso te deja ver. Sin la respuesta. */
+  aim: md,
+  /** «Lo que te llevas»: la conclusión que queda y su consecuencia en el sistema real. */
+  takeaway: md,
+});
+
 export const manipularQSchema = z
   .strictObject({
     ...baseShape,
     type: z.literal('manipular'),
     plane: planeSpecSchema,
     goals: z.array(goalSchema).min(1),
+    purpose: purposeSchema.optional(),
   })
   .superRefine((q, ctx) => {
     const ids = new Set(q.plane.vectors.map((v) => v.id));
@@ -450,6 +464,7 @@ export type PlaneVector = z.infer<typeof planeVectorSchema>;
 export type PlaneSpec = z.infer<typeof planeSpecSchema>;
 export type Goal = z.infer<typeof goalSchema>;
 export type ManipularQ = z.infer<typeof manipularQSchema>;
+export type Purpose = z.infer<typeof purposeSchema>;
 export type NumeroQ = z.infer<typeof numeroQSchema>;
 export type VectorQ = z.infer<typeof vectorQSchema>;
 export type OpcionQ = z.infer<typeof opcionQSchema>;

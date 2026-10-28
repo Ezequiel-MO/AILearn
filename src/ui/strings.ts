@@ -56,6 +56,9 @@ export const t = {
     pickLine: 'Pulsa la línea errónea',
     linesLegend: 'Líneas',
     lineLabel: (line: number, text: string) => `Línea ${line}: ${text}`,
+    purposeLabel: 'El sentido del ejercicio',
+    whyLabel: 'Para qué sirve',
+    aimLabel: 'Qué vas a conseguir',
   },
 
   // --- Pregunta de código (tarea 11) ---
@@ -104,7 +107,6 @@ export const t = {
       'Vuelve a leer «Qué se comprueba al entregar»: tu respuesta tiene que cumplir cada punto.',
   },
 
-
   // --- Ejecutor de tandas (tarea 12) ---
   runner: {
     progress: (n: number, total: number) => `${n} de ${total}`,
@@ -113,6 +115,7 @@ export const t = {
     hintsLabel: 'Pistas',
     next: 'Siguiente',
     explainLabel: 'Explicación',
+    takeawayLabel: 'Lo que te llevas',
     explainedIntro: 'Todavía no. Esto te ayudará; puedes volver a entregar.',
     solutionLabel: 'Solución',
     solved: '¡Correcto!',

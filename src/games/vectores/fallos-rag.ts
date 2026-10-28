@@ -46,8 +46,14 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Un RAG siempre encuentra un documento «más parecido», aunque ninguno responda a la pregunta. Si le pasa al modelo un documento que no viene al caso, el modelo contesta igual, con aplomo, y se inventa la respuesta. El **umbral** de similitud es el filtro que decide cuándo es mejor decir «no lo sé»: elegirlo es una de las primeras decisiones al poner un RAG en marcha.',
+            aim: 'Vas a ver qué zona del espacio acepta un umbral. Al colocar la consulta justo en el borde descubres que «coseno mayor o igual que $0{,}8$» dibuja un **cono** alrededor del documento, y que la longitud de las flechas no cuenta.',
+            takeaway:
+              'Un umbral sobre el coseno es un ángulo máximo: pasa todo lo que cae dentro del cono, sea largo o corto. Subir el umbral estrecha el cono (menos respuestas, más fiables); bajarlo lo ensancha (más respuestas, y más documentos fuera de tema). En un RAG real se elige probando con preguntas cuya respuesta ya sabes.',
+          },
           prompt:
-            'Un RAG puede contestar «no lo sé» cuando el mejor documento no se parece bastante a la pregunta: fija un **umbral** sobre el coseno y solo acepta un documento si su coseno con la consulta es mayor o igual que él. Este plano es un juguete **inventado** de dos dimensiones (los embeddings reales tienen cientos) que sirve de ventana. Como el coseno solo depende del ángulo, un umbral de $0{,}8$ equivale a un ángulo de como mucho $36{,}9^\\circ$: acepta todo lo que cae dentro de un **cono** alrededor de la consulta.\n\nUn documento está en $\\vec{d}=(3, 4)$, fijo. Coloca la consulta $\\vec{q}$, de longitud $5$, justo en el borde del cono: coseno $0{,}8$ con $\\vec{d}$.',
+            'Un RAG fija un **umbral** sobre el coseno y solo acepta un documento si su coseno con la consulta es mayor o igual que él. Este plano es un juguete **inventado** de dos dimensiones (los embeddings reales tienen cientos) que sirve de ventana. Como el coseno solo depende del ángulo, un umbral de $0{,}8$ equivale a un ángulo de como mucho $36{,}9^\\circ$: acepta todo lo que cae dentro de un **cono** alrededor de la consulta.\n\nUn documento está en $\\vec{d}=(3, 4)$, fijo. Coloca la consulta $\\vec{q}$, de longitud $5$, justo en el borde del cono: coseno $0{,}8$ con $\\vec{d}$.',
           hints: [
             'La lectura del ángulo tiene que marcar unos $36{,}9^\\circ$ entre $\\vec{q}$ y $\\vec{d}$, y la de la norma, $5$.',
             'A $36{,}9^\\circ$ de $\\vec{d}$ hay dos direcciones, una a cada lado. Con longitud $5$ y la rejilla de $1$, solo una de las dos cae en un punto de la rejilla.',
@@ -69,6 +75,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Cuando la base tiene muchos documentos parecidos, el umbral decide cuáles llegan al modelo como contexto. Si deja pasar de más, el modelo recibe ruido que lo despista; si deja pasar de menos, le falta la información para contestar. Ver qué documentos caen dentro del cono de una consulta es la forma de razonar sobre ese reparto.',
+            aim: 'Vas a colocar una consulta que deje un documento dentro de su cono y otro fuera, por poco, y a comprobar que dos cosenos bastan para fijar la dirección de la consulta.',
+            takeaway:
+              'Con un umbral de $0{,}9$, un coseno de $0{,}96$ entra y uno de $0{,}80$ se queda fuera, aunque los dos documentos se parezcan bastante a la consulta. El umbral es una frontera dura: documentos casi igual de parecidos pueden caer a lados distintos. Por eso un RAG suele combinarlo con el top-k en vez de fiarse solo de uno de los dos.',
+          },
           prompt:
             'Con un umbral de $0{,}9$, la búsqueda devuelve los documentos cuyo coseno con la consulta alcanza ese valor, y ninguno más. Los documentos de este juguete **inventado** (de dos dimensiones; los reales tienen cientos) son $\\vec{a}=(5, 0)$ y $\\vec{b}=(3, 4)$, fijos. Coloca la consulta $\\vec{q}$ con coseno $0{,}80$ con $\\vec{a}$ y $0{,}96$ con $\\vec{b}$: así $\\vec{b}$ pasa el umbral y $\\vec{a}$ no. La lectura compara $\\vec{q}$ con $\\vec{a}$; el coseno con $\\vec{b}$ lo calculas con las componentes.',
           hints: [
@@ -92,6 +104,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Las preguntas que mezclan dos temas, o que la base no cubre, son las que más respuestas inventadas provocan: la búsqueda encuentra algo a medias y el modelo rellena el resto. Un RAG bien hecho detecta ese caso y contesta «no lo sé» o pide que se concrete la pregunta.',
+            aim: 'Vas a colocar una consulta que se parezca lo mismo a dos documentos de temas distintos y a comprobar que, con un umbral de $0{,}8$, se queda fuera de los dos conos a la vez.',
+            takeaway:
+              'El umbral no busca «el menos malo»: si ningún coseno lo alcanza, no hay contexto y lo honesto es no contestar. Sin umbral, la búsqueda habría devuelto uno de los dos documentos con $0{,}71$ y el modelo habría contestado sobre un solo tema, como si la pregunta fuera solo de ese.',
+          },
           prompt:
             'Con un umbral de $0{,}8$ puede ocurrir que **ningún** documento pase, y entonces el sistema contesta «no lo sé». Los documentos de este juguete **inventado** (de dos dimensiones; los reales tienen cientos) son $\\vec{a}=(5, 0)$ y $\\vec{b}=(0, 5)$, fijos, de temas distintos. Coloca la consulta $\\vec{q}$, que mezcla los dos temas, con coseno $0{,}71$ con $\\vec{a}$ y $0{,}71$ con $\\vec{b}$. La lectura compara $\\vec{q}$ con $\\vec{a}$; el coseno con $\\vec{b}$ lo calculas con las componentes.',
           hints: [
@@ -115,6 +133,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Los embeddings recogen **de qué habla** una frase mucho mejor que **lo que afirma**. «El hotel admite mascotas.» y «El hotel no admite mascotas.» hablan de lo mismo, así que quedan juntos. Un RAG puede recuperar justo el documento que dice lo contrario, y el modelo contestar lo opuesto a la verdad sin dudar.',
+            aim: 'Vas a colocar el documento negado casi en la misma dirección que el afirmativo y a ver que la consulta puntúa casi igual con los dos: ningún umbral los separa.',
+            takeaway:
+              'La similitud entre embeddings no distingue un «sí» de un «no». En un RAG real, el filtro por coseno se completa con un paso que lee el texto: un reordenador (*reranker*) que lee la pregunta y el documento juntos, o el propio modelo comprobando qué dice cada documento antes de responder.',
+          },
           prompt:
             'La **negación** cambia el sentido de una frase, pero casi no mueve su embedding. Este juguete es **inventado** y de dos dimensiones (los embeddings reales tienen cientos): $\\vec{q}=(4, 1)$ es la consulta «¿admite mascotas?», $\\vec{a}=(5, 1)$ el documento «El hotel admite mascotas.» (los dos fijos) y $\\vec{b}$ el documento «El hotel no admite mascotas.». Coloca $\\vec{b}$ con coseno $0{,}98$ con $\\vec{q}$ y $0{,}97$ con $\\vec{a}$: casi en la dirección de $\\vec{a}$. La lectura compara $\\vec{q}$ con $\\vec{b}$; el coseno con $\\vec{a}$ lo calculas con las componentes.',
           hints: [
@@ -142,6 +166,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Es tentador fijar un solo umbral para todas las preguntas, pero cada consulta tiene su propia escala de cosenos: una pregunta puede puntuar bajo con todos los documentos aunque uno la conteste, y otra puntuar alto con alguno sin que ninguno la conteste. Un umbral fijo acaba rechazando preguntas que tienen respuesta y aceptando preguntas que no la tienen.',
+            aim: 'Vas a colocar dos consultas, una con respuesta en la base y otra sin ella, de modo que la que no tiene respuesta puntúe **más** que la que sí. Verás que ningún umbral acierta con las dos a la vez.',
+            takeaway:
+              'Un coseno de $0{,}8$ no significa «buena respuesta» en general: solo se compara bien con los demás cosenos de la misma consulta. En un RAG real, el umbral se ajusta con un conjunto de preguntas de prueba y se combina con otras señales: el top-k, un reordenador y un modelo al que se le permite decir «no está en los documentos».',
+          },
           prompt:
             'Otro fallo: **las puntuaciones de consultas distintas no son comparables**. Este juguete es **inventado** y de dos dimensiones (los embeddings reales tienen cientos). Dos documentos fijos: $\\vec{m}=(5, 0)$, la política de mascotas, y $\\vec{p}=(0, 5)$, el aparcamiento. La consulta $\\vec{q}_1$, «¿Puedo llevar a mi perro?», tiene su respuesta en $\\vec{m}$; la consulta $\\vec{q}_2$, «¿Cuánto cuesta un vuelo a Roma?», no tiene respuesta en la base, y su documento más parecido es $\\vec{p}$. Coloca $\\vec{q}_1$ con coseno $0{,}6$ con $\\vec{m}$ y $\\vec{q}_2$ con coseno $0{,}8$ con $\\vec{p}$. La lectura compara $\\vec{q}_1$ con $\\vec{m}$; la otra la calculas con las componentes.',
           hints: [

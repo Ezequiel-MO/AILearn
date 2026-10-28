@@ -418,6 +418,30 @@ describe('manipular', () => {
   });
 });
 
+describe('manipular: el sentido del ejercicio', () => {
+  const purpose = { why: 'PARA QUE', aim: 'OBJETIVO', takeaway: 'CONCLUSION' };
+
+  // contract: petición de Oliver 2026-10-28: «Para qué sirve» y «Qué vas a conseguir» antes del enunciado
+  it('con purpose, enseña para qué sirve y qué se busca antes del enunciado', () => {
+    setup(manipular({ purpose }));
+    const box = screen.getByRole('region', { name: 'El sentido del ejercicio' });
+    expect(within(box).getByRole('heading', { name: 'Para qué sirve' })).toBeInTheDocument();
+    expect(within(box).getByText('PARA QUE')).toBeInTheDocument();
+    expect(within(box).getByRole('heading', { name: 'Qué vas a conseguir' })).toBeInTheDocument();
+    expect(within(box).getByText('OBJETIVO')).toBeInTheDocument();
+    const prompt = screen.getByText('Lleva v a la meta');
+    expect(box.compareDocumentPosition(prompt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // contract: la conclusión se guarda para el cierre de la pregunta (la enseña el ejecutor)
+    expect(screen.queryByText('CONCLUSION')).not.toBeInTheDocument();
+  });
+
+  // contract: las preguntas sin purpose (proyectos pendientes, bancos de examen) se ven como antes
+  it('sin purpose, no hay bloque', () => {
+    setup(manipular());
+    expect(screen.queryByRole('region', { name: 'El sentido del ejercicio' })).toBeNull();
+  });
+});
+
 describe('locked', () => {
   // contract: tarea 10, tabla: cualquiera con locked -> entradas desactivadas
   it('numero: campo y botón desactivados', () => {

@@ -35,6 +35,13 @@ export const proseTexts = (q: Question): ProseText[] => [
   ...(q.type === 'codigo'
     ? q.requirements.map((text, i) => ({ field: `requirement[${i}]`, text }))
     : []),
+  ...(q.type === 'manipular' && q.purpose
+    ? [
+        { field: 'purpose.why', text: q.purpose.why },
+        { field: 'purpose.aim', text: q.purpose.aim },
+        { field: 'purpose.takeaway', text: q.purpose.takeaway },
+      ]
+    : []),
 ];
 
 const squash = (s: string): string => s.replace(/\s+/g, ' ').trim();
