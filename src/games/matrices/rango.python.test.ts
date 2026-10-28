@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -461,3 +462,20 @@ describe('datos de tipo equivocado: sin errores de NumPy en inglés', { timeout:
     }
   }
 });
+
+// ---------- pistas de las cinco preguntas de código del ejercicio «Programar» ----------
+
+/** Lo que va en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'rango.ex02.1': ['A', 'B'],
+  'rango.ex02.2': ['X', '==', 'k'],
+  'rango.ex02.3': ['u', 'v', 'M'],
+  'rango.ex02.4': ['B', 'A', '=='],
+  'rango.ex02.5': ['d', 'r', 'n_densa', 'n_baja'],
+};
+
+defineHintTests(
+  projectQuestions(rango).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
