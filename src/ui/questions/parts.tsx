@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { PlaneSpec } from '../../content/schema';
+import type { PlaneSpec, Purpose as PurposeSpec } from '../../content/schema';
 import { Md } from '../Md';
 import { t } from '../strings';
 import { VectorPlane } from '../VectorPlane';
@@ -46,10 +46,31 @@ export function useSubmit(onSubmit: (correct: boolean) => void) {
   return { cooling, submit };
 }
 
-/** Enunciado y, si la pregunta trae plano, la figura estática. */
-export function Stem({ prompt, plane }: { prompt: string; plane?: PlaneSpec }) {
+/** «Para qué sirve» y «Qué vas a conseguir», antes del enunciado. «Lo que te llevas» lo enseña el ejecutor. */
+export function Purpose({ purpose }: { purpose: PurposeSpec }) {
+  return (
+    <section className="question__purpose" aria-label={t.questions.purposeLabel}>
+      <h3 className="question__purpose-label">{t.questions.whyLabel}</h3>
+      <Md>{purpose.why}</Md>
+      <h3 className="question__purpose-label">{t.questions.aimLabel}</h3>
+      <Md>{purpose.aim}</Md>
+    </section>
+  );
+}
+
+/** El sentido de la pregunta si lo trae, el enunciado y, si la pregunta trae plano, la figura estática. */
+export function Stem({
+  prompt,
+  plane,
+  purpose,
+}: {
+  prompt: string;
+  plane?: PlaneSpec;
+  purpose?: PurposeSpec;
+}) {
   return (
     <div className="question__stem">
+      {purpose ? <Purpose purpose={purpose} /> : null}
       <Md>{prompt}</Md>
       {plane ? <VectorPlane spec={plane} positions={startPositions(plane)} /> : null}
     </div>

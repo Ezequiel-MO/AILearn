@@ -108,8 +108,8 @@ export function ExerciseRunner({
   const lastResult = closing.results[closing.results.length - 1];
   const firstTry = locked && lastResult?.firstTry === true;
   const exam = mode === 'examen';
-  // «Lo que te llevas» de una pregunta manipular: al cerrarla, acertada o con la solución a la vista.
-  const takeaway = question?.type === 'manipular' ? question.purpose?.takeaway : undefined;
+  // «Lo que te llevas» (manipular y Calcular): al cerrar la pregunta, acertada o con la solución a la vista.
+  const takeaway = question && 'purpose' in question ? question.purpose?.takeaway : undefined;
   // Color de la barra del panel: acierto, fallo (con segunda oportunidad o definitivo); en examen, neutro.
   const feedbackTone = exam
     ? null

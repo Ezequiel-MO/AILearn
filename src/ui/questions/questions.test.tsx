@@ -442,6 +442,37 @@ describe('manipular: el sentido del ejercicio', () => {
   });
 });
 
+describe('Calcular: el sentido de la pregunta', () => {
+  const purpose = { why: 'PARA QUE', aim: 'OBJETIVO', takeaway: 'CONCLUSION' };
+  const cases: [string, Question, string][] = [
+    ['numero', numero({ purpose }), 'Calcula'],
+    ['vector', vector({ purpose }), 'Normaliza'],
+    ['opcion', opcion({ purpose }), 'Elige'],
+  ];
+
+  for (const [type, question, promptText] of cases) {
+    // contract: petición de Oliver 2026-10-28: en Calcular, dónde se usa y para qué, antes del enunciado
+    it(`${type} con purpose: para qué sirve y qué se busca, antes del enunciado`, () => {
+      setup(question);
+      const box = screen.getByRole('region', { name: 'El sentido del ejercicio' });
+      expect(within(box).getByRole('heading', { name: 'Para qué sirve' })).toBeInTheDocument();
+      expect(within(box).getByText('PARA QUE')).toBeInTheDocument();
+      expect(within(box).getByRole('heading', { name: 'Qué vas a conseguir' })).toBeInTheDocument();
+      expect(within(box).getByText('OBJETIVO')).toBeInTheDocument();
+      const prompt = screen.getByText(promptText);
+      expect(box.compareDocumentPosition(prompt) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // contract: la conclusión se guarda para el cierre de la pregunta (la enseña el ejecutor)
+      expect(screen.queryByText('CONCLUSION')).not.toBeInTheDocument();
+    });
+  }
+
+  // contract: las preguntas sin purpose (proyectos pendientes, bancos de examen, hojas) se ven como antes
+  it('numero sin purpose: no hay bloque', () => {
+    setup(numero());
+    expect(screen.queryByRole('region', { name: 'El sentido del ejercicio' })).toBeNull();
+  });
+});
+
 describe('locked', () => {
   // contract: tarea 10, tabla: cualquiera con locked -> entradas desactivadas
   it('numero: campo y botón desactivados', () => {

@@ -609,7 +609,7 @@ a {
   gap: var(--space-4);
 }
 
-/* El sentido de una pregunta manipular: para qué sirve y qué se busca, antes del enunciado. */
+/* El sentido de una pregunta (manipular o Calcular): para qué sirve y qué se busca, antes del enunciado. */
 .question__purpose {
   display: grid;
   gap: var(--space-1);

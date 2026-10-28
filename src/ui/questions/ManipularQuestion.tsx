@@ -4,7 +4,7 @@ import type { ManipularQ } from '../../content/schema';
 import { Md } from '../Md';
 import { t } from '../strings';
 import { VectorPlane } from '../VectorPlane';
-import { startPositions, useSubmit, type QuestionProps } from './parts';
+import { Purpose, startPositions, useSubmit, type QuestionProps } from './parts';
 
 export function ManipularQuestion({ question, locked, onSubmit }: QuestionProps<ManipularQ>) {
   const [positions, setPositions] = useState(() => startPositions(question.plane));
@@ -18,14 +18,7 @@ export function ManipularQuestion({ question, locked, onSubmit }: QuestionProps<
   return (
     <div className="question">
       <div className="question__stem">
-        {question.purpose ? (
-          <section className="question__purpose" aria-label={t.questions.purposeLabel}>
-            <h3 className="question__purpose-label">{t.questions.whyLabel}</h3>
-            <Md>{question.purpose.why}</Md>
-            <h3 className="question__purpose-label">{t.questions.aimLabel}</h3>
-            <Md>{question.purpose.aim}</Md>
-          </section>
-        ) : null}
+        {question.purpose ? <Purpose purpose={question.purpose} /> : null}
         <Md>{question.prompt}</Md>
         <VectorPlane
           spec={question.plane}

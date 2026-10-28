@@ -196,13 +196,17 @@ export const goalSchema = z
 const baseShape = { id, prompt: md, hints: z.array(md), explain: md, solution: md };
 
 /**
- * El sentido de una pregunta `manipular` (petición de Oliver, 2026-10-28). `why` y `aim` se enseñan
- * siempre, antes del enunciado; `takeaway`, al cerrar la pregunta (acertada o con la solución a la vista).
+ * El sentido de una pregunta `manipular` o de un ejercicio «Calcular» (`numero`, `vector`, `opcion`),
+ * peticiones de Oliver del 2026-10-28. `why` y `aim` se enseñan siempre, antes del enunciado;
+ * `takeaway`, al cerrar la pregunta (acertada o con la solución a la vista).
  */
 export const purposeSchema = z.strictObject({
   /** «Para qué sirve»: dónde aparece esto en un sistema de IA real y qué decisión ayuda a tomar. */
   why: md,
-  /** «Qué vas a conseguir»: lo que construyes en el plano y lo que eso te deja ver. Sin la respuesta. */
+  /**
+   * «Qué vas a conseguir»: lo que construyes en el plano (o calculas) y lo que eso te deja ver.
+   * Sin la respuesta.
+   */
   aim: md,
   /** «Lo que te llevas»: la conclusión que queda y su consecuencia en el sistema real. */
   takeaway: md,
@@ -237,6 +241,7 @@ export const numeroQSchema = z.strictObject({
   answer: z.number(),
   tol,
   plane: planeSpecSchema.optional(),
+  purpose: purposeSchema.optional(),
 });
 
 export const vectorQSchema = z
@@ -249,6 +254,7 @@ export const vectorQSchema = z
     plane: planeSpecSchema.optional(),
     /** [filas, columnas]: la respuesta se teclea como matriz. La corrección no cambia. */
     shape: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
+    purpose: purposeSchema.optional(),
   })
   .superRefine((q, ctx) => {
     if (q.shape && q.shape[0] * q.shape[1] !== q.answer.length) {
@@ -267,6 +273,7 @@ export const opcionQSchema = z
     options: z.array(md).min(2),
     correct: z.number().int().min(0),
     plane: planeSpecSchema.optional(),
+    purpose: purposeSchema.optional(),
   })
   .superRefine((q, ctx) => {
     if (q.correct >= q.options.length) {

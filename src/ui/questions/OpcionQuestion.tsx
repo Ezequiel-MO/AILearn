@@ -17,7 +17,7 @@ export function OpcionQuestion({ question, locked, onSubmit }: QuestionProps<Opc
 
   return (
     <div className="question">
-      <Stem prompt={question.prompt} plane={question.plane} />
+      <Stem prompt={question.prompt} plane={question.plane} purpose={question.purpose} />
       <fieldset className="question__options" disabled={locked}>
         <legend className="question__legend">{t.questions.optionsLegend}</legend>
         {question.options.map((option, i) => (

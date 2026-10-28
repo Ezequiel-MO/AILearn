@@ -25,7 +25,7 @@ export function NumeroQuestion({ question, locked, onSubmit }: QuestionProps<Num
 
   return (
     <form className="question" onSubmit={handleSubmit} noValidate>
-      <Stem prompt={question.prompt} plane={question.plane} />
+      <Stem prompt={question.prompt} plane={question.plane} purpose={question.purpose} />
       <div className="question__answer">
         <label htmlFor={inputId}>{t.questions.answerLabel}</label>
         <input

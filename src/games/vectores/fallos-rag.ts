@@ -205,6 +205,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'Antes de poner un RAG delante de clientes, por ejemplo en el chat de reservas de un hotel, hay que decidir a cuántas preguntas se atreve a contestar. Esa parte se llama **cobertura**, y la fija el umbral. Con un umbral alto, muchos clientes se quedan sin respuesta y pasan a una persona; con uno bajo, el sistema contesta a todo, también a lo que su base no cubre.',
+            aim: 'Vas a aplicar tres umbrales a los cosenos reales de diez preguntas de huéspedes y a contar a cuántas contesta el sistema con cada uno. Verás cómo cae la cobertura al subir el corte y qué preguntas se quedan fuera primero.',
+            takeaway:
+              'Al subir el umbral la cobertura solo puede bajar, y se pierden primero las preguntas de coseno más bajo, tengan o no respuesta: q1, la del perro, cae igual que q7, la del vuelo. La cobertura dice a cuántas se contesta, no a cuántas se contesta bien. Para elegir el umbral hace falta además un recuento de aciertos con preguntas cuya respuesta se conoce.',
+          },
           prompt: `Estos son los cosenos **reales** (modelo paraphrase-multilingual-MiniLM-L12-v2, 384 componentes) entre cada consulta de un huésped y su documento más parecido, en la base de conocimiento de un hotel de congresos con 16 documentos:\n\n${MEJORES.map((m) => `- ${m}`).join('\n')}\n\nUn sistema con umbral $u$ contesta a una consulta si su mejor coseno es mayor o igual que $u$ y, si no, dice «no lo sé». ¿A cuántas de las 10 consultas contesta con $u=0{,}30$, con $u=0{,}45$ y con $u=0{,}60$? Escribe los tres números, en ese orden.`,
           hints: [
             'Para cada umbral, cuenta las consultas cuyo mejor coseno lo alcanza. Con el más bajo, mira cuáles se quedan fuera, si hay alguna.',
@@ -220,6 +226,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex01.2',
           type: 'opcion',
+          purpose: {
+            why: 'Muchas consultas reales llevan una cantidad que tiene que cumplirse: una sala para 250 personas, un portátil por menos de 1000 euros, una habitación para cuatro. El buscador de una tienda o la base de conocimiento de un hotel de congresos las recibe a diario, y la búsqueda por embeddings las trata como texto parecido, no como una condición que se cumple o no.',
+            aim: 'Vas a leer los cuatro documentos mejor puntuados para la consulta de la sala y a decidir qué devuelve la búsqueda y por qué no sirve. Verás si el coseno ordena las salas por su capacidad o por lo mucho que se parecen sus frases.',
+            takeaway:
+              'Un embedding guarda que una frase habla de capacidad, no cuánta capacidad dice: «30 personas» y «300 personas» quedan casi en el mismo sitio. Cuando la pregunta lleva una condición numérica, un RAG la saca de la búsqueda semántica y la aplica como filtro sobre datos estructurados (la capacidad de cada sala en su propio campo); al coseno le deja solo el tema.',
+          },
           prompt:
             'La consulta q2, «¿Hay una sala para 250 asistentes?», se compara con los 16 documentos de la base del hotel con el modelo paraphrase-multilingual-MiniLM-L12-v2. Los cuatro cosenos más altos son:\n\n- d12 «Los grupos de más de 20 habitaciones tienen una persona de contacto asignada.»: 0,64\n- d5 «La sala Levante tiene capacidad para 30 personas en formato reunión.»: 0,61\n- d4 «La sala Mediterráneo tiene capacidad para 300 personas en formato teatro.»: 0,54\n- d10 «El gimnasio está abierto las 24 horas para los huéspedes.»: 0,42\n\nLa única sala donde caben 250 personas es la Mediterráneo. ¿Qué devuelve la búsqueda y por qué es un fallo?',
           hints: [
@@ -241,6 +253,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex01.3',
           type: 'numero',
+          purpose: {
+            why: 'Nadie sabe si su RAG funciona sin medirlo. La práctica habitual es reunir un conjunto de preguntas **etiquetadas**, con la respuesta correcta de cada una (también «no está en la base»), y contar los aciertos cada vez que se cambia algo: el umbral, el modelo de embeddings o los documentos. Es la misma idea que el conjunto de prueba de cualquier modelo de aprendizaje automático.',
+            aim: 'Vas a corregir a mano el sistema del hotel con un umbral de $0{,}35$: decidir en cada consulta si contesta, si devuelve el documento correcto y si se calla cuando debe. Verás qué tipos de fallo quedan y si el umbral ayuda o estorba.',
+            takeaway:
+              'Los fallos no son todos iguales: callarse cuando había respuesta, devolver el documento equivocado y contestar sin tener respuesta piden arreglos distintos. Contarlos por separado, y no solo el total, dice qué cambiar. Y el umbral se elige con este recuento: si al ponerlo bajan los aciertos, está mal puesto, por razonable que parezca.',
+          },
           prompt: `Un conjunto de 10 consultas **etiquetadas** permite medir un sistema. Para cada consulta de la base del hotel (16 documentos, d0 a d15; cosenos reales del modelo paraphrase-multilingual-MiniLM-L12-v2) se conoce el documento mejor puntuado, su coseno y la respuesta correcta:\n\n- q0: recupera d0 con 0,77; correcto: d0\n- q1: recupera d1 con 0,33; correcto: d1\n- q2: recupera d12 con 0,64; correcto: d4\n- q3: recupera d5 con 0,70; correcto: d5\n- q4: recupera d14 con 0,62; correcto: d14\n- q5: recupera d13 con 0,86; correcto: ninguno, la base no tiene el código CONG-2025\n- q6: recupera d3 con 0,59; correcto: d3\n- q7: recupera d3 con 0,41; correcto: ninguno, la base no habla de vuelos\n- q8: recupera d15 con 0,72; correcto: d15\n- q9: recupera d9 con 0,56; correcto: d9\n\nCon umbral $u=0{,}35$, el sistema devuelve el documento si su coseno alcanza $u$ y, si no, dice «no lo sé». Es un acierto devolver el documento correcto, o decir «no lo sé» cuando no hay respuesta. ¿Cuántas de las 10 consultas se contestan bien?`,
           hints: [
             'Con $u=0{,}35$ dicen «no lo sé» las consultas cuyo mejor coseno es menor que $0{,}35$. Mira cuáles son y si era lo correcto.',
@@ -256,6 +274,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex01.4',
           type: 'opcion',
+          purpose: {
+            why: 'Un RAG tiene dos piezas con dos trabajos: la búsqueda elige qué documentos se leen y el modelo de lenguaje decide qué se contesta. Cuando el chat de atención al cliente responde mal, lo primero es saber cuál de las dos ha fallado, porque se arreglan de forma distinta: la búsqueda, con otro modelo de embeddings o un reordenador; la respuesta, con otras instrucciones o con otro modelo.',
+            aim: 'Vas a leer una recuperación real, la del spa, y a decidir qué dice el coseno y qué no dice. Verás dónde termina el trabajo de la búsqueda y dónde empieza el del modelo que redacta la respuesta.',
+            takeaway:
+              'Un coseno alto confirma que la búsqueda ha traído el documento del tema, nada más; si el documento dice «sí» o «no» lo lee el modelo. Por eso se evalúan las dos piezas por separado: si se ha recuperado el documento correcto y si la respuesta es fiel a lo que ese documento dice. Medirlas juntas esconde dónde está el fallo.',
+          },
           prompt:
             'La consulta q4, «¿El spa está incluido en el precio?», recupera con el modelo paraphrase-multilingual-MiniLM-L12-v2 el documento d14, «El spa no está incluido en la tarifa y se paga aparte.», con coseno $0{,}62$, el más alto de los 16 documentos de la base del hotel. ¿Qué se puede afirmar?',
           hints: [
@@ -277,6 +301,12 @@ export const fallosRag: Project = {
         {
           id: 'fallos-rag.ex01.5',
           type: 'opcion',
+          purpose: {
+            why: 'Los RAG que funcionan en producción casi nunca se quedan en la búsqueda por embeddings sola: la combinan con búsqueda por palabras clave, filtros por metadatos, un reordenador y la opción de no contestar. Saber qué fallo arregla cada pieza evita añadirlas todas a ciegas, porque cada una cuesta tiempo de respuesta, dinero o mantenimiento.',
+            aim: 'Vas a casar cuatro fallos reales del hotel con cuatro remedios habituales, mirando la causa de cada fallo: un código exacto, una cantidad, una negación y una pregunta sin respuesta. Verás que cada remedio ataca una causa distinta.',
+            takeaway:
+              'Ante un fallo, primero se busca la causa y después la pieza: coincidencia literal para códigos y nombres propios, filtros para condiciones exactas, reordenación para lo que la frase afirma y un umbral para callarse. Ninguna sustituye a las demás, y el conjunto de preguntas etiquetadas dice si cada pieza nueva mejora el sistema o no.',
+          },
           prompt:
             'Un RAG tiene cuatro fallos de recuperación y cada uno tiene un remedio habitual. Los fallos son: (1) la consulta lleva un código exacto, CONG-2025, y recupera el documento con CONG-2026 con coseno $0{,}86$; (2) la consulta pide una sala para 250 y el sistema pone por delante la de 30 personas; (3) «El hotel no admite mascotas.» puntúa casi como «El hotel admite mascotas.»; (4) la pregunta no tiene respuesta en la base y el sistema devuelve, aun así, el documento que más puntúa. Los remedios son: búsqueda por palabras clave o híbrida, filtro por metadatos (la capacidad de cada sala como dato aparte), reordenación con un modelo que lee consulta y documento juntos, y umbral con respuesta «no lo sé». ¿Qué remedio encaja con cada fallo, en el orden (1), (2), (3), (4)?',
           hints: [

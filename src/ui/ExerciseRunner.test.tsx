@@ -879,3 +879,41 @@ describe('ExerciseRunner: «Lo que te llevas» de una pregunta manipular', () =>
     expect(screen.queryByText('CONCLUSION m1')).toBeNull();
   });
 });
+
+describe('ExerciseRunner: «Lo que te llevas» de una pregunta de Calcular', () => {
+  const withPurpose = (n: number): NumeroQ =>
+    numero(n, {
+      purpose: { why: `PARA QUE ${n}`, aim: `OBJETIVO ${n}`, takeaway: `CONCLUSION ${n}` },
+    });
+
+  // contract: petición de Oliver 2026-10-28: el contexto se ve también al acertar a la primera
+  it('al acertar a la primera enseña la conclusión, sin la solución', async () => {
+    const { user } = setup([withPurpose(1)]);
+    expect(screen.getByText('PARA QUE 1')).toBeInTheDocument();
+    expect(screen.queryByText('CONCLUSION 1')).toBeNull();
+    await answer(user, '5');
+    expect(screen.getByText('¡Correcto!')).toBeInTheDocument();
+    expect(screen.getByText('Lo que te llevas')).toBeInTheDocument();
+    expect(screen.getByText('CONCLUSION 1')).toBeInTheDocument();
+    expect(screen.queryByText('SOLUCION 1')).toBeNull();
+  });
+
+  // contract: petición de Oliver 2026-10-28: también tras ver la solución
+  it('tras dos fallos enseña la solución y la conclusión', async () => {
+    const { user } = setup([withPurpose(1)]);
+    await answer(user, '4');
+    // contract: con segunda oportunidad la pregunta sigue abierta: aún sin conclusión
+    expect(screen.queryByText('CONCLUSION 1')).toBeNull();
+    await answer(user, '4');
+    expect(screen.getByText('SOLUCION 1')).toBeInTheDocument();
+    expect(screen.getByText('CONCLUSION 1')).toBeInTheDocument();
+  });
+
+  // contract: review-12 I4: en examen la entrega no delata nada
+  it('en examen no enseña la conclusión', async () => {
+    const { user } = setup([withPurpose(1)], { mode: 'examen' });
+    await answer(user, '5');
+    expect(screen.getByText('Respuesta registrada')).toBeInTheDocument();
+    expect(screen.queryByText('CONCLUSION 1')).toBeNull();
+  });
+});

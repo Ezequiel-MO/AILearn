@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ManipularQ, Question } from '../../src/content/schema';
+import type { ManipularQ, NumeroQ, OpcionQ, Question, VectorQ } from '../../src/content/schema';
 import { games } from '../../src/games';
 
 /**
- * El sentido de cada pregunta `manipular` (petición de Oliver, 2026-10-28): «Para qué sirve», «Qué vas
- * a conseguir» y «Lo que te llevas». Se pasó primero de «Por qué falla un RAG» en adelante; lo que
- * queda por pasar está en `PENDING` y la lista solo puede encoger.
+ * El sentido de cada pregunta `manipular` y de cada pregunta del ejercicio «Calcular» (peticiones de
+ * Oliver, 2026-10-28): «Para qué sirve», «Qué vas a conseguir» y «Lo que te llevas». Se pasó primero
+ * de «Por qué falla un RAG» en adelante; lo que queda por pasar está en `PENDING` y la lista solo
+ * puede encoger.
  */
 const PENDING: Record<string, readonly string[]> = {
   vectores: [
@@ -27,23 +28,33 @@ const PENDING: Record<string, readonly string[]> = {
 const MIN_CHARS = 60;
 const MAX_CHARS = 700;
 
+type CalcQ = NumeroQ | VectorQ | OpcionQ;
+
 const manipulars = (qs: readonly Question[]): ManipularQ[] =>
   qs.filter((q): q is ManipularQ => q.type === 'manipular');
 
-/** Cada grupo con preguntas manipular: el despegue y el ejercicio «Manipular» de cada proyecto. */
+const calcs = (qs: readonly Question[]): CalcQ[] =>
+  qs.filter((q): q is CalcQ => q.type === 'numero' || q.type === 'vector' || q.type === 'opcion');
+
+/**
+ * Cada grupo: el despegue (sus preguntas manipular) y cada proyecto (las de su ejercicio «Manipular» y
+ * las de su ejercicio «Calcular»).
+ */
 const groups = games.flatMap((g) => [
-  { game: g.id, id: 'despegue', questions: manipulars(g.launch) },
+  { game: g.id, id: 'despegue', manipular: manipulars(g.launch), calcular: [] as CalcQ[] },
   ...g.orbits.flatMap((o) =>
     o.projects.map((p) => ({
       game: g.id,
       id: p.id,
-      questions: manipulars(p.exercises.flatMap((e) => e.questions)),
+      manipular: manipulars(p.exercises.flatMap((e) => e.questions)),
+      calcular: calcs(p.exercises.filter((e) => e.kind === 'calcular').flatMap((e) => e.questions)),
     })),
   ),
 ]);
 
-describe('el sentido de las preguntas manipular', () => {
-  for (const { game, id, questions } of groups) {
+describe('el sentido de las preguntas manipular y de Calcular', () => {
+  for (const { game, id, manipular, calcular } of groups) {
+    const questions = [...manipular, ...calcular];
     if (questions.length === 0) continue;
     const pending = PENDING[game]?.includes(id) ?? false;
 
@@ -57,7 +68,12 @@ describe('el sentido de las preguntas manipular', () => {
 
     it(`${game}/${id}: toda pregunta manipular lleva purpose`, () => {
       // contract: petición de Oliver 2026-10-28: relevancia, intención y para qué en cada Manipular
-      expect(questions.filter((q) => !q.purpose).map((q) => q.id)).toEqual([]);
+      expect(manipular.filter((q) => !q.purpose).map((q) => q.id)).toEqual([]);
+    });
+
+    it(`${game}/${id}: toda pregunta del ejercicio Calcular lleva purpose`, () => {
+      // contract: petición de Oliver 2026-10-28: en Calcular, dónde se usa y casos de uso, de RAG en adelante
+      expect(calcular.filter((q) => !q.purpose).map((q) => q.id)).toEqual([]);
     });
 
     it(`${game}/${id}: cada texto de purpose mide de ${MIN_CHARS} a ${MAX_CHARS} caracteres`, () => {
@@ -80,7 +96,7 @@ describe('el sentido de las preguntas manipular', () => {
         const texts = questions.flatMap((q) => (q.purpose ? [q.purpose[k].trim()] : []));
         return new Set(texts).size === texts.length ? [] : [`purpose.${k} repetido`];
       });
-      // contract: cada manipulación enseña algo distinto; un texto copiado no dice para qué sirve esta
+      // contract: cada pregunta enseña algo distinto; un texto copiado no dice para qué sirve esta
       expect(out).toEqual([]);
     });
   }
