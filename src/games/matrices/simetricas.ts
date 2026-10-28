@@ -1,4 +1,5 @@
 import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { simetricasWarmup } from './simetricas.calentamiento';
 import { transformPlane, type TransformPlaneOptions } from './plane';
 
@@ -288,8 +289,23 @@ export const simetricas: Project = {
           prompt:
             'En `X` hay 6 muestras (una por fila) de 2 variables (una por columna). La **matriz de covarianza** tiene las varianzas en la diagonal y la covarianza fuera de ella, con las sumas divididas entre $n-1$, y se calcula con `np.cov`. Guarda en `C` la matriz de covarianza de las dos variables, en `var_x` la varianza de la primera y en `cov_xy` la covarianza entre las dos.',
           hints: [
-            '`np.cov(M)` devuelve la matriz de covarianza de unos datos. Antes de usarla, averigua qué toma por defecto como una variable: una fila de `M` o una columna.',
-            'Si `C` te sale con 6 filas y 6 columnas, `np.cov` ha tratado cada muestra como una variable. Puedes corregirlo con la traspuesta de los datos o con el parámetro `rowvar` de la función.',
+            'El plan: la matriz de covarianza `C` sale de una sola función de NumPy, `np.cov`, aplicada a `X`. Ojo con lo que toma por defecto como una variable: una fila o una columna. En `X` las variables están en las columnas, así que hay que avisarle (con un parámetro de la función o dándole los datos traspuestos). Con `C` ya hecha, `var_x` es la entrada de la diagonal que corresponde a la primera variable, y `cov_xy` la entrada de fuera de la diagonal que cruza las dos variables; las lees con `C[fila, columna]`, contando desde 0.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'datos = np.array([[1, 5], [2, 7], [3, 6]])   # 3 muestras (filas), 2 variables (columnas)',
+                'print(datos.shape)                        # (3, 2)',
+                'print(np.cov(datos).shape)                # (3, 3): por defecto, cada FILA es una variable',
+                'print(np.cov(datos, rowvar=False).shape)  # (2, 2): ahora cada columna es una variable',
+                'print(np.cov(datos.T).shape)              # (2, 2): la traspuesta lleva a lo mismo',
+                '',
+                'M = np.array([[4, 1], [1, 9]])',
+                'print(M[1, 1])   # 9: fila 1, columna 1',
+                'print(M[0, 1])   # 1: fila 0, columna 1',
+              ) +
+              '\n\nLa forma `(3, 2)` es una tupla: 3 filas y 2 columnas. En una matriz de covarianza, la diagonal tiene las varianzas de cada variable y fuera de ella están las covarianzas.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('C = np.cov(X, ___)', 'var_x = C[___, ___]', 'cov_xy = C[___, ___]') +
+              '\n\nEl primer hueco es cómo avisar a `np.cov` de que las variables están en las columnas. Si `C` te sale de 6 por 6, no se lo has dicho: ha tratado cada muestra como una variable.',
           ],
           explain:
             '`np.cov` supone por defecto que cada **fila** es una variable y cada columna, una observación: la convención contraria a la de una tabla de datos, donde cada fila es una muestra. Con 6 filas, calcula cómo se parecen entre sí las 6 muestras, y sale una matriz de 6 por 6 en lugar de la de las 2 variables.',
@@ -303,6 +319,8 @@ export const simetricas: Project = {
           ],
           starter: `import numpy as np
 
+# X es la tabla de datos: 6 filas (una por muestra) y 2 columnas (una por variable).
+# X[2] sería la tercera muestra, y X[:, 0] la primera columna entera.
 X = np.array([
     [1, 2],
     [2, 3],
@@ -311,10 +329,32 @@ X = np.array([
     [5, 7],
     [6, 9],
 ])
-# Guarda en C la matriz de covarianza de las dos variables de X, en var_x la varianza de la primera y en cov_xy la covarianza
+
+# PASO 1. La matriz de covarianza de las dos variables de X, en C.
+# Por qué: en una sola matriz cuenta cuánto varía cada variable (la diagonal) y cuánto varían
+# a la vez las dos (fuera de la diagonal). Es simétrica, y por eso luego tendrá autovectores
+# perpendiculares.
+# Herramienta: np.cov(M) recibe un array y devuelve su matriz de covarianza. Cuidado: por
+# defecto toma cada FILA de M como una variable. Si M tiene 10 filas y 3 columnas (3 variables),
+# np.cov(M) sale de 10 por 10, y no es lo que se busca. Para cambiar esa convención, np.cov
+# admite el parámetro rowvar (mira su valor por defecto), o puedes pasarle M.T, la traspuesta
+# (filas y columnas intercambiadas). Esperado: un array de 2 filas y 2 columnas.
 C = None
+
+# PASO 2. La varianza de la primera variable, en var_x.
+# Por qué: es lo que varía la primera variable por sí sola, y vive en la diagonal de C.
+# Herramienta: C[fila, columna] lee una entrada de un array de dos ejes, contando desde 0:
+# si M = np.array([[4, 1], [1, 9]]), M[1, 1] vale 9 y M[0, 1] vale 1.
+# Esperado: un número.
 var_x = None
+
+# PASO 3. La covarianza entre las dos variables, en cov_xy.
+# Por qué: dice si las dos suben a la vez (positiva) o una sube cuando la otra baja (negativa).
+# Está fuera de la diagonal de C; se lee igual que en el paso 2, con C[fila, columna].
+# Esperado: un número.
 cov_xy = None
+
+# Para ver qué vale algo antes de entregar: print(C) y pulsa «Ejecutar».
 `,
           checks: `_n = lambda x: isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, (bool, np.bool_))
 _c = isinstance(C, np.ndarray) and C.ndim == 2 and C.dtype.kind in "iuf"
@@ -341,8 +381,29 @@ check((not _k) or np.isclose(cov_xy, 4.6), "\`cov_xy\` tiene que valer 4,6: es l
           prompt:
             'La matriz de covarianza de unos datos con una muestra por fila se calcula restando a cada columna su media y multiplicando: $C=\\dfrac{X_c^{T}X_c}{n-1}$, con $X_c$ los datos sin la media y $n$ el número de muestras. Escribe `covarianza(X)`, que recibe un array de NumPy con las muestras en las filas y devuelve su matriz de covarianza, **sin usar `np.cov`**. Después guarda en `C_datos` el resultado para `datos`.',
           hints: [
-            'Primero resta a cada columna de `X` su media. NumPy resta un array de una media por columna a todas las filas de golpe.',
-            'Con `Xc` ya centrada, multiplica su traspuesta por ella y divide entre el número de filas menos 1. El orden de los factores decide qué forma tiene el resultado.',
+            'El plan: dentro de `covarianza`, (1) crea `Xc`, la tabla con la media de cada columna restada, con `X.mean(axis=0)`; (2) multiplica la traspuesta de `Xc` por `Xc` con `@` y divide entre el número de filas menos 1 (`len(X) - 1`); (3) devuelve ese resultado con `return`. Fuera de la función, `C_datos` es `covarianza(datos)`. Ojo: el orden de los factores decide la forma, y la covarianza tiene una fila y una columna por cada variable, no por cada muestra.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'tabla = np.array([[1, 10], [3, 30], [5, 20]])   # 3 muestras, 2 variables',
+                'medias = tabla.mean(axis=0)   # una media por columna',
+                'print(medias)                 # [ 3. 20.]',
+                'centrada = tabla - medias     # a cada fila se le restan esas medias',
+                'print(centrada[0])            # [ -2. -10.]: la primera muestra, sin la media',
+                'print(centrada.T.shape)       # (2, 3): la traspuesta intercambia filas y columnas',
+                'print((centrada.T @ centrada).shape)   # (2, 2): una fila y una columna por variable',
+                'print((centrada @ centrada.T).shape)   # (3, 3): una por muestra',
+                'print(len(tabla))             # 3: el número de filas',
+              ) +
+              '\n\n`axis=0` recorre las filas hacia abajo, es decir, saca una media por columna. Dentro de una función, todo lo que va a su cargo se escribe con 4 espacios de sangría.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def covarianza(X):',
+                '    Xc = X - X.mean(axis=___)',
+                '    return ___ @ ___ / (len(X) - ___)',
+                '',
+                'C_datos = covarianza(datos)',
+              ) +
+              '\n\nLos dos factores del producto son `Xc` y su traspuesta, pero en un orden que da una matriz de una fila y una columna por variable. Si te sale de 5 por 5, está al revés.',
           ],
           explain:
             'Hay cuatro tropiezos clásicos: no restar la media, restarla por muestra y no por variable, dividir entre $n$ en lugar de $n-1$, y multiplicar en el orden que da una matriz con una fila por cada muestra, en vez de una por cada variable.',
@@ -358,7 +419,28 @@ check((not _k) or np.isclose(cov_xy, 4.6), "\`cov_xy\` tiene que valer 4,6: es l
 
 
 def covarianza(X):
-    # Devuelve la matriz de covarianza de las columnas de X (una muestra por fila), sin usar np.cov
+    # Aquí escribes tú. Todo lo que va dentro de una función lleva sangría (4 espacios a la
+    # izquierda), y el valor que devuelve se pone tras la palabra return.
+    # X llega como un array de NumPy: una fila por muestra y una columna por variable.
+    #
+    # PASO 1. Centrar los datos: restar a cada columna su media. Guárdalo en una variable
+    # propia, por ejemplo Xc (X centrada).
+    # Por qué: la covarianza mide cómo varían los datos respecto a su media, no dónde están.
+    # Sin restar la media, dos datos iguales colocados en otro sitio darían otro resultado.
+    # Herramienta: X.mean(axis=0) saca la media de cada columna (una por variable) como un
+    # array. Con axis=0 se recorren las filas hacia abajo. Por ejemplo,
+    # np.array([[1, 10], [3, 30]]).mean(axis=0) vale [ 2. 20.]. Si a un array de dos ejes le
+    # restas un array con un número por columna, NumPy se lo resta a todas las filas de golpe.
+    #
+    # PASO 2. Multiplicar y dividir.
+    # Por qué: el producto de Xc por su traspuesta suma, para cada par de variables, los
+    # productos de sus desviaciones, y eso dividido entre n - 1 (n = número de muestras) es la
+    # covarianza de unas muestras.
+    # Herramienta: Xc.T es la traspuesta (filas por columnas) y @ multiplica matrices. Con Xc de
+    # n filas y p columnas, Xc.T tiene p filas y n columnas: según el orden de los factores
+    # sale una matriz de p por p o de n por n, y aquí se necesita una por variable. len(X) es el
+    # número de filas, n.
+    # Se devuelve con return; el resultado esperado es un array de p filas y p columnas.
     return None
 
 
@@ -369,8 +451,12 @@ datos = np.array([
     [4, 3],
     [5, 5],
 ])
-# Guarda en C_datos la matriz de covarianza de datos
+# PASO 3. Guarda en C_datos la matriz de covarianza de datos: lo que devuelve tu función
+# cuando le pasas datos. Se llama a una función escribiendo su nombre y entre paréntesis lo
+# que recibe. Esperado: un array de 2 filas y 2 columnas.
 C_datos = None
+
+# Para ver qué vale algo antes de entregar: print(C_datos) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("covarianza"))
 def _call(X):
@@ -435,8 +521,29 @@ C_datos = covarianza(datos)
           prompt:
             'Una matriz simétrica como `C` tiene autovalores reales y autovectores perpendiculares, y `np.linalg.eigh` los calcula: devuelve los autovalores y una matriz cuyas **columnas** son los autovectores. Guarda en `vals` y `vecs` lo que devuelve `np.linalg.eigh(C)`, en `lam_max` el autovalor mayor, en `u` su autovector, y en `perpendiculares` si los dos autovectores son perpendiculares, es decir, si su producto escalar es $0$ salvo redondeo (un solo `True` o `False`).',
           hints: [
-            'Guarda las dos cosas que devuelve la función de una vez: `vals, vecs = ...`. Mira `vals` y `vecs` con `print` y fíjate en el orden de los autovalores.',
-            'El autovector de cada autovalor está en la columna de `vecs` con su mismo número de posición. Para comparar con cero un producto de decimales, usa `np.isclose`.',
+            'El plan: (1) `np.linalg.eigh(C)` devuelve dos cosas, los autovalores y la matriz de autovectores; guárdalas de una vez en `vals` y `vecs`. (2) `eigh` da los autovalores de menor a mayor, así que el mayor es el último de `vals`. (3) El autovector de cada autovalor está en la columna de `vecs` con su mismo número de posición: tómala con `vecs[:, posición]`. (4) Los dos autovectores son las dos columnas de `vecs`; su producto escalar con `@` es casi 0 si son perpendiculares, y como es un decimal, compara con `np.isclose` y no con `==`. Ojo: los autovectores están en las columnas, no en las filas.',
+            'Las piezas, con otra matriz simétrica:\n\n' +
+              py(
+                'S = np.array([[2, 1], [1, 2]])',
+                'w, V = np.linalg.eigh(S)   # dos resultados a la vez: autovalores y autovectores',
+                'print(w)                   # [1. 3.]: de menor a mayor',
+                'print(w[-1])               # 3.0: la posición -1 es la última, el mayor',
+                'print(V.shape)             # (2, 2)',
+                'col = V[:, 1]              # todas las filas de la columna 1: un autovector',
+                'print(col.shape)           # (2,): dos números',
+                'fila = V[1]                # la fila 1: no es un autovector',
+                'print(np.isclose(V[:, 0] @ V[:, 1], 0))   # True: su producto escalar es casi 0',
+                'print(0.1 + 0.2 == 0.3, np.isclose(0.1 + 0.2, 0.3))   # False True',
+              ) +
+              '\n\n`V[:, 1]` se lee «todas las filas, columna 1». Los autovectores pueden salir con el signo cambiado; da igual, siguen siendo autovectores.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'vals, vecs = np.linalg.eigh(C)',
+                'lam_max = vals[___]',
+                'u = vecs[:, ___]',
+                'perpendiculares = np.isclose(vecs[:, 0] @ vecs[:, 1], ___)',
+              ) +
+              '\n\nLos dos primeros huecos son la misma posición: la del mayor autovalor, que es el último. Con `vecs[1]` (sin los dos puntos) lees una fila, y eso no es un autovector.',
           ],
           explain:
             '`np.linalg.eigh` devuelve los autovalores **ordenados** de menor a mayor, y los autovectores en las columnas de la matriz, no en sus filas. Con el mayor autovalor en una posición, su autovector está en esa misma posición de las columnas.',
@@ -450,13 +557,42 @@ C_datos = covarianza(datos)
           ],
           starter: `import numpy as np
 
+# C es simétrica: 2 filas y 2 columnas.
 C = np.array([[1, 2], [2, -2]])
-# Guarda en vals y vecs lo que devuelve np.linalg.eigh(C), en lam_max el autovalor mayor, en u su autovector y en perpendiculares si los dos autovectores son perpendiculares
+
+# PASO 1. Los autovalores en vals y los autovectores en vecs.
+# Por qué: una matriz simétrica tiene autovalores reales y autovectores perpendiculares, y
+# np.linalg.eigh está hecha justo para ellas.
+# Herramienta: np.linalg.eigh(C) devuelve DOS cosas a la vez: un array con los autovalores y una
+# matriz cuyas COLUMNAS son los autovectores. Para guardarlas de una vez se escribe
+# a, b = función(...): la primera cosa queda en a y la segunda en b. Los autovalores salen de menor
+# a mayor. Esperado: vals con 2 números y vecs de 2 filas y 2 columnas.
 vals = None
 vecs = None
+
+# PASO 2. El autovalor mayor, en lam_max.
+# Por qué: es el que mide la dirección en la que la matriz estira más.
+# Herramienta: un array se lee por posición, contando desde 0, y la posición -1 es la última:
+# si a = np.array([5, 8, 9]), a[0] vale 5 y a[-1] vale 9. Como vals va de menor a mayor,
+# piensa en qué posición queda el mayor. Esperado: un número.
 lam_max = None
+
+# PASO 3. El autovector de lam_max, en u.
+# Por qué: cada autovalor tiene su autovector, y está en la columna de vecs con la misma posición
+# que el autovalor en vals.
+# Herramienta: vecs[:, k] lee la columna k entera (los dos puntos significan «todas las
+# filas»); vecs[k] leería la fila k, y eso no es un autovector. Esperado: un array de 2 números.
 u = None
+
+# PASO 4. Si los dos autovectores son perpendiculares, en perpendiculares.
+# Por qué: dos vectores son perpendiculares si su producto escalar es 0, y en una matriz
+# simétrica siempre lo son (salvo el redondeo de los decimales).
+# Herramienta: a @ b es el producto escalar de dos vectores. Como es un decimal, no se compara
+# con ==: np.isclose(x, 0) dice True si x es casi 0. Por ejemplo, np.isclose(0.1 + 0.2, 0.3)
+# es True, mientras que 0.1 + 0.2 == 0.3 es False. Esperado: un solo True o False.
 perpendiculares = None
+
+# Para ver qué vale algo antes de entregar: print(vals) y pulsa «Ejecutar».
 `,
           checks: `_n = lambda x: isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, (bool, np.bool_))
 def _arr(a, shape):
@@ -504,8 +640,27 @@ perpendiculares = np.isclose(vecs[:, 0] @ vecs[:, 1], 0)
           prompt:
             'Los autovectores de una matriz simétrica son perpendiculares y de longitud 1 (se dice **ortonormales**), y con ellos la matriz se reconstruye: $C=V\\Lambda V^{T}$, con $V$ la matriz que tiene los autovectores en las columnas y $\\Lambda$ la matriz con los autovalores en la diagonal y ceros fuera. Guarda en `vals` y `vecs` lo que devuelve `np.linalg.eigh(C)`, en `ortonormal` si las columnas de `vecs` son ortonormales (un solo `True` o `False`) y en `C2` el producto $V\\Lambda V^{T}$ calculado con ellos, que tiene que coincidir con `C`.',
           hints: [
-            'Para que las columnas de `vecs` sean ortonormales, el producto de la traspuesta de `vecs` por `vecs` tiene que ser la matriz identidad. Compárala con `np.eye(3)`.',
-            '$\\Lambda$ no es el array `vals`, sino una matriz de 3 por 3 con `vals` en la diagonal: `np.diag(vals)` la construye. Con `@` se encadenan los tres factores.',
+            'El plan: (1) `vals, vecs = np.linalg.eigh(C)`. (2) `ortonormal`: las columnas de `vecs` son perpendiculares y de longitud 1 si la traspuesta de `vecs` por `vecs` es la matriz identidad; compárala con `np.eye(3)` mediante `np.allclose`, que devuelve un solo `True` o `False`. (3) `C2`: encadena con `@` los autovectores, la matriz diagonal de autovalores (que se construye con `np.diag`, porque `vals` es solo un array de números, no una matriz) y la traspuesta de los autovectores. Error típico: olvidar la traspuesta del último factor, o multiplicar por `vals` en lugar de por la matriz diagonal.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'w = np.array([2, 5])',
+                'D = np.diag(w)             # matriz de 2 por 2 con w en la diagonal y ceros fuera',
+                'print(D[0, 0], D[0, 1], D[1, 1])   # 2 0 5',
+                'print(np.eye(2)[1, 1])     # 1.0: np.eye(2) es la identidad de 2 por 2',
+                '',
+                'Q = np.array([[0, 1], [1, 0]])',
+                'print(np.allclose(Q.T @ Q, np.eye(2)))   # True: la traspuesta por Q es la identidad',
+                'print((Q @ D @ Q.T)[0, 0])   # 5: con @ se encadenan tres factores, de izquierda a derecha',
+                'print(np.allclose(1.0, 1.0000001))   # True: casi iguales cuentan como iguales',
+              ) +
+              '\n\n`.T` es la traspuesta: cambia filas por columnas. `np.allclose(A, B)` compara dos arrays entrada a entrada y responde con un solo `True` o `False`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'vals, vecs = np.linalg.eigh(C)',
+                'ortonormal = np.allclose(vecs.___ @ vecs, np.eye(___))',
+                'C2 = vecs @ np.diag(___) @ vecs.___',
+              ) +
+              '\n\nEl último factor lleva lo mismo que el primer hueco de la segunda línea. Sin él, `C2` no sale igual a `C`.',
           ],
           explain:
             'Dos errores frecuentes: olvidar la traspuesta del último factor, que cambia el producto, y multiplicar por el array de autovalores en lugar de por la matriz diagonal: un array y una matriz no se combinan como dos matrices, y el resultado ya no tiene la forma de `C`.',
@@ -518,16 +673,40 @@ perpendiculares = np.isclose(vecs[:, 0] @ vecs[:, 1], 0)
           ],
           starter: `import numpy as np
 
+# C es simétrica: 3 filas y 3 columnas.
 C = np.array([
     [5, -2, 0],
     [-2, 4, -2],
     [0, -2, 3],
 ])
-# Guarda en vals y vecs lo que devuelve np.linalg.eigh(C), en ortonormal si las columnas de vecs son ortonormales y en C2 la matriz reconstruida con ellos
+
+# PASO 1. Los autovalores en vals y los autovectores en vecs.
+# Por qué: con ellos se puede reconstruir la matriz, y eso comprueba que se han entendido.
+# Herramienta: np.linalg.eigh(C) devuelve DOS cosas a la vez, un array con los autovalores y una
+# matriz con los autovectores en las columnas. Se guardan de una vez con a, b = función(...).
+# Esperado: vals con 3 números y vecs de 3 filas y 3 columnas.
 vals = None
 vecs = None
+
+# PASO 2. Si las columnas de vecs son ortonormales, en ortonormal.
+# Por qué: ortonormales quiere decir perpendiculares entre sí y de longitud 1. Entonces la
+# traspuesta de vecs (.T, filas por columnas) multiplicada por vecs tiene en cada posición el
+# producto escalar de dos columnas: 1 con ella misma y 0 con las otras. Es la matriz identidad.
+# Herramienta: np.eye(n) es la identidad de n por n. np.allclose(A, B) compara dos arrays
+# entrada a entrada, tolerando el redondeo, y devuelve un solo True o False. @ multiplica
+# matrices. Esperado: un solo True o False.
 ortonormal = None
+
+# PASO 3. La matriz reconstruida con los autovectores, en C2.
+# Por qué: la matriz es lo que hacen sus autovectores: gira a la base de autovectores, estira cada
+# eje por su autovalor y gira de vuelta. Tiene que salir C.
+# Herramienta: vals es un array con una fila de números, no una matriz; np.diag(v) construye la matriz con v
+# en la diagonal y ceros fuera. Con @ se encadenan tres factores, de izquierda a derecha:
+# los autovectores, la matriz diagonal de autovalores y la traspuesta de los autovectores.
+# Esperado: un array de 3 filas y 3 columnas igual a C.
 C2 = None
+
+# Para ver qué vale algo antes de entregar: print(C2) y pulsa «Ejecutar».
 `,
           checks: `def _arr(a, shape):
     return isinstance(a, np.ndarray) and a.shape == shape and a.dtype.kind in "iuf"
@@ -569,8 +748,39 @@ C2 = vecs @ np.diag(vals) @ vecs.T
           prompt:
             'Si `C` es la matriz de covarianza de unos datos y $\\vec{u}$ una dirección, la **varianza** de los datos en esa dirección es la varianza de las proyecciones de las muestras sobre ella, con las sumas divididas entre $n-1$; es el cociente $\\vec{u}^{T}C\\vec{u}\\,/\\,\\vec{u}^{T}\\vec{u}$, y no depende de la longitud de $\\vec{u}$. Escribe `varianza_en(X, u)`, que recibe `X` (una muestra por fila) y una dirección `u`, de la longitud que sea, y devuelve esa varianza. Después guarda en `mejor` la posición (contando desde 0) de la fila de `candidatas` con más varianza en `X`.',
           hints: [
-            'Para proyectar sobre la dirección de `u` hace falta que `u` tenga longitud 1: divídela entre su norma. La proyección de cada fila es su producto escalar con `u`, y `X @ u` las calcula todas.',
-            'La varianza de las proyecciones se divide entre $n-1$, no entre $n$. Para elegir la mejor candidata, calcula la varianza de cada una y busca la posición del mayor valor.',
+            'El plan: dentro de `varianza_en`, (1) normaliza `u` dividiéndola entre su norma; (2) proyecta todas las muestras con `X @ u_unit`, que da un número por muestra; (3) devuelve la varianza de esas proyecciones, dividida entre $n-1$ (`np.var` con `ddof=1`; `np.var` ya resta la media por su cuenta). Fuera de la función, recorre las filas de `candidatas` con un bucle `for`, guarda la varianza de cada una en una lista, y `mejor` es la posición del mayor valor de la lista. Ojo: si no normalizas `u`, gana la candidata más larga solo por serlo.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'v = np.array([3, 4])',
+                'print(np.linalg.norm(v))       # 5.0: la longitud de v',
+                'print(v / np.linalg.norm(v))   # [0.6 0.8]: v con longitud 1',
+                '',
+                'tabla = np.array([[1, 2], [3, 0], [5, 4]])',
+                'p = tabla @ np.array([1, 0])   # un producto escalar por fila',
+                'print(p)                       # [1 3 5]',
+                'print(np.var(p))               # 2.6666666666666665: divide entre n',
+                'print(np.var(p, ddof=1))       # 4.0: divide entre n - 1',
+                '',
+                'varianzas = []                 # lista vacía',
+                'for fila in tabla:             # una vuelta por fila',
+                '    varianzas.append(int(fila[0]))   # añade un valor al final',
+                'print(varianzas)               # [1, 3, 5]',
+                'print(np.argmax(varianzas))    # 2: la posición del mayor',
+              ) +
+              '\n\nUna función se escribe con `def` y todo lo que va a su cargo lleva sangría (4 espacios). `ddof=1` quiere decir «un grado menos»: divide entre $n-1$.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def varianza_en(X, u):',
+                '    u_unit = u / np.linalg.___(u)',
+                '    proy = X @ ___',
+                '    return np.var(proy, ddof=___)',
+                '',
+                'varianzas = []',
+                'for c in candidatas:',
+                '    varianzas.append(varianza_en(X, ___))',
+                'mejor = np.___(varianzas)',
+              ) +
+              '\n\nSe proyecta sobre la versión de longitud 1 de `u`, no sobre `u`. Y para quedarte con la posición del mayor valor, no con el valor, usa la función de NumPy que devuelve la posición.',
           ],
           explain:
             'La varianza en una dirección es una propiedad de la dirección, no del vector que la representa: si $\\vec{u}$ se alarga, la varianza no puede crecer. Los fallos habituales son no normalizar `u`, dividir entre $n$, y proyectar sin quitar la media de los datos.',
@@ -586,7 +796,27 @@ C2 = vecs @ np.diag(vals) @ vecs.T
 
 
 def varianza_en(X, u):
-    # Devuelve la varianza de los datos X en la dirección de u (la longitud de u no importa)
+    # Aquí escribes tú. Todo lo que va dentro de una función lleva sangría (4 espacios), y lo
+    # que devuelve se pone tras return. X es un array con una muestra por fila; u es un array
+    # con una dirección, de la longitud que sea.
+    #
+    # PASO 1. Quedarse solo con la dirección de u: dividirla entre su longitud. Guárdalo en una
+    # variable, por ejemplo u_unit.
+    # Por qué: la varianza es de una dirección, no del tamaño de la flecha. Si u se alarga, la
+    # varianza no puede crecer, así que hay que dejarla con longitud 1.
+    # Herramienta: np.linalg.norm(v) da la longitud de v (norm([3, 4]) vale 5.0). Un array dividido
+    # entre un número divide todas sus entradas.
+    #
+    # PASO 2. Proyectar las muestras sobre esa dirección. Guárdalo en una variable, por ejemplo proy.
+    # Por qué: la varianza en una dirección es la de las posiciones de las muestras a lo largo de
+    # ella: un número por muestra.
+    # Herramienta: X @ v hace el producto escalar de cada fila de X con v, y devuelve un array
+    # con un número por fila.
+    #
+    # PASO 3. Devolver la varianza de las proyecciones.
+    # Herramienta: np.var(p) calcula la varianza de un array, restándole antes su media. Por
+    # defecto divide entre n (el número de datos), pero unas muestras se dividen entre n - 1: se
+    # pide con el parámetro ddof=1. Se devuelve con return; esperado: un solo número.
     return None
 
 
@@ -597,14 +827,23 @@ X = np.array([
     [8, 6],
     [10, 3],
 ])
+# Cuatro direcciones candidatas, una por fila (cada una con una longitud distinta).
 candidatas = np.array([
     [1, 0],
     [0, 3],
     [1, 1],
     [1, -1],
 ])
-# Guarda en mejor la posición de la fila de candidatas con más varianza en X
+# PASO 4. La posición (contando desde 0) de la candidata con más varianza, en mejor.
+# Por qué: es la dirección en la que los datos más se extienden.
+# Herramienta: empieza con varianzas = [], recorre las filas con for c in candidatas: (c es
+# una fila en cada vuelta, con sangría el cuerpo) y añade cada varianza con
+# varianzas.append(...), usando tu función. Después np.argmax(lista) da la POSICIÓN del valor
+# mayor (np.argmax([4, 9, 2]) vale 1), que es lo que se guarda, no la varianza.
+# Esperado: un número entero.
 mejor = None
+
+# Para ver qué vale algo antes de entregar: print(varianza_en(X, candidatas[0])) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("varianza_en"))
 def _call(X, u):

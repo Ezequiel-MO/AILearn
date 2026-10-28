@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -573,3 +574,20 @@ describe('datos de tipo equivocado: sin errores de NumPy en inglés', { timeout:
     }
   }
 });
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'simetricas.ex02.1': ['rowvar=False', '0', '0', '0', '1'],
+  'simetricas.ex02.2': ['0', 'Xc.T', 'Xc', '1'],
+  'simetricas.ex02.3': ['-1', '-1', '0'],
+  'simetricas.ex02.4': ['T', '3', 'vals', 'T'],
+  'simetricas.ex02.5': ['norm', 'u_unit', '1', 'c', 'argmax'],
+};
+
+defineHintTests(
+  projectQuestions(simetricas).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
