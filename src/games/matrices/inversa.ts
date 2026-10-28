@@ -1,4 +1,5 @@
 import type { Goal, PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { inversaWarmup } from './inversa.calentamiento';
 import { transformPlane } from './plane';
 
@@ -235,8 +236,19 @@ export const inversa: Project = {
           prompt:
             'NumPy calcula la inversa de una matriz con `np.linalg.inv`. Ya tienes `A`. Guarda en `Ainv` su inversa y en `es_inversa` si `A @ Ainv` es la identidad, como un solo `True` o `False`. Con decimales de por medio no se compara con `==`: `np.allclose` compara con una tolerancia para el redondeo.',
           hints: [
-            '`np.linalg.inv(A)` devuelve la inversa. Después multiplica `A` por ella con `@`.',
-            'La identidad de $2\\times 2$ es `np.eye(2)`. Para compararla con el producto, `np.allclose(X, Y)` devuelve un solo valor.',
+            'El plan son dos líneas. Primero `Ainv`: la inversa de `A`, que te da `np.linalg.inv` con `A` dentro del paréntesis. Después `es_inversa`: multiplica `A` por `Ainv` con `@` y comprueba con `np.allclose` si lo que sale es la identidad de $2\\times 2$, que en NumPy se escribe `np.eye(2)`. No uses `==`: da una matriz de `True` y `False`, no uno solo.',
+            'Así se escribe cada pieza, con otra matriz para que veas la forma sin que sea la respuesta:\n\n' +
+              py(
+                'M = np.array([[2, 1], [1, 1]])',
+                'Minv = np.linalg.inv(M)                 # la inversa de M: otra matriz de 2 filas y 2 columnas',
+                'print(np.eye(2))                        # [[1. 0.]',
+                '                                        #  [0. 1.]]: la identidad de 2 por 2',
+                'print(np.allclose(M @ Minv, np.eye(2))) # True: allclose compara con tolerancia y da un solo valor',
+              ) +
+              '\n\n`@` es el producto de matrices. `np.allclose(X, Y)` dice `True` si todas las entradas de `X` e `Y` coinciden salvo el redondeo.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('Ainv = np.linalg.inv(___)', 'es_inversa = np.allclose(A @ Ainv, ___)') +
+              '\n\nEn el primer hueco va la matriz que quieres invertir; en el segundo, la matriz con la que tiene que coincidir el producto. No calcules `1 / A`: eso es el inverso de cada entrada por separado, no la inversa de la matriz.',
           ],
           explain:
             'El producto de `A` por su inversa es la identidad solo salvo errores de redondeo, del orden de $10^{-16}$. Comparar con `==` exige igualdad exacta y puede dar `False` aunque la inversa sea correcta, y además da un array de valores, no uno solo.',
@@ -248,10 +260,24 @@ export const inversa: Project = {
           ],
           starter: `import numpy as np
 
+# A es una matriz de NumPy con 2 filas y 2 columnas: A[0, 0] vale 4, el de arriba a la izquierda.
+# A @ B es el producto de matrices (no multiplica entrada a entrada).
 A = np.array([[4, 3], [1, 1]])
-# Guarda en Ainv la inversa de A, y en es_inversa si A @ Ainv es la identidad
+
+# PASO 1. La inversa de A: la matriz que deshace lo que hace A.
+# Por qué: si A @ Ainv es la identidad, Ainv deshace a A. Es lo que quieres comprobar en el paso 2.
+# np.linalg.inv(M) devuelve la inversa de la matriz que pongas entre los paréntesis.
+# El resultado es una matriz de NumPy de 2 filas y 2 columnas.
 Ainv = None
+
+# PASO 2. Comprobar que A @ Ainv es la identidad.
+# Por qué: con decimales, el producto sale con un error de redondeo diminuto, y comparar con ==
+# daría False aunque la inversa fuera buena (además daría una matriz de True y False, no uno solo).
+# np.eye(2) es la identidad de 2 por 2.
+# np.allclose(X, Y) compara dos matrices con una pequeña tolerancia y devuelve un solo True o False.
 es_inversa = None
+
+# Para ver qué vale algo antes de entregar: print(Ainv) y pulsa «Ejecutar».
 `,
           checks: `_m = isinstance(Ainv, np.ndarray) and Ainv.shape == (2, 2) and np.issubdtype(Ainv.dtype, np.number)
 _good = _m and np.allclose(Ainv, [[1, -3], [-1, 4]])
@@ -271,8 +297,19 @@ check((not _b) or (not _good) or bool(es_inversa), "\`es_inversa\` vale \`False\
           prompt:
             'Para resolver $A\\vec{x}=\\vec{b}$ en código, `np.linalg.solve(A, b)` es mejor que calcular la inversa y multiplicar: es más rápida y pierde menos precisión. Ya tienes `A` y `b`. Guarda en `x` la solución y en `coincide` si `A @ x` coincide con `b`, como un solo `True` o `False`.',
           hints: [
-            '`np.linalg.solve` recibe primero la matriz y después el vector del lado derecho, en ese orden.',
-            'Para comprobar, multiplica `A` por tu `x` y compara con `b` usando `np.allclose`.',
+            'El plan son dos líneas. Primero `x`: `np.linalg.solve` resuelve el sistema, y recibe primero la matriz y después el vector del lado derecho, en ese orden. Después `coincide`: multiplica `A` por tu `x` con `@` y compara con `b` usando `np.allclose`, que da un solo `True` o `False` (con `==` saldría un array).',
+            'Así se escribe cada pieza, con otro sistema para que veas la forma sin que sea la respuesta:\n\n' +
+              py(
+                'M = np.array([[1, 1], [1, -1]])',
+                'c = np.array([4, 2])',
+                'sol = np.linalg.solve(M, c)             # primero la matriz, después el vector: M @ sol = c',
+                'print(sol)                              # [3. 1.]: un array con 2 números',
+                'print(np.allclose(M @ sol, c))          # True: M @ sol sí da c',
+              ) +
+              '\n\n`@` multiplica la matriz por el vector. `np.allclose(X, Y)` compara con una pequeña tolerancia y da un solo valor.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('x = np.linalg.solve(___, ___)', 'coincide = np.allclose(___ @ x, ___)') +
+              '\n\nEl orden importa en `solve`: la matriz va primero y el vector de la derecha después. Si los cambias, no resuelves el sistema que quieres.',
           ],
           explain:
             'La matriz va primero y el vector de la derecha después. La comprobación multiplica la matriz por la solución: si no sale `b`, la solución es otra.',
@@ -284,11 +321,26 @@ check((not _b) or (not _good) or bool(es_inversa), "\`es_inversa\` vale \`False\
           ],
           starter: `import numpy as np
 
+# A es una matriz de NumPy con 2 filas y 2 columnas.
+# b es un array de NumPy con 2 números: el lado derecho del sistema.
 A = np.array([[2, 1], [1, 3]])
 b = np.array([5, 10])
-# Guarda en x la solución de A x = b, y en coincide si A @ x da b
+
+# PASO 1. La solución de A x = b: el vector x que A lleva hasta b.
+# Por qué: es la entrada que, pasada por A, produce b. Es lo mismo que invertir A y multiplicar,
+# pero resolverlo directo es más rápido y pierde menos precisión.
+# np.linalg.solve(M, c) resuelve el sistema M x = c: primero la matriz, después el vector.
+# El resultado es un array de NumPy con 2 números.
 x = None
+
+# PASO 2. Comprobar que A @ x da b.
+# Por qué: así sabes que x es de verdad una solución, y no solo un vector que lo parece.
+# A @ x multiplica la matriz por el vector. Con decimales, no se compara con ==: da un array de
+# True y False, y puede fallar por el redondeo.
+# np.allclose(X, Y) compara con una pequeña tolerancia y devuelve un solo True o False.
 coincide = None
+
+# Para ver qué vale algo antes de entregar: print(x) y pulsa «Ejecutar».
 `,
           checks: `_x = isinstance(x, np.ndarray) and x.shape == (2,) and np.issubdtype(x.dtype, np.number)
 _good = _x and np.allclose(x, [1, 3])
@@ -307,8 +359,27 @@ check((not _b) or (not _good) or bool(coincide), "\`coincide\` vale \`False\`, p
           prompt:
             'No toda matriz tiene inversa, y `np.linalg.inv` no avisa si no la tiene: según el entorno lanza un error o devuelve una matriz de `nan`. Escribe `inversa_segura(M)`, que devuelve la inversa de `M` si existe y `None` si `M` es singular, es decir, de determinante $0$. Después guarda en `Ainv` lo que devuelve para `A`. Con decimales, el determinante casi nunca es exactamente $0$: compáralo con `np.isclose`.',
           hints: [
-            '`np.linalg.det(M)` da el determinante. Si es casi $0$, con `np.isclose(d, 0)`, no hay inversa.',
-            'Decide primero si es singular; solo si no lo es, llama a `np.linalg.inv`.',
+            'El plan, dentro de `inversa_segura`: calcula el determinante de `M` con `np.linalg.det(M)` y guárdalo en `d`. Si `d` es casi $0$ (compruébalo con `np.isclose(d, 0)`, no con `==`), la matriz es singular y devuelves `None`. Si no, devuelves `np.linalg.inv(M)`. Mira el determinante antes de invertir, no después. Fuera de la función, `Ainv` es una llamada: `inversa_segura(...)` con `A` dentro.',
+            'Las piezas, probadas con una matriz singular de ejemplo:\n\n' +
+              py(
+                'N = np.array([[1, 2], [2, 4]])          # la segunda fila es el doble de la primera',
+                'd = np.linalg.det(N)',
+                'print(d)                                # 0.0: el determinante de N',
+                'print(np.isclose(d, 0))                 # True: casi cero, así que N es singular',
+                'print(np.isclose(5.0, 0))               # False: 5 no es casi cero',
+              ) +
+              '\n\nUn `if` ejecuta lo que lleva debajo (con 4 espacios más de sangría) solo si su condición es `True`. `return None` sale de la función en ese momento, y el `return` de más abajo ya no se ejecuta.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def inversa_segura(M):',
+                '    d = np.linalg.det(M)',
+                '    if np.isclose(d, ___):',
+                '        return ___',
+                '    return np.linalg.___(M)',
+                '',
+                'Ainv = ___(A)',
+              ) +
+              '\n\nNo devuelvas la inversa sin mirar antes el determinante: con una matriz singular no hay inversa que devolver, y la función tiene que contestar `None`.',
           ],
           explain:
             'Hay que mirar el determinante antes de invertir: pedir la inversa de una matriz singular no da una inversa, sino que lanza un error o devuelve `nan`. Comparar el determinante con `== 0` es frágil, porque el redondeo puede dejar un valor diminuto en lugar de cero.',
@@ -322,16 +393,41 @@ check((not _b) or (not _good) or bool(coincide), "\`coincide\` vale \`False\`, p
           ],
           starter: `import numpy as np
 
+# A es una matriz de NumPy con 2 filas y 2 columnas; A[0, 1] vale 2.
 A = np.array([[1, 2], [3, 7]])
 
 
 def inversa_segura(M):
-    # Devuelve la inversa de M, o None si M no tiene inversa
+    # M llega como parámetro: una matriz de NumPy de 2 filas y 2 columnas, distinta cada vez que
+    # se llama a la función (las comprobaciones la prueban con otras). Usa M, no A.
+    # Todo lo que va dentro de la función lleva 4 espacios delante (la sangría): así sabe Python
+    # que es parte de ella.
+    #
+    # PASO 1. El determinante de M.
+    # Por qué: una matriz sin inversa (singular) es la que aplasta el plano, y eso se nota en que
+    # su determinante vale 0. Hay que mirarlo antes de invertir.
+    # np.linalg.det(M) devuelve el determinante: un solo número.
+    #
+    # PASO 2. Decidir si M es singular.
+    # Por qué: con decimales el determinante casi nunca sale exactamente 0, así que se compara con
+    # np.isclose(d, 0), que dice True si d es casi 0. Con == 0 se escaparían casos.
+    # if condición: ejecuta lo que lleva debajo (4 espacios más de sangría) solo si la condición es True.
+    # Si es singular, devuelve None con return None.
+    #
+    # PASO 3. Si no es singular, devuelve su inversa con np.linalg.inv(M).
+    # return saca el valor de la función y termina: lo que haya debajo ya no se ejecuta.
+    #
+    # Mientras no escribas los pasos, la función devuelve siempre None.
     return None
 
 
-# Guarda en Ainv lo que devuelve inversa_segura para A
+# PASO 4. Llamar a la función con A.
+# Por qué: así compruebas que funciona con una matriz real. Una función se llama escribiendo su
+# nombre y, entre paréntesis, lo que recibe: inversa_segura(...).
+# El resultado es una matriz de NumPy de 2 filas y 2 columnas.
 Ainv = None
+
+# Para ver qué vale algo antes de entregar: print(Ainv) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("inversa_segura"))
 def _run(M):
@@ -378,8 +474,23 @@ Ainv = inversa_segura(A)
           prompt:
             'Dos capas lineales se aplican seguidas a una entrada `x`: primero `A` y después `B`, así que la salida es `y = B @ (A @ x)`. Ya tienes `A`, `B` e `y`. Recupera la entrada: guarda en `x` el vector que produce esa salida. Las capas se deshacen en el orden contrario al que se aplicaron.',
           hints: [
-            '¿Qué capa actuó la última? Esa es la primera que hay que deshacer.',
-            'Puedes invertir cada capa con `np.linalg.inv`, o resolver un sistema con la matriz de las dos capas juntas, con `np.linalg.solve`.',
+            'El plan: la entrada pasó primero por `A` y después por `B`, así que para volver hay que deshacer primero la capa que actuó la última, `B`, y después `A`. Deshacer una capa es multiplicar por su inversa, que da `np.linalg.inv`. Escribe en `x` la cuenta con las dos inversas y `y`, en el orden en que actúan: lo que actúa primero sobre `y` va más a la derecha del producto. Si las pones al revés, sale otro vector.',
+            'Así se escribe cada pieza, con otras capas para que veas la forma sin que sea la respuesta:\n\n' +
+              py(
+                'C = np.array([[2, 0], [0, 1]])          # primera capa: dobla la primera componente',
+                'D = np.array([[1, 1], [0, 1]])          # segunda capa',
+                'z = np.array([5, 2])                    # lo que sale tras pasar por C y después por D',
+                'ultima = np.linalg.inv(D) @ z           # deshace D, la última capa: un array con 2 números',
+                'print(ultima)                           # [3. 2.]',
+                'print(np.linalg.inv(C) @ ultima)        # [1.5 2. ]: deshace también C y recupera la entrada',
+              ) +
+              '\n\nCon `@` el producto se lee de derecha a izquierda: en `inv(C) @ inv(D) @ z`, la primera inversa en actuar sobre `z` es la de `D`. Como alternativa, `np.linalg.solve(D @ C, z)` resuelve las dos capas juntas.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'h = np.linalg.inv(___) @ y              # deshace la última capa',
+                'x = np.linalg.inv(___) @ h              # deshace la primera',
+              ) +
+              '\n\nEn el primer hueco va la capa que actuó la última. Si pones primero la inversa de `A`, deshaces las capas en el mismo orden en que se aplicaron, y sale otro vector.',
           ],
           explain:
             'La entrada pasó por `A` y después por `B`; para volver hay que deshacer `B` y luego `A`. La inversa de `B` actúa primero sobre `y`, así que va a la derecha del producto. Con las inversas en el otro orden sale un vector distinto.',
@@ -391,11 +502,22 @@ Ainv = inversa_segura(A)
           ],
           starter: `import numpy as np
 
+# A y B son dos capas: matrices de NumPy con 2 filas y 2 columnas.
+# La entrada x pasó primero por A y después por B, así que y = B @ (A @ x).
+# y es un array de NumPy con 2 números: la salida que ya tienes.
 A = np.array([[1, 2], [0, 1]])
 B = np.array([[1, 0], [1, 1]])
 y = np.array([4, 5])
-# Guarda en x la entrada que da la salida y tras la capa A y después la capa B
+
+# PASO 1. Recuperar la entrada x.
+# Por qué: para volver atrás hay que deshacer las capas en el orden contrario al que se aplicaron,
+# como quitarse los calcetines y luego los zapatos: la última capa, B, se deshace primero; después, A.
+# Deshacer una capa es multiplicar por su inversa: np.linalg.inv(M) es la inversa de M.
+# M @ N @ y se lee de derecha a izquierda: N actúa primero sobre y, y M después.
+# El resultado es un array de NumPy con 2 números.
 x = None
+
+# Para ver qué vale algo antes de entregar: print(x) y pulsa «Ejecutar».
 `,
           checks: `_x = isinstance(x, np.ndarray) and x.shape == (2,) and np.issubdtype(x.dtype, np.number)
 _rev = _x and np.allclose(x, [-6, 11])
@@ -412,8 +534,21 @@ check((not _x) or _rev or np.allclose(x, [2, 1]), "\`x\` tiene que valer (2, 1):
           prompt:
             'Una capa lineal de una red calcula `y = W @ x + b`: multiplica la entrada `x` por `W` y le suma el sesgo `b`. Si `W` es invertible, la entrada se puede recuperar a partir de la salida. Ya tienes `W`, `b` y la salida `y`. Guarda en `x` la entrada que produjo `y`, y en `reconstruye` si volver a pasarla por la capa da `y`, como un solo `True` o `False`.',
           hints: [
-            'El sesgo se sumó al final, así que `y - b` es lo que salió de multiplicar por `W`.',
-            'Resuelve `np.linalg.solve(W, ...)` con ese vector como lado derecho.',
+            'El plan son dos líneas. Primero `x`: la capa hizo `W @ x + b`, con el sesgo sumado al final, así que lo primero es quitárselo a `y` (`y - b` es lo que salió de multiplicar por `W`) y después resolver `W @ x = y - b` con `np.linalg.solve`. Después `reconstruye`: vuelve a pasar `x` por la capa, `W @ x + b`, y compara con `y` usando `np.allclose`, que da un solo `True` o `False`. Error típico: restar el sesgo después de resolver, o no restarlo.',
+            'Así se escribe cada pieza, con otra capa para que veas la forma sin que sea la respuesta:\n\n' +
+              py(
+                'V = np.array([[1, 0], [1, 1]])',
+                'sesgo = np.array([1, 1])',
+                'salida = np.array([3, 6])',
+                'resto = salida - sesgo                  # [2 5]: la salida sin el sesgo, lo que dejó V',
+                'entrada = np.linalg.solve(V, resto)     # resuelve V @ entrada = resto',
+                'print(entrada)                          # [2. 3.]',
+                'print(np.allclose(V @ entrada + sesgo, salida))  # True: volver a pasar por la capa da la salida',
+              ) +
+              '\n\n`solve` recibe primero la matriz y después el lado derecho. `np.allclose(X, Y)` compara con una pequeña tolerancia.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('x = np.linalg.solve(W, y ___ b)', 'reconstruye = np.allclose(___ @ x + b, y)') +
+              '\n\nEl sesgo se quita de `y` antes de resolver, dentro del segundo argumento de `solve`. Restarlo a `x` después da otro vector.',
           ],
           explain:
             'El sesgo se suma después de multiplicar, así que se resta antes de deshacer la multiplicación. Si se resuelve con `y` sin más, el sesgo se cuela en la entrada recuperada; y restarlo al final tampoco vale, porque la inversa de `W` ya lo ha multiplicado.',
@@ -426,12 +561,28 @@ check((not _x) or _rev or np.allclose(x, [2, 1]), "\`x\` tiene que valer (2, 1):
           ],
           starter: `import numpy as np
 
+# W es una matriz de NumPy con 3 filas y 3 columnas: los pesos de la capa.
+# b es un array de NumPy con 3 números: el sesgo, que la capa suma al final.
+# y es un array de NumPy con 3 números: la salida. La capa calculó y = W @ x + b.
 W = np.array([[2, 0, 1], [1, 1, 0], [0, 1, 1]])
 b = np.array([1, -1, 2])
 y = np.array([6, 2, 7])
-# Guarda en x la entrada que produjo y, y en reconstruye si W @ x + b da y
+
+# PASO 1. Recuperar la entrada x que produjo y.
+# Por qué: la capa multiplicó por W y después sumó b. Para volver atrás se deshace en orden
+# contrario: primero se quita el sesgo (y - b), y después se deshace la multiplicación por W.
+# np.linalg.solve(M, c) resuelve M x = c: primero la matriz, después el vector.
+# Resta el sesgo antes de resolver, no después.
+# El resultado es un array de NumPy con 3 números.
 x = None
+
+# PASO 2. Comprobar que volver a pasar x por la capa da y.
+# Por qué: así sabes que x es de verdad la entrada, y no un vector que lo parece.
+# La capa es W @ x + b. np.allclose(X, Y) compara con una pequeña tolerancia y devuelve un solo
+# True o False (con == saldría un array de True y False).
 reconstruye = None
+
+# Para ver qué vale algo antes de entregar: print(x) y pulsa «Ejecutar».
 `,
           checks: `_x = isinstance(x, np.ndarray) and x.shape == (3,) and np.issubdtype(x.dtype, np.number)
 _good = _x and np.allclose(x, [1, 2, 3])

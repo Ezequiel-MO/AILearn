@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -397,6 +398,23 @@ rejects('inversa.ex02.5', [
     failures: 1,
   },
 ]);
+
+// ---------- pistas de las preguntas de código del proyecto ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'inversa.ex02.1': ['A', 'np.eye(2)'],
+  'inversa.ex02.2': ['A', 'b', 'A', 'b'],
+  'inversa.ex02.3': ['0', 'None', 'inv', 'inversa_segura'],
+  'inversa.ex02.4': ['B', 'A'],
+  'inversa.ex02.5': ['-', 'W'],
+};
+
+defineHintTests(
+  projectQuestions(inversa).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);
 
 // ---------- examen-1.sistema-en-codigo ----------
 
