@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -614,3 +615,20 @@ describe('datos de tipo equivocado: sin errores de NumPy en inglés', { timeout:
     }
   }
 });
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'autovectores.ex02.1': ['A', 'argmax', ':', 'lam'],
+  'autovectores.ex02.2': ['v', 'False', '0'],
+  'autovectores.ex02.3': ['v0', 'pasos', 'A', 'v', '50'],
+  'autovectores.ex02.4': ['Ws', 'abs', '<'],
+  'autovectores.ex02.5': ['vals', 'D', 'allclose', '**'],
+};
+
+defineHintTests(
+  projectQuestions(autovectores).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
+);

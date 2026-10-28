@@ -1,4 +1,5 @@
 import type { Goal, PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { autovectoresWarmup } from './autovectores.calentamiento';
 import { transformPlane } from './plane';
 
@@ -258,8 +259,29 @@ export const autovectores: Project = {
           prompt:
             '`np.linalg.eig(A)` devuelve **dos** resultados a la vez: los autovalores, en un array, y los autovectores, que van en las **columnas** de una matriz. Ya tienes `A`. Guarda en `vals` y `vecs` esos dos resultados; en `lam`, el autovalor mayor; en `v`, su autovector, el que le corresponde; y en `ok`, si `A @ v` y `lam * v` coinciden, comparados con `np.allclose` (un solo `True` o `False`).',
           hints: [
-            '`vals, vecs = ...` recoge los dos resultados de una vez. Para encontrar el mayor, busca su posición: NumPy no garantiza en qué orden devuelve los autovalores.',
-            'El autovector del autovalor que está en la posición `k` es la columna `k` de `vecs`, no la fila `k`.',
+            'El plan: llama a `np.linalg.eig(A)` y guarda sus dos resultados a la vez en `vals` y `vecs`. NumPy no garantiza en qué orden entrega los autovalores, así que el mayor no tiene por qué ir primero: busca su posición con `np.argmax` y guárdala en una variable `k`. Con esa posición sacas `lam` de `vals` y `v` de `vecs`. Por último, `ok` es la comparación de `A @ v` con `lam * v` hecha con `np.allclose`. Cuidado: el autovector del autovalor `k` es la columna `k` de `vecs`, no la fila `k`.',
+            'Las piezas, con otra matriz y otros números:\n\n' +
+              py(
+                'B = np.array([[2, 0], [0, 3]])',
+                'w, U = np.linalg.eig(B)   # una llamada, dos resultados: w los autovalores y U los autovectores',
+                'print(w)                  # [2. 3.]: con esta matriz salen así; en general NumPy no promete el orden',
+                'print(U)                  # dos filas, [1. 0.] y [0. 1.]: cada COLUMNA es un autovector',
+                'k = np.argmax(w)          # la POSICIÓN del valor más alto de w',
+                'print(k, w[k])            # 1 3.0: la posición y el autovalor que hay en ella',
+                'print(U[:, k])            # [0. 1.]: la columna 1, el autovector del autovalor 3',
+                'print(U[0])               # [1. 0.]: la fila 0, que NO es un autovector de ese 3',
+                'print(np.allclose(B @ U[:, k], w[k] * U[:, k]))   # True: ¿coinciden salvo el redondeo?',
+              ) +
+              '\n\nEn `U[:, k]` los dos puntos significan «todas las filas» y `k` elige la columna: así se saca una columna entera. Con `U[0]` se saca una fila, y eso no es un autovector.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'vals, vecs = np.linalg.eig(___)',
+                'k = np.___(vals)',
+                'lam = vals[k]',
+                'v = vecs[___, k]',
+                'ok = np.allclose(A @ v, ___ * v)',
+              ) +
+              '\n\nEl error típico es sacar una fila de `vecs` en vez de una columna: los dos puntos van delante de la coma, para quedarte con la columna entera.',
           ],
           explain:
             'Los autovalores y los autovectores van emparejados por posición: el autovalor número `k` y la columna número `k`. Si tomas una fila de la matriz, tienes unos números que no son un autovector, y la comprobación sale `False` aunque el autovalor sea el correcto. Tampoco se debe suponer que el mayor autovalor va primero.',
@@ -273,13 +295,39 @@ export const autovectores: Project = {
           ],
           starter: `import numpy as np
 
+# A es la matriz de 2 filas y 2 columnas de la que buscamos los autovectores.
 A = np.array([[4, 1], [2, 3]])
-# Guarda en vals y vecs lo que devuelve np.linalg.eig, en lam el autovalor mayor, en v su autovector y en ok si A @ v coincide con lam * v (con np.allclose)
+
+# Un autovector de A es un vector que A no gira: solo lo estira (o lo encoge) por un número, su autovalor.
+# Aquí: A @ v == lam * v.
+
+# PASO 1. Los autovalores y los autovectores de A, los dos a la vez.
+# np.linalg.eig(A) devuelve DOS cosas, y se recogen con dos nombres a la izquierda del =, separados
+# por coma: igual que x, y = (1, 2) deja 1 en x y 2 en y.
+# El primero es un array con los autovalores; el segundo, una matriz de 2 filas y 2 columnas
+# con los autovectores, un autovector en cada COLUMNA.
+# Por qué los dos a la vez: van emparejados por posición, el autovalor número k con la columna número k.
 vals = None
 vecs = None
+
+# PASO 2. El autovalor mayor, en lam (un número).
+# NumPy no promete en qué orden entrega los autovalores, así que no vale suponer que el mayor va primero.
+# np.argmax(un_array) da la POSICIÓN del valor más alto: np.argmax([7, 3, 9]) vale 2.
+# Con la posición, vals[posición] es el valor. Guarda la posición en una variable intermedia para el paso 3.
 lam = None
+
+# PASO 3. El autovector de ese autovalor, en v (un array con 2 números).
+# Es la columna de vecs que tiene la MISMA posición que lam en vals.
+# En una matriz M, M[:, 1] es la columna 1 entera (los dos puntos: «todas las filas»), y M[1] es la fila 1.
+# Un autovector va en columna: con una fila salen números que no son un autovector.
 v = None
+
+# PASO 4. Si A @ v coincide con lam * v, en ok (un solo True o False).
+# Por qué no con ==: los decimales llevan un error diminuto de redondeo, y == lo ve como una diferencia.
+# np.allclose(a, b) dice True si a y b son casi iguales, y hace la comparación con ese margen.
 ok = None
+
+# Para ver qué vale algo antes de entregar: print(vals) y pulsa «Ejecutar».
 `,
           checks: `_n = lambda x: isinstance(x, (int, float, np.integer, np.floating)) and not isinstance(x, (bool, np.bool_))
 _a = lambda x, s: isinstance(x, np.ndarray) and x.shape == s and np.issubdtype(x.dtype, np.number) and not np.iscomplexobj(x)
@@ -313,8 +361,35 @@ check((not _b) or (not _vok) or bool(ok), "\`ok\` vale \`False\`: \`A @ v\` y \`
           prompt:
             'Escribe `es_autovector(A, v)`, que recibe una matriz `A` de 2 filas y 2 columnas y un vector `v` de 2 números (arrays de NumPy) y devuelve `True` si `v` es un autovector de `A`: `v` no es el vector nulo y $A\\vec{v}$ queda en la recta de $\\vec{v}$, con el mismo sentido o con el opuesto. Después guarda en `propio` lo que devuelve la función para $A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$ y $\\vec{v}=(1, -1)$.',
           hints: [
-            'Dos vectores de 2 números están en la misma recta cuando el determinante de la matriz que forman es $0$. Con decimales, «es $0$» se comprueba con tolerancia y no con `==`.',
-            'El vector nulo está en la recta de cualquier vector, pero no cuenta como autovector. Y un autovector puede tener autovalor negativo o cero.',
+            'El plan: dentro de la función, calcula `w = A @ v`, la imagen de `v`. Si `v` es el vector nulo, devuelve `False` enseguida: el vector nulo no cuenta como autovector. En otro caso, `v` es un autovector si `w` queda en su misma recta, y eso se comprueba con el determinante de la matriz que forman `v` y `w`, que vale $0$ cuando están en la misma recta. Con decimales, «vale $0$» se comprueba con `np.isclose` y no con `==`. Después llama a la función con los datos del enunciado y guarda el resultado en `propio`. Cuidado: un autovector puede tener autovalor negativo o cero, así que no pidas que `w` apunte al mismo lado.',
+            'Las piezas, con otros números:\n\n' +
+              py(
+                'u = np.array([2, 5])',
+                'z = np.array([4, 10])',
+                'print(u[0] * z[1] - u[1] * z[0])         # 0: el determinante de u y z, y z está en la recta de u',
+                'print(np.isclose(0.1 + 0.2, 0.3))        # True: casi iguales, con margen de redondeo',
+                'print(0.1 + 0.2 == 0.3)                  # False: con == el redondeo estorba',
+                'print(np.allclose(np.array([0, 0]), 0))  # True: todos los números son casi 0 (así se detecta el vector nulo)',
+                '',
+                'def es_par(n):',
+                '    if n % 2 == 1:      # si se cumple, se ejecuta la línea con sangría de debajo',
+                '        return False    # return sale de la función con ese valor',
+                '    return True         # si no se salió antes, se llega aquí',
+                '',
+                'print(es_par(3), es_par(4))   # False True',
+              ) +
+              '\n\nLa sangría (los espacios al inicio de una línea) marca qué líneas pertenecen a la función o al `if`. El determinante de dos vectores `a` y `b` es `a[0] * b[1] - a[1] * b[0]`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def es_autovector(A, v):',
+                '    w = A @ ___',
+                '    if np.allclose(v, 0):',
+                '        return ___',
+                '    return bool(np.isclose(v[0] * w[1] - v[1] * w[0], ___))',
+                '',
+                'propio = es_autovector(np.array([[3, 1], [0, 2]]), np.array([1, -1]))',
+              ) +
+              '\n\nEl error típico es devolver `True` para el vector nulo, o exigir que `w` apunte al mismo lado que `v`: así se pierden los autovectores de autovalor negativo.',
           ],
           explain:
             'El vector nulo cumple $A\\vec{0}=\\lambda\\vec{0}$ para cualquier $\\lambda$, y por eso se excluye por definición. Que $A\\vec{v}$ apunte al lado opuesto de $\\vec{v}$ o valga $\\vec{0}$ no impide que $\\vec{v}$ sea un autovector: $\\lambda$ puede ser negativo o cero. Con decimales, una igualdad exacta falla por el redondeo.',
@@ -330,13 +405,29 @@ check((not _b) or (not _vok) or bool(ok), "\`ok\` vale \`False\`: \`A @ v\` y \`
           starter: `import numpy as np
 
 
+# PASO 1. La función es_autovector(A, v).
+# Recibe A, un array de NumPy de 2 filas y 2 columnas, y v, un array con 2 números.
+# Devuelve un solo True o False: True si v es un autovector de A.
+# Por qué: v es un autovector si A @ v queda en la misma recta que v (aunque apunte al lado contrario),
+# y además v no puede ser el vector nulo, que cumple eso con cualquier matriz y por eso no cuenta.
+# Cómo se comprueba, dentro de la función (la sangría, los espacios del inicio de cada línea, dice que
+# esas líneas son de la función):
+#   - w = A @ v es la imagen de v. Guárdala en una variable.
+#   - np.allclose(v, 0) dice True si todos los números de v son casi 0, es decir, si v es el vector nulo.
+#     Con un if que lo detecte, la función sale con return False.
+#   - Dos vectores a y b están en la misma recta si su determinante a[0] * b[1] - a[1] * b[0] vale 0.
+#     Con decimales no se compara con ==: np.isclose(x, 0) dice True si x es casi 0.
+#   - np.isclose devuelve un tipo de NumPy; envuélvelo en bool(...) para devolver un True o False normal.
 def es_autovector(A, v):
-    # Devuelve True si v no es nulo y A @ v queda en la recta de v
     return None
 
 
-# Guarda en propio lo que devuelve la función para A = [[3, 1], [0, 2]] y v = [1, -1]
+# PASO 2. Lo que devuelve la función para A = [[3, 1], [0, 2]] y v = [1, -1].
+# Llama a la función con np.array([[3, 1], [0, 2]]) y np.array([1, -1]) (la matriz y el vector van
+# como arrays de NumPy) y guarda el resultado, un solo True o False.
 propio = None
+
+# Para ver qué vale algo antes de entregar: print(propio) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("es_autovector"))
 def _call(A, v):
@@ -395,8 +486,31 @@ propio = es_autovector(np.array([[3, 1], [0, 2]]), np.array([1, -1]))
           prompt:
             'Hay un método para encontrar un autovector sin resolver ninguna ecuación: partir de un vector, multiplicarlo por $A$, dividirlo entre su longitud, y repetir. Cada multiplicación estira más la dirección del autovalor de mayor valor absoluto, y al cabo de muchos pasos solo queda esa dirección. Escribe `iteracion_potencia(A, pasos)`, que parte de `v0` y repite `pasos` veces «multiplicar por `A` y dividir entre la norma», y devuelve el vector final, de norma 1. Después guarda en `direccion` lo que devuelve para $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ con $50$ pasos.',
           hints: [
-            'Dentro de un bucle `for`, la nueva `v` es `A @ v` dividida entre la longitud de ese mismo vector, que se calcula con `np.linalg.norm`.',
-            'Si no divides en cada paso, los números crecen sin freno y con muchos pasos acaban en `inf`.',
+            'El plan: dentro de la función, empieza con `v = v0`. Después un bucle `for _ in range(pasos):` que en cada vuelta hace dos cosas: multiplica, `v = A @ v`, y normaliza, dividiendo `v` entre su longitud, que se calcula con `np.linalg.norm(v)`. Al acabar el bucle, devuelve `v`. Fuera de la función, llámala con la matriz del enunciado y $50$ pasos y guarda el resultado en `direccion`. Cuidado: hay que dividir en cada vuelta; si divides solo al final, los números crecen sin freno y con muchos pasos acaban en `inf`.',
+            'Las piezas, con otros números:\n\n' +
+              py(
+                'x = np.array([3.0, 4.0])',
+                'print(np.linalg.norm(x))       # 5.0: la longitud del vector',
+                'print(x / np.linalg.norm(x))   # [0.6 0.8]: el mismo vector con longitud 1',
+                '',
+                'total = 0',
+                'for _ in range(3):             # repite lo que tiene sangría debajo 3 veces',
+                '    total = total + 10         # cada vuelta cambia total, y la siguiente parte de ese valor',
+                'print(total)                   # 30',
+              ) +
+              '\n\nEl nombre `_` en el `for` significa «no necesito el número de la vuelta». `range(pasos)` cuenta `pasos` vueltas. Una función que no acaba en un `return` con valor devuelve `None`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'def iteracion_potencia(A, pasos):',
+                '    v = ___',
+                '    for _ in range(___):',
+                '        v = ___ @ v',
+                '        v = v / np.linalg.norm(___)',
+                '    return v',
+                '',
+                'direccion = iteracion_potencia(np.array([[2, 1], [1, 2]]), ___)',
+              ) +
+              '\n\nEl error típico es normalizar solo después del bucle: dentro, en cada vuelta, es lo que evita que los números se desborden.',
           ],
           explain:
             'Aplicar $A$ muchas veces multiplica cada parte del vector, en la base de autovectores, por una potencia de su autovalor, y la del autovalor de mayor valor absoluto acaba dominando. Dividir entre la norma en cada paso no cambia la dirección y evita que los números se desborden. El signo del resultado puede salir positivo o negativo: la recta es la misma.',
@@ -414,13 +528,28 @@ propio = es_autovector(np.array([[3, 1], [0, 2]]), np.array([1, -1]))
 v0 = np.array([1.0, 0.0])
 
 
+# v0 ya está hecho: es el vector de partida, de 2 números. No hace falta tocarlo.
+
+# PASO 1. La función iteracion_potencia(A, pasos).
+# Recibe A, un array de NumPy de 2 filas y 2 columnas, y pasos, un número entero.
+# Devuelve un array de NumPy con 2 números: el vector final, de longitud 1.
+# Por qué: si multiplicas un vector por A una y otra vez, la parte que apunta hacia el autovalor de
+# mayor tamaño crece más que las demás, y al final casi solo queda esa dirección. Pero los números
+# crecen sin freno, así que en cada vuelta se divide el vector entre su longitud (se «normaliza»).
+# Cómo, dentro de la función (la sangría, los espacios del inicio de cada línea, dice qué es de la función):
+#   - Empieza con una variable v que valga v0.
+#   - Un bucle for _ in range(pasos): repite pasos veces las líneas con sangría que tiene debajo.
+#   - En cada vuelta: multiplica con v = A @ v, y después divide v entre su longitud, que da np.linalg.norm(v).
+#   - Cuando acaba el bucle, return v devuelve el vector final.
 def iteracion_potencia(A, pasos):
-    # Parte de v0, repite pasos veces «multiplicar por A y normalizar» y devuelve el vector final
     return None
 
 
-# Guarda en direccion lo que devuelve la función para A = [[2, 1], [1, 2]] con 50 pasos
+# PASO 2. Lo que devuelve la función para A = [[2, 1], [1, 2]] con 50 pasos.
+# Llama a la función con np.array([[2, 1], [1, 2]]) y 50, y guarda el resultado, un array de 2 números.
 direccion = None
+
+# Para ver qué vale algo antes de entregar: print(direccion) y pulsa «Ejecutar».
 `,
           checks: `_f = callable(globals().get("iteracion_potencia"))
 def _call(A, n):
@@ -473,8 +602,24 @@ direccion = iteracion_potencia(np.array([[2, 1], [1, 2]]), 50)
           prompt:
             'Una red recurrente de juguete (las reales tienen cientos de dimensiones) aplica en cada paso una matriz de pesos de $2\\times 2$. Su estado se apaga si todos los autovalores de la matriz son pequeños y explota si alguno es grande. El **radio espectral** de una matriz es el mayor tamaño de sus autovalores, y la red es **estable** si es menor que $1$. Cuidado: los autovalores pueden ser negativos, e incluso complejos. `Ws` guarda cinco de esas matrices. Guarda en `radios` un array con el radio espectral de cada una, y en `estables` un array de cinco valores `True` o `False`: `True` si esa red es estable.',
           hints: [
-            '`np.linalg.eigvals` acepta el array de matrices entero y devuelve los autovalores de cada una, en una fila por matriz. Si alguna matriz tiene autovalores complejos, todos salen como complejos.',
-            'Un autovalor de $-1{,}5$ pesa más que uno de $0{,}5$, y uno complejo cuenta por su módulo. `np.abs` da el valor absoluto de un número real y también el módulo de uno complejo.',
+            'El plan: `np.linalg.eigvals(Ws)` calcula los autovalores de las cinco matrices de una vez y los devuelve en una fila por matriz. Pásalos por `np.abs`, que da el tamaño de cada autovalor: el valor absoluto si es real y el módulo si es complejo. En cada fila, el mayor de esos tamaños es el radio espectral; se saca con `.max(axis=1)`, que busca el mayor a lo largo de cada fila. Eso es `radios`. Para `estables`, compara `radios` con $1$ usando `<`: NumPy compara los cinco a la vez y da cinco `True` o `False`. Cuidado: un autovalor de $-1{,}5$ pesa más que uno de $0{,}5$, así que no tomes el mayor sin pasarlo por `np.abs`.',
+            'Las piezas, con otras matrices:\n\n' +
+              py(
+                'Ms = np.array([[[1, 0], [0, -3]], [[2, 0], [0, 1]]])   # dos matrices apiladas',
+                'tam = np.abs(np.linalg.eigvals(Ms))',
+                'print(tam)                   # dos filas, [1. 3.] y [2. 1.]: el tamaño de cada autovalor, una fila por matriz',
+                'print(tam.max(axis=1))       # [3. 2.]: el mayor de cada fila',
+                'print(np.abs(-4), np.abs(3 + 4j))   # 4 5.0: valor absoluto, y módulo de un complejo',
+                'print(np.array([0.4, 1.5]) < 1)     # [ True False]: compara cada número con 1',
+              ) +
+              '\n\n`axis=1` significa «a lo largo de cada fila, una respuesta por fila»; con `axis=0` sería por columnas.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'autovalores = np.linalg.eigvals(___)',
+                'radios = np.___(autovalores).max(axis=1)',
+                'estables = radios ___ 1',
+              ) +
+              '\n\nEl error típico es tomar el mayor autovalor sin `np.abs`: un autovalor muy negativo, o complejo, también hace explotar la red.',
           ],
           explain:
             'Lo que importa de un autovalor es su tamaño, no su signo ni su parte real. Un autovalor muy negativo hace explotar el estado igual que uno positivo, y un complejo gira el vector y a la vez lo estira por su módulo. Si tomas el mayor autovalor sin más, o solo su parte real, una red inestable parece estable.',
@@ -494,9 +639,24 @@ Ws = np.array([
     [[0.9, 0.0], [0.0, -0.7]],
     [[1.3, 0.2], [0.0, 0.3]],
 ])
-# Guarda en radios el radio espectral de cada matriz y en estables si ese radio es menor que 1
+# Ws es un array de NumPy de forma (5, 2, 2): cinco matrices de 2 filas y 2 columnas apiladas.
+# Ws[0] es la primera matriz, Ws[1] la segunda, y así hasta Ws[4].
+
+# PASO 1. El radio espectral de cada matriz, en radios (un array de 5 números reales).
+# El radio espectral es el mayor TAMAÑO entre los autovalores de la matriz. Por qué el tamaño y no el
+# valor: un autovalor de -1.5 hace explotar la red igual que uno de 1.5, y uno complejo gira el vector
+# y lo estira por su módulo.
+# np.linalg.eigvals(Ws) calcula los autovalores de las cinco matrices de una vez: una fila por matriz.
+# np.abs(x) da el tamaño de cada número: el valor absoluto si es real y el módulo si es complejo.
+# a.max(axis=1) da el mayor de cada fila de a: una respuesta por fila. Así tienes un número por matriz.
 radios = None
+
+# PASO 2. Si cada red es estable, en estables (un array de 5 valores True o False).
+# Una red es estable si su radio espectral es menor que 1.
+# Comparar un array con un número compara cada elemento: np.array([0, 3]) < 1 da [ True False].
 estables = None
+
+# Para ver qué vale algo antes de entregar: print(radios) y pulsa «Ejecutar».
 `,
           checks: `_r = isinstance(radios, np.ndarray) and radios.shape == (5,) and np.issubdtype(radios.dtype, np.number) and not np.iscomplexobj(radios)
 _e = isinstance(estables, np.ndarray) and estables.shape == (5,) and estables.dtype == bool
@@ -522,8 +682,29 @@ check((not _e) or (not _ok) or _got == [False, False, True, True, False] or _got
           prompt:
             'Una matriz con autovectores por columnas en $V$ y autovalores en la diagonal de $D$ se puede escribir $A=VDV^{-1}$, y eso permite calcular sus potencias con facilidad: $A^{10}=VD^{10}V^{-1}$, donde $D^{10}$ solo eleva cada autovalor a $10$. Ya tienes `A`, `vals` y `vecs`, que son los autovalores y los autovectores de `A`. Guarda en `D` la matriz diagonal de los autovalores, de 2 filas y 2 columnas; en `A2` la matriz que se reconstruye con $VDV^{-1}$; en `igual`, si `A2` coincide con `A`, comparadas con `np.allclose` (un solo `True` o `False`); y en `A10` la potencia décima de `A` calculada con los autovalores. Debe coincidir con `np.linalg.matrix_power(A, 10)`, que multiplica `A` por sí misma diez veces.',
           hints: [
-            '`np.diag` convierte un array de números en una matriz con esos números en la diagonal y ceros fuera. Para la inversa de una matriz, `np.linalg.inv`.',
-            'En una potencia de `D`, cada autovalor se eleva por separado: con un array, el operador `**` actúa sobre cada elemento. Multiplicar un array por 10, en cambio, no es elevarlo a 10.',
+            'El plan: `D` es `np.diag(vals)`, la matriz con los autovalores en la diagonal y ceros fuera. `A2` es el producto de tres matrices, en este orden: `vecs`, luego `D`, luego la inversa de `vecs`, que se calcula con `np.linalg.inv(vecs)`; el producto de matrices se escribe con `@`. `igual` compara `A2` con `A` usando `np.allclose`. Para `A10`, haz el mismo producto, pero con los autovalores elevados a $10$ antes de ponerlos en la diagonal: `vals ** 10`. Cuidado: multiplicar los autovalores por $10$ no es elevarlos a $10$, y da otra matriz.',
+            'Las piezas, con otros números:\n\n' +
+              py(
+                'w = np.array([2, 3])',
+                'print(np.diag(w))       # dos filas, [2 0] y [0 3]: los números en la diagonal',
+                'print(w ** 2)           # [4 9]: cada número elevado a 2',
+                'print(w * 2)            # [4 6]: cada número multiplicado por 2 (no es lo mismo)',
+                '',
+                'M = np.array([[2, 0], [0, 4]])',
+                'print(np.linalg.inv(M))                   # [[0.5  0.  ]',
+                '                                          #  [0.   0.25]]: la inversa',
+                'print(M @ np.linalg.inv(M))               # dos filas, [1. 0.] y [0. 1.]: la matriz identidad',
+                'print(np.allclose(M @ np.linalg.inv(M), np.eye(2)))   # True: casi la matriz identidad',
+              ) +
+              '\n\nEn un producto de matrices el orden importa: `P @ Q` y `Q @ P` no suelen ser iguales. Una cadena como `P @ Q @ R` se calcula de izquierda a derecha.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'D = np.diag(___)',
+                'A2 = vecs @ ___ @ np.linalg.inv(vecs)',
+                'igual = np.___(A2, A)',
+                'A10 = vecs @ np.diag(vals ___ 10) @ np.linalg.inv(vecs)',
+              ) +
+              '\n\nEl error típico es cambiar el orden de los tres factores, o escribir `vals * 10` donde va `vals ** 10`.',
           ],
           explain:
             'El producto de matrices no es conmutativo, así que el orden de los tres factores importa: $V$ primero, luego $D$ y luego la inversa de $V$. Para las potencias, $A^{10}$ conserva los autovectores y eleva cada autovalor a $10$; los autovalores multiplicados por $10$ darían otra matriz, diez veces mayor.',
@@ -539,11 +720,35 @@ check((not _e) or (not _ok) or _got == [False, False, True, True, False] or _got
 
 A = np.array([[4, 1], [2, 3]])
 vals, vecs = np.linalg.eig(A)
-# Guarda en D la matriz diagonal de los autovalores, en A2 la reconstrucción de A, en igual si A2 coincide con A (con np.allclose) y en A10 la potencia décima de A calculada con los autovalores
+# Ya están hechos: A es la matriz de 2 filas y 2 columnas; vals, un array con sus 2 autovalores; y vecs,
+# la matriz de 2 filas y 2 columnas con sus autovectores, uno en cada columna.
+# La idea: A = V D V^-1, con V = vecs y D la matriz diagonal de los autovalores. Con eso, la potencia
+# de A solo necesita elevar los autovalores.
+
+# PASO 1. La matriz diagonal de los autovalores, en D (2 filas y 2 columnas).
+# np.diag(un_array) crea una matriz con esos números en la diagonal y ceros fuera:
+# np.diag([2, 3]) es la matriz con el 2 y el 3 en la diagonal.
 D = None
+
+# PASO 2. La reconstrucción de A, en A2 (2 filas y 2 columnas).
+# Es el producto de tres matrices, con @, en este orden: vecs, D y la inversa de vecs.
+# El orden importa: el producto de matrices no es conmutativo.
+# np.linalg.inv(M) calcula la inversa de la matriz M.
 A2 = None
+
+# PASO 3. Si A2 coincide con A, en igual (un solo True o False).
+# Por qué no con ==: A2 sale de varias multiplicaciones con decimales y lleva un error diminuto de redondeo.
+# np.allclose(a, b) dice True si a y b son casi iguales.
 igual = None
+
+# PASO 4. La potencia décima de A, en A10 (2 filas y 2 columnas).
+# Por qué se puede con los autovalores: A elevada a 10 tiene los mismos autovectores, y cada autovalor
+# pasa a estar elevado a 10. Es el mismo producto del paso 2, pero con los autovalores elevados a 10.
+# Con un array, el operador ** actúa sobre cada elemento: np.array([2, 3]) ** 2 vale [4 9].
+# Ojo: multiplicar por 10 (con *) no es elevar a 10.
 A10 = None
+
+# Para ver qué vale algo antes de entregar: print(A2) y pulsa «Ejecutar».
 `,
           checks: `_m = lambda x: isinstance(x, np.ndarray) and x.shape == (2, 2) and np.issubdtype(x.dtype, np.number) and not np.iscomplexobj(x)
 _D = _m(D)
