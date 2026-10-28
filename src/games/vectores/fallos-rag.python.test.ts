@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -821,4 +822,21 @@ describe(
       );
     });
   },
+);
+
+// ---------- pistas de las preguntas de código ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'fallos-rag.ex02.1': ['@', 'argmax', '1', 'max', '1'],
+  'fallos-rag.ex02.2': ['>=', 'None', 'count'],
+  'fallos-rag.ex02.3': ['==', 'is', 'is not', 'is not', 'is'],
+  'fallos-rag.ex02.4': ['umbrales', '>=', '==', 'umbrales', 'aciertos', 'max'],
+  'fallos-rag.ex02.5': ['m', 'None', '=='],
+};
+
+defineHintTests(
+  projectQuestions(fallosRag).filter((q): q is CodigoQ => q.type === 'codigo'),
+  SKELETON_FILLS,
+  () => pyodide,
 );

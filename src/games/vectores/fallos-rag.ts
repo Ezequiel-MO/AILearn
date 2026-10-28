@@ -1,5 +1,6 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
 import { fallosRagWarmup } from './fallos-rag.calentamiento';
+import { py } from '../py';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
 const plane = (
@@ -275,9 +276,20 @@ export const fallosRag: Project = {
           prompt:
             'Aquí los embeddings son **reales**. El módulo `embeddings` del juego trae los del modelo paraphrase-multilingual-MiniLM-L12-v2 (384 componentes) de 16 frases de la base de conocimiento de un hotel de congresos (`documentos`, matriz `D`) y de 10 preguntas de huéspedes (`consultas`, matriz `Q`). Las filas tienen norma 1, así que el producto escalar de una consulta con un documento **es** su coseno. No hay modelo para frases nuevas: solo estas.\n\n`Q @ D.T` multiplica `Q` por la traspuesta de `D` (`D.T` intercambia filas y columnas) y da una matriz con el coseno de cada consulta con cada documento: el elemento de la fila `i` y la columna `j` es el de la consulta `i` con el documento `j`. De cada fila, `np.argmax(x, axis=1)` da la posición del mayor valor y `np.max(x, axis=1)`, el valor; el `axis=1` recorre las columnas de cada fila.\n\nGuarda en `S` la matriz de cosenos, en `mejor` el documento más parecido a cada consulta y en `punt` su coseno.',
           hints: [
-            'La matriz de cosenos tiene una fila por consulta y una columna por documento: 10 filas y 16 columnas.',
-            'Hay una posición y un coseno por consulta, es decir, 10 números en cada caso: cuida sobre qué eje se busca el mayor.',
-            'Para `punt` hace falta el valor mayor de cada fila, y para `mejor`, el lugar donde está.',
+            'El plan son tres líneas. Primero `S`: la matriz `Q` multiplicada por la traspuesta de `D` (`D.T`), con `@`; tiene que salir con 10 filas (una por consulta) y 16 columnas (una por documento). Después `mejor`: de cada fila de `S`, la posición del valor mayor, con `np.argmax`. Por último `punt`: de cada fila, el valor mayor, con `np.max`. Cuida el eje: con `axis=1` se busca dentro de cada fila y salen 10 números; con `axis=0` saldrían 16.',
+            'Así se comporta cada pieza, con una matriz pequeña de otros datos:\n\n' +
+              py(
+                'M = np.array([[1, 5, 2], [7, 3, 4]])   # 2 filas y 3 columnas',
+                'print(M.shape)                         # (2, 3)',
+                'print(M.T.shape)                       # (3, 2): .T intercambia filas y columnas',
+                'print(np.argmax(M, axis=1))            # [1 0]: dentro de cada fila, la posición del mayor',
+                'print(np.max(M, axis=1))               # [5 7]: dentro de cada fila, el valor mayor',
+                'print(np.argmax(M, axis=0))            # [1 0 1]: con axis=0 se mira por columnas, y salen 3',
+              ) +
+              '\n\nEl `@` entre dos matrices las multiplica; para que encajen, las columnas de la primera tienen que ser tantas como las filas de la segunda, y por eso `Q` va con `D.T` y no con `D`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py('S = Q ___ D.T', 'mejor = np.___(S, axis=___)', 'punt = np.___(S, axis=___)') +
+              '\n\nUn error típico es confundir las dos últimas líneas: `np.argmax` da la posición (un entero de 0 a 15) y `np.max` da el coseno (un decimal); `punt` lleva el coseno.',
           ],
           explain:
             'Cada consulta elige el documento de mayor coseno de su fila. Si te salen 16 números en vez de 10, la búsqueda del mayor recorre el eje que no toca. Después, no confundas la posición con el valor.',
@@ -291,11 +303,33 @@ export const fallosRag: Project = {
           starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 
-# Guarda en S los cosenos de cada consulta con cada documento, en mejor la posición del documento
-# más parecido a cada consulta y en punt su coseno
+# D: una matriz de 16 filas y 384 columnas. La fila j es el embedding del documento j.
+# Q: una matriz de 10 filas y 384 columnas. La fila i es el embedding de la consulta i.
+# Todas las filas miden 1, así que el producto escalar de una consulta con un documento es su coseno.
+# documentos y consultas: las listas con los textos (documentos[0] es el texto del documento 0).
+
+# PASO 1. La matriz de cosenos S: el coseno de cada consulta con cada documento.
+# Por qué: con todos los cosenos juntos puedes elegir, para cada consulta, el documento que más se parece.
+# Q @ D.T multiplica Q por la traspuesta de D. D.T es D con filas y columnas intercambiadas
+# (de 16 filas y 384 columnas pasa a 384 filas y 16 columnas), y así las dos matrices encajan.
+# El resultado tiene 10 filas (una por consulta) y 16 columnas (una por documento):
+# el elemento de la fila i y la columna j es el coseno de la consulta i con el documento j.
 S = None
+
+# PASO 2. mejor: de cada consulta, la POSICIÓN del documento con mayor coseno.
+# Por qué: la posición te dice qué documento recupera el sistema (el 0, el 12...).
+# np.argmax(S, axis=1) busca el mayor dentro de cada fila (axis=1 recorre las columnas de cada fila)
+# y devuelve su posición. Salen 10 números enteros, uno por consulta.
+# Si usaras axis=0 buscarías por columnas y saldrían 16 números: no es lo que se pide.
 mejor = None
+
+# PASO 3. punt: de cada consulta, el VALOR de ese mayor coseno.
+# Por qué: la posición dice cuál es el documento, pero no cuánto se parece. Ese valor es el que
+# luego se compara con un umbral.
+# np.max(S, axis=1) hace la misma búsqueda por filas que np.argmax, pero devuelve el valor y no la posición.
 punt = None
+
+# Para ver qué vale algo antes de entregar: print(S.shape) o print(mejor) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _S = _e.Q @ _e.D.T
@@ -337,9 +371,24 @@ punt = np.max(S, axis=1)
           prompt:
             'Un **umbral** devuelve «no lo sé» cuando el mejor documento no se parece bastante: la respuesta es la posición del documento si su coseno alcanza el umbral y `None` (la ausencia de valor en Python) si no. `[a if cond else b for x in lista]` construye una lista aplicando esa regla a cada elemento, y `zip(l1, l2)` recorre dos listas a la vez.\n\nYa tienes, con los datos reales de `embeddings`, `mejor` (el documento más parecido a cada consulta), `punt` (su coseno) y un umbral de $0{,}58$. Guarda en `respuestas` la lista de 10 respuestas, una por consulta, y en `sin_respuesta` cuántas consultas se quedan con «no lo sé».',
           hints: [
-            'La lista tiene un elemento por consulta: la posición de `mejor` si el coseno de `punt` alcanza el valor del umbral, y `None` si no.',
-            'Cada elemento de la lista decide con la condición «mayor o igual»; ten cuidado de que no quede al revés.',
-            '`sin_respuesta` se puede contar sobre la propia lista de respuestas.',
+            'El plan son dos líneas. `respuestas` es una lista con un elemento por consulta: se recorren a la vez `mejor` y `punt` con `zip`, y cada elemento es la posición de `mejor` si el coseno de `punt` alcanza `umbral` (condición «mayor o igual») y `None` si no. Cuida que no quede al revés. `sin_respuesta` se cuenta sobre la propia lista `respuestas`: cuántos elementos son `None`.',
+            'Las piezas, con otros datos y un solo caso de cada:\n\n' +
+              py(
+                'notas = [8, 3, 6]          # un valor por alumno',
+                'codigos = [10, 11, 12]     # un código por alumno',
+                'for c, x in zip(codigos, notas):',
+                '    print(c, x)            # 10 8, después 11 3, después 12 6: zip los junta por parejas',
+                '',
+                'print([c if x >= 5 else None for c, x in zip(codigos, notas)])   # [10, None, 12]',
+                'print([10, None, 12].count(None))                               # 1: cuántos None hay',
+              ) +
+              '\n\nLa lista por comprensión se lee así: «para cada pareja `c, x`, pon `c` si se cumple la condición y `None` si no». Lo de antes de `for` es el valor de cada elemento. `int(m)` convierte un número de NumPy en un entero normal de Python.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'respuestas = [int(m) if p ___ umbral else ___ for m, p in zip(mejor, punt)]',
+                'sin_respuesta = respuestas.___(None)',
+              ) +
+              '\n\nEl error típico es poner la condición al revés (`None` cuando sí llega): comprueba que q0, con un coseno alto, conserva su documento. Y la posición `0` es una respuesta válida, no un `None`.',
           ],
           explain:
             'Cada consulta se decide por separado comparando su coseno con el umbral. Si te salen respuestas donde el coseno es bajo y `None` donde es alto, la condición está al revés. Y una posición `0` es una respuesta válida: no es lo mismo que `None`.',
@@ -353,14 +402,32 @@ punt = np.max(S, axis=1)
           starter: `import numpy as np
 from embeddings import D, Q, documentos, consultas
 
-S = Q @ D.T
-mejor = np.argmax(S, axis=1)
-punt = np.max(S, axis=1)
-umbral = 0.58
-# Guarda en respuestas la lista de 10 respuestas (la posición del documento o None si su coseno no llega
-# al umbral) y en sin_respuesta cuántas consultas se quedan sin respuesta
+# Ya están hechas: no hace falta tocarlas.
+S = Q @ D.T                    # los cosenos de cada consulta con cada documento: 10 filas y 16 columnas
+mejor = np.argmax(S, axis=1)   # 10 posiciones: el documento más parecido a cada consulta
+punt = np.max(S, axis=1)       # 10 cosenos: el de ese documento, uno por consulta
+umbral = 0.58                  # el coseno mínimo para fiarse de la respuesta
+
+# PASO 1. respuestas: una lista con 10 elementos, uno por consulta.
+# Qué va en cada elemento: la posición del documento (el número de mejor) si su coseno (el de punt)
+# llega al umbral, y None si no llega. None es la ausencia de valor en Python: aquí quiere decir «no lo sé».
+# Por qué: un sistema que se fía de cualquier coseno contesta cosas absurdas cuando la base no tiene la
+# respuesta; con un umbral prefiere callar.
+# Cómo: [a if condicion else b for x in lista] construye una lista aplicando esa regla a cada elemento.
+# Por ejemplo, [n if n >= 5 else None for n in [8, 3]] vale [8, None].
+# zip(mejor, punt) junta las dos listas por parejas (la posición 1 con el coseno 1, la 2 con el 2...),
+# y for m, p in zip(mejor, punt) saca en cada vuelta una pareja: m la posición y p su coseno.
+# x >= y vale True si x es mayor o igual que y.
+# int(m) convierte la posición (un número de NumPy) en un entero normal de Python.
 respuestas = None
+
+# PASO 2. sin_respuesta: cuántas consultas se quedan sin respuesta, es decir, con None.
+# Por qué: es lo que el umbral calla, y luego hay que mirar si calla las que debía.
+# lista.count(x) cuenta cuántas veces aparece x en la lista: [4, None, None].count(None) vale 2.
+# Si ya tienes la lista respuestas, no hace falta recorrer nada más.
 sin_respuesta = None
+
+# Para ver qué vale algo antes de entregar: print(respuestas) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _S = _e.Q @ _e.D.T
@@ -406,8 +473,29 @@ sin_respuesta = respuestas.count(None)
           prompt:
             'Para medir un sistema de búsqueda hace falta un conjunto de preguntas **etiquetadas**: se sabe la respuesta correcta de cada una, y `None` cuando la base no la tiene. Ya tienes las `respuestas` del ejercicio anterior (umbral $0{,}58$, con los datos reales de `embeddings`) y las `correctas`, y las dos listas tienen un elemento por consulta. En Python, `None == None` es `True`, y `sum(...)` suma `True` como $1$; `a is None` comprueba si algo es `None`.\n\nGuarda en `aciertos` cuántas consultas se contestan bien (el documento correcto, o `None` cuando no hay respuesta), en `falsos` la lista de las consultas **sin** respuesta que reciben un documento (falsos positivos) y en `perdidas` la lista de las consultas **con** respuesta que reciben `None`. `enumerate(x)` recorre `x` dando parejas de posición y elemento.',
           hints: [
-            'Recorre las dos listas a la vez con `zip` y cuenta las posiciones en las que coinciden. Una consulta sin respuesta bien rechazada coincide: las dos valen `None`.',
-            'Para `falsos`, la etiqueta es `None` y la respuesta del sistema no. Para `perdidas`, al revés. En las dos listas se guarda la posición de la consulta.',
+            'El plan son tres líneas, y las tres recorren `respuestas` y `correctas` a la vez con `zip`. `aciertos`: cuántas parejas coinciden (`==`); una consulta sin respuesta bien rechazada también coincide, porque las dos valen `None`. `falsos`: las posiciones de las consultas cuya etiqueta es `None` pero cuya respuesta no lo es. `perdidas`: al revés, etiqueta con valor y respuesta `None`. En `falsos` y `perdidas` se guarda la posición de la consulta, no la respuesta; la posición la da `enumerate`.',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'a = [3, None, 5]',
+                'b = [3, None, 7]',
+                'print(a[1] == b[1])                          # True: None == None es True',
+                'print(sum(x == y for x, y in zip(a, b)))     # 2: sum suma los True como 1',
+                'print(a[1] is None)                          # True: así se comprueba si algo es None',
+                'print(a[0] is not None)                      # True: y así que no lo es',
+                '',
+                'for i, (x, y) in enumerate(zip(a, b)):',
+                '    print(i, x, y)                           # 0 3 3, después 1 None None, después 2 5 7',
+                '',
+                'print([i for i, (x, y) in enumerate(zip(a, b)) if x != y])   # [2]: posiciones donde difieren',
+              ) +
+              '\n\n`enumerate` da en cada vuelta la posición `i` y el elemento, y como el elemento es una pareja de `zip`, se escribe `i, (x, y)`: los paréntesis agrupan la pareja. Al final de la lista por comprensión, `if` deja pasar solo las posiciones que cumplen la condición; las condiciones se unen con `and`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'aciertos = sum(r ___ c for r, c in zip(respuestas, correctas))',
+                'falsos = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c ___ None and r ___ None]',
+                'perdidas = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c ___ None and r ___ None]',
+              ) +
+              '\n\nEn `falsos` la etiqueta `c` es `None` y la respuesta `r` no; en `perdidas`, al revés. Para «no es `None`» se escribe `is not None`. Si `falsos` te sale con la posición 7, revisa: esa consulta no tiene respuesta y el sistema dijo «no lo sé», que está bien.',
           ],
           explain:
             'Los tres resultados salen de comparar cada respuesta con su etiqueta. Una consulta mal contestada puede serlo de tres maneras distintas: el documento equivocado, un documento donde no había respuesta, o ninguno donde sí la había. Aquí solo se apartan dos de ellas.',
@@ -420,15 +508,39 @@ sin_respuesta = respuestas.count(None)
           ],
           starter: `import numpy as np
 
+# Dos listas con un elemento por consulta (10 en total); el elemento i es el de la consulta i.
 # Respuesta del sistema a cada consulta con umbral 0.58 (None: «no lo sé»)
 respuestas = [0, None, 12, 5, 14, 13, 3, None, 15, None]
 # Respuesta correcta según las etiquetas (None: la base no tiene la respuesta)
 correctas = [0, 1, 4, 5, 14, None, 3, None, 15, 9]
-# Guarda en aciertos cuántas consultas se contestan bien, en falsos la lista de posiciones de las consultas
-# sin respuesta que reciben un documento y en perdidas la lista de las consultas con respuesta que reciben None
+
+# PASO 1. aciertos: cuántas consultas se contestan bien.
+# Por qué: es la nota del sistema. Contestar bien es dar el documento correcto, y también decir
+# «no lo sé» (None) cuando la base no tiene la respuesta (la etiqueta es None).
+# zip(respuestas, correctas) recorre las dos listas a la vez, por parejas: la respuesta 1 con la
+# etiqueta 1, la 2 con la 2... Con for r, c in zip(respuestas, correctas) sacas una pareja por vuelta.
+# a == b vale True si a y b son iguales, y None == None también vale True.
+# sum(...) suma una serie de valores, y cuenta True como 1: sum([True, False, True]) vale 2.
+# Puedes sumar así: sum(condición for r, c in zip(...)).
 aciertos = None
+
+# PASO 2. falsos: las posiciones de las consultas SIN respuesta (la etiqueta es None) a las que el
+# sistema les da igualmente un documento (la respuesta no es None).
+# Por qué: es el fallo más peligroso, contestar con seguridad algo que no existe.
+# enumerate(x) recorre x dando en cada vuelta la posición y el elemento: for i, v in enumerate(["a", "b"])
+# da i = 0 y v = "a", y luego i = 1 y v = "b". Con una lista de parejas de zip, se escribe i, (r, c).
+# a is None comprueba si a es None; a is not None comprueba que no lo es.
+# Una lista por comprensión [i for ... in ... if condición] guarda i solo en las vueltas que cumplen la condición;
+# dos condiciones se unen con and. Se guarda la posición i, no la respuesta.
 falsos = None
+
+# PASO 3. perdidas: las posiciones de las consultas CON respuesta (la etiqueta no es None) a las que el
+# sistema contesta None.
+# Por qué: es el coste del umbral, callar cuando sí se sabía. Es lo mismo que el paso 2 con las dos
+# condiciones intercambiadas.
 perdidas = None
+
+# Para ver qué vale algo antes de entregar: print(falsos) y pulsa «Ejecutar».
 `,
           checks: `_ok = lambda v: isinstance(v, (int, np.integer)) and not isinstance(v, bool)
 _ls = lambda v: isinstance(v, (list, tuple, np.ndarray)) and np.ndim(v) == 1 and all(_ok(x) for x in v)
@@ -469,9 +581,28 @@ perdidas = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c is not
           prompt:
             '¿Hay un umbral que arregle el sistema? Se puede buscar probando muchos. `np.linspace(0, 1, 101)` da los 101 valores de $0$ a $1$ de $0{,}01$ en $0{,}01$, y `plt.plot(x, y)` dibuja una línea con un punto por cada pareja de valores.\n\nYa tienes, con los datos reales de `embeddings`, `mejor`, `punt`, las `correctas` y los `umbrales`. Para cada umbral, el sistema responde con el documento de `mejor` si su coseno de `punt` lo alcanza y con `None` si no; se contesta bien si la respuesta coincide con la etiqueta (`None` incluido). Guarda en `aciertos` un array con las consultas bien contestadas para cada umbral (101 números), dibuja las consultas bien contestadas frente al umbral con una línea y guarda en `techo` el mayor número de aciertos.',
           hints: [
-            'Hace falta recorrer los umbrales: para cada uno se construyen las respuestas y se cuentan los aciertos, como en los ejercicios anteriores.',
-            '`aciertos` tiene un número por umbral, y la línea tiene un punto por cada umbral.',
-            '`techo` es el valor máximo de `aciertos`, no su posición.',
+            'El plan: un bucle `for` por los `umbrales`. En cada vuelta se hace lo de los ejercicios anteriores: se construyen las `respuestas` de ese umbral, se cuentan cuántas coinciden con `correctas` y ese número se añade a la lista `aciertos`, que empieza vacía. Al terminar el bucle, `aciertos` tiene 101 números; se convierte en array de NumPy, se dibuja contra `umbrales` con `plt.plot` y `techo` es su valor mayor (no la posición donde está).',
+            'Las piezas, con otros datos:\n\n' +
+              py(
+                'cuentas = []                     # una lista vacía',
+                'for t in [1, 2, 3]:              # t vale 1, luego 2, luego 3',
+                '    cuentas.append(t * 10)       # añade un elemento al final; la sangría marca lo que repite el for',
+                'print(cuentas)                   # [10, 20, 30]',
+                'cuentas = np.array(cuentas)      # la lista pasa a ser un array de NumPy',
+                'print(cuentas.max())             # 30: el valor mayor, no su posición',
+              ) +
+              '\n\nTodo lo que va dentro del `for` lleva 4 espacios más a la izquierda: así Python sabe qué se repite en cada vuelta. Dentro van dos líneas de los ejercicios anteriores: la de las `respuestas` con `if ... else None` y la del recuento con `sum(... for r, c in zip(...))`, usando `u`, el umbral de la vuelta.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'aciertos = []',
+                'for u in ___:',
+                '    respuestas = [int(m) if p ___ u else None for m, p in zip(mejor, punt)]',
+                '    aciertos.append(sum(r ___ c for r, c in zip(respuestas, correctas)))',
+                'aciertos = np.array(aciertos)',
+                'plt.plot(___, ___)',
+                'techo = aciertos.___()',
+              ) +
+              '\n\n`plt.plot(x, y)` lleva primero lo que va en el eje horizontal y después lo del vertical. Un error típico es dejar `aciertos` como lista: sin convertirla con `np.array`, no tiene el método para el valor mayor.',
           ],
           explain:
             'La línea muestra cómo cambian los aciertos al mover el umbral. Mira su altura máxima: fíjate en si llega a $10$ y si el umbral mejora algo a no poner ninguno (el umbral $0$).',
@@ -487,15 +618,36 @@ perdidas = [i for i, (r, c) in enumerate(zip(respuestas, correctas)) if c is not
 import matplotlib.pyplot as plt
 from embeddings import D, Q, documentos, consultas
 
-S = Q @ D.T
-mejor = np.argmax(S, axis=1)
-punt = np.max(S, axis=1)
-correctas = [0, 1, 4, 5, 14, None, 3, None, 15, 9]
-umbrales = np.linspace(0, 1, 101)
-# Guarda en aciertos cuántas consultas se contestan bien con cada umbral (101 números), dibuja los aciertos
-# frente al umbral con una línea y guarda en techo el mayor número de aciertos
+# Ya están hechas: no hace falta tocarlas.
+S = Q @ D.T                    # los cosenos de cada consulta con cada documento
+mejor = np.argmax(S, axis=1)   # 10 posiciones: el documento más parecido a cada consulta
+punt = np.max(S, axis=1)       # 10 cosenos: el de ese documento
+correctas = [0, 1, 4, 5, 14, None, 3, None, 15, 9]   # la respuesta correcta de cada consulta (None: no hay)
+umbrales = np.linspace(0, 1, 101)   # 101 umbrales, de 0 a 1 de 0.01 en 0.01
+
+# PASO 1. aciertos: para cada umbral, cuántas consultas se contestan bien (101 números).
+# Por qué: así se ve si algún umbral arregla el sistema.
+# Para cada umbral, haz lo mismo que en los ejercicios anteriores:
+#   respuestas = [int(m) if p >= umbral else None for m, p in zip(mejor, punt)]
+#   y cuenta las respuestas que coinciden con correctas: sum(r == c for r, c in zip(respuestas, correctas))
+# Para repetirlo con los 101 umbrales hace falta un bucle:
+#   empieza con una lista vacía, aciertos = []
+#   recórrela con for u in umbrales: (u vale un umbral en cada vuelta; úsalo en lugar de umbral)
+#   y añade el recuento de cada vuelta con aciertos.append(...)
+# Todo lo que va dentro del for lleva 4 espacios delante (la sangría): así Python sabe que se repite.
+# Al terminar, convierte la lista en un array de NumPy con np.array(aciertos).
 aciertos = None
+
+# PASO 2. Dibuja los aciertos frente al umbral con una línea (no hay variable que guardar).
+# plt.plot(x, y) dibuja una línea con un punto por cada pareja de valores: x en el eje horizontal
+# (aquí, los umbrales) e y en el vertical (aquí, los aciertos).
+
+# PASO 3. techo: el mayor número de aciertos de toda la curva.
+# Por qué: es lo mejor que consigue ningún umbral. Si no llega a 10, los fallos no son de confianza.
+# aciertos.max() da el valor mayor del array (un número); aciertos.argmax() daría su posición, que no se pide.
 techo = None
+
+# Para ver qué vale algo antes de entregar: print(aciertos) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _S = _e.Q @ _e.D.T
@@ -548,8 +700,32 @@ techo = aciertos.max()
           prompt:
             'Ningún umbral llega a $10$ porque los fallos son de otra clase. Un remedio sencillo para los **códigos exactos** es la parte de palabras clave de una búsqueda híbrida: si la consulta trae un código, el documento tiene que contenerlo **tal cual**. `re.findall(patron, texto)` devuelve la lista de trozos de `texto` que encajan con `patron`, y `c in texto` comprueba si `c` aparece en `texto`; `all(...)` es `True` si todos los elementos de la lista lo son, y también si la lista está vacía.\n\nYa tienes, con los datos reales de `embeddings`, `mejor`, las `correctas` y el `patron` de un código (letras mayúsculas, un guion y cifras). Guarda en `respuestas` la lista de 10 respuestas: el documento de `mejor`, salvo que la consulta traiga algún código que ese documento no contenga, y entonces `None`. Guarda en `aciertos` cuántas consultas se contestan bien.',
           hints: [
-            'Para cada consulta, busca sus códigos con `re.findall` en su texto de `consultas`; el documento recuperado es `documentos[m]`, donde `m` es su posición en `mejor`.',
-            'Si la consulta no trae ningún código, no hay nada que exigir y se queda el documento de `mejor`.',
+            'El plan: `respuestas` empieza vacía y un bucle recorre `mejor` con `enumerate`, que da en cada vuelta el número de la consulta `i` y la posición `m` de su documento. Dentro: saca los códigos del texto de la consulta (`consultas[i]`) con `re.findall(patron, ...)`; si todos aparecen tal cual en el texto del documento (`documentos[m]`), añade `int(m)`; si alguno falta, añade `None`. Una consulta sin códigos no tiene nada que exigir y conserva su documento. Después, `aciertos` se cuenta como en el ejercicio anterior, con `zip` y `==`.',
+            'Las piezas, con otro texto y otros códigos:\n\n' +
+              py(
+                'texto = "El plano es AB-12 y el otro CD-345"',
+                "print(re.findall(r\"[A-Z]+-\\d+\", texto))      # ['AB-12', 'CD-345']: lista con los trozos que encajan",
+                'print(re.findall(r"[A-Z]+-\\d+", "sin código"))   # []: lista vacía si no hay ninguno',
+                'print("AB-12" in texto)                         # True: c in texto comprueba si aparece tal cual',
+                'print(all(c in texto for c in ["AB-12", "ZZ-9"]))   # False: basta que uno falte',
+                'print(all(c in texto for c in []))              # True: con la lista vacía, all da True',
+                '',
+                'for i, m in enumerate([7, 9]):',
+                '    print(i, m)                                 # 0 7, después 1 9',
+              ) +
+              '\n\nEl `if` decide qué rama se ejecuta: lo que va debajo del `if` (con 4 espacios más) se hace si la condición es `True`, y lo de debajo del `else` si no. Con `lista.append(x)` añades `x` al final de `lista`.',
+            'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+              py(
+                'respuestas = []',
+                'for i, m in enumerate(mejor):',
+                '    codigos = re.findall(patron, consultas[i])',
+                '    if all(c in documentos[___] for c in codigos):',
+                '        respuestas.append(int(m))',
+                '    else:',
+                '        respuestas.append(___)',
+                'aciertos = sum(r ___ c for r, c in zip(respuestas, correctas))',
+              ) +
+              '\n\nEn `documentos[...]` va la posición del documento recuperado, no el número de la consulta `i`. Y rechazar es añadir `None`, no `0` ni `-1`: `0` es un documento válido.',
           ],
           explain:
             'La regla solo actúa sobre las consultas con código; las demás quedan como estaban. Después, `aciertos` se cuenta igual que antes. Mira qué consulta cambia de respuesta y cuáles siguen mal, aunque la regla no las toque.',
@@ -565,14 +741,40 @@ techo = aciertos.max()
 import numpy as np
 from embeddings import D, Q, documentos, consultas
 
-S = Q @ D.T
-mejor = np.argmax(S, axis=1)
-correctas = [0, 1, 4, 5, 14, None, 3, None, 15, 9]
+# Ya están hechas: no hace falta tocarlas.
+S = Q @ D.T                    # los cosenos de cada consulta con cada documento
+mejor = np.argmax(S, axis=1)   # 10 posiciones: el documento más parecido a cada consulta
+correctas = [0, 1, 4, 5, 14, None, 3, None, 15, 9]   # la respuesta correcta de cada consulta (None: no hay)
+# documentos y consultas son listas de textos: documentos[m] es el texto del documento m
+# y consultas[i], el de la consulta i.
+# patron describe un código: letras mayúsculas, un guion y cifras (por ejemplo, AB-12).
 patron = r"[A-Z]+-\\d+"
-# Guarda en respuestas la lista de 10 respuestas (el documento de mejor, o None si la consulta trae un código
-# que ese documento no contiene tal cual) y en aciertos cuántas consultas se contestan bien
+
+# PASO 1. respuestas: una lista de 10 respuestas, una por consulta.
+# Qué va en cada una: el documento de mejor, salvo que la consulta traiga algún código que ese documento
+# NO contenga escrito tal cual; entonces, None.
+# Por qué: el coseno no distingue CONG-2025 de CONG-2026, pero una palabra clave sí: exigir que el
+# código aparezca igual en el documento corrige lo que los embeddings no ven.
+# Para hacerlo consulta a consulta hace falta un bucle:
+#   empieza con una lista vacía, respuestas = []
+#   recorre las consultas con for i, m in enumerate(mejor): (en cada vuelta, i es el número de la consulta
+#   y m la posición de su documento)
+#   dentro del for (con 4 espacios de sangría delante), saca los códigos de la consulta:
+#   re.findall(patron, texto) devuelve la lista de los trozos de texto que encajan con el patrón
+#   (una lista vacía si no hay ninguno)
+#   all(c in documentos[m] for c in codigos) vale True si TODOS los códigos aparecen en el texto del documento
+#   (c in texto comprueba si c aparece en texto), y también si la lista está vacía
+#   con if ...: añade int(m) a la lista con respuestas.append(int(m)); con else: añade None
 respuestas = None
+
+# PASO 2. aciertos: cuántas consultas se contestan bien.
+# Por qué: es la nota del sistema con la regla nueva, para compararla con la de antes.
+# Se acierta cuando la respuesta es igual a su etiqueta de correctas, y None == None también cuenta.
+# sum(condición for r, c in zip(respuestas, correctas)) cuenta cuántas parejas cumplen la condición
+# (sum suma los True como 1, y zip junta las dos listas por parejas).
 aciertos = None
+
+# Para ver qué vale algo antes de entregar: print(respuestas) y pulsa «Ejecutar».
 `,
           checks: `import embeddings as _e
 _ex = [0, 1, 12, 5, 14, None, 3, 3, 15, 9]
