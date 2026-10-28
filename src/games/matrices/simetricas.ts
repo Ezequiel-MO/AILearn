@@ -225,6 +225,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex01.1',
           type: 'opcion',
+          purpose: {
+            why: 'Las matrices de covarianza y las de kernel, que usan las máquinas de vectores de soporte y los procesos gaussianos, son simétricas. Antes de aplicarles métodos pensados para matrices simétricas, como `np.linalg.eigh`, conviene comprobar que lo son: los errores de redondeo pueden dejar una matriz casi simétrica pero no del todo.',
+            aim: 'Vas a mirar cuatro matrices y a decidir cuál es simétrica, comparando solo lo que hay fuera de la diagonal. Verás que basta con mirar un par de números y su signo.',
+            takeaway:
+              'Una matriz simétrica cumple $A=A^{T}$, y eso se comprueba comparando cada entrada con su espejo respecto de la diagonal. En el código se hace con `np.allclose(A, A.T)`. Si lo cumple, se pueden usar métodos más rápidos y estables, que además garantizan autovalores reales.',
+          },
           prompt:
             'Una matriz es **simétrica** si es igual a su traspuesta: lo que hay arriba a la derecha es igual a lo que hay abajo a la izquierda. ¿Cuál de estas matrices es simétrica?',
           hints: [
@@ -246,6 +252,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex01.2',
           type: 'numero',
+          purpose: {
+            why: 'Antes de entrenar un modelo con muchos rasgos, se miran las covarianzas entre ellos para detectar los que se mueven a la vez. Dos métricas que suben juntas, como la longitud de un texto y los tokens que consume, aportan casi la misma información, y no hace falta usar las dos.',
+            aim: 'Vas a restar las medias, multiplicar las desviaciones de cada muestra y dividir entre $n-1$. Verás qué número resume si dos variables suben a la vez.',
+            takeaway:
+              'Una covarianza de $8$, positiva, dice que $x$ e $y$ tienden a subir juntas. Pero su tamaño depende de las unidades: no se puede decir si es mucha o poca. Para comparar parejas de rasgos se divide por las desviaciones de cada uno y se obtiene la correlación, que va siempre entre $-1$ y $1$.',
+          },
           prompt:
             'La **covarianza** de dos variables mide si suben juntas (positiva) o si una baja cuando la otra sube (negativa). Con $n$ muestras, es $\\dfrac{1}{n-1}\\sum_i (x_i-\\bar{x})(y_i-\\bar{y})$, con $\\bar{x}$ y $\\bar{y}$ las medias. Calcula la covarianza de $x=(2, 4, 9)$ e $y=(1, 5, 6)$.',
           hints: [
@@ -262,6 +274,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex01.3',
           type: 'vector',
+          purpose: {
+            why: 'La matriz de covarianza es el primer paso de PCA: antes de buscar direcciones, hay que construir esta matriz con una fila y una columna por cada rasgo. Con embeddings de cientos de componentes sería una matriz de cientos por cientos, y se calcula con `np.cov` a partir de las muestras.',
+            aim: 'Vas a calcular las dos varianzas y la covarianza de tres puntos y a montar con ellas la matriz. Verás que solo tres números distintos la llenan, porque la entrada de arriba a la derecha y la de abajo a la izquierda coinciden.',
+            takeaway:
+              'La diagonal guarda cuánto varía cada rasgo, y fuera de la diagonal, cuánto se mueven juntos. Aquí, con varianzas iguales y covarianza positiva, la nube se estira a lo largo de la diagonal. Como la matriz es simétrica, basta guardar la mitad; es la entrada para sacar sus autovalores y sus ejes.',
+          },
           prompt:
             'Tres puntos del plano, $(0, 1)$, $(2, 5)$ y $(4, 3)$, son tres muestras de dos variables, $x$ e $y$. Calcula su matriz de covarianza $C=\\begin{pmatrix}\\operatorname{var}(x)&\\operatorname{cov}(x, y)\\\\\\operatorname{cov}(x, y)&\\operatorname{var}(y)\\end{pmatrix}$, dividiendo entre $n-1$. Escríbela fila a fila.',
           hints: [
@@ -279,6 +297,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex01.4',
           type: 'numero',
+          purpose: {
+            why: 'Los autovalores de la covarianza de los rasgos, o del hessiano de la pérdida, dicen lo alargada que es la nube o el valle. Cuando el mayor es muchísimo mayor que el menor, el descenso de gradiente avanza despacio por el fondo del valle, y se dice que el problema está mal condicionado. Normalizar los rasgos suele aliviarlo.',
+            aim: 'Vas a hallar los dos autovalores de una covarianza con la traza y el determinante y a quedarte con el mayor. Verás cuánto varían los datos en la dirección en que más se extienden.',
+            takeaway:
+              'El mayor autovalor, $6$, es la varianza a lo largo del eje largo de la nube; el menor, $2$, la del eje corto. La razón entre ambos mide cuán alargada es la nube: cuanto más grande, peor condicionado está el problema, y más ayuda reescalar los rasgos antes de entrenar.',
+          },
           prompt:
             'Un **autovalor** de una matriz $C$ es un número $\\lambda$ por el que $C$ estira alguna dirección: $C\\vec{u}=\\lambda\\vec{u}$. Los de una matriz de $2\\times 2$ son las raíces de $\\lambda^2-t\\lambda+d=0$, con $t$ la suma de la diagonal y $d$ el determinante. Calcula el autovalor **mayor** de $C=\\begin{pmatrix}4&2\\\\2&4\\end{pmatrix}$.',
           hints: [
@@ -295,6 +319,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex01.5',
           type: 'vector',
+          purpose: {
+            why: 'Los ejes que devuelve `np.linalg.eigh` para una matriz simétrica son perpendiculares y de norma $1$. Eso permite calcular la coordenada de un dato en cada eje por separado, con un producto escalar, y descartar un eje sin tocar los demás. En $2\\times 2$, si ya tienes un eje, el otro sale sin resolver ninguna ecuación.',
+            aim: 'Vas a deducir el segundo autovector de una matriz que no conoces, solo por ser simétrica y por tener un autovector dado. Verás qué ángulo lo fija y cómo se escribe con un producto escalar.',
+            takeaway:
+              'Los autovectores de una matriz simétrica con autovalores distintos son perpendiculares, y el otro es $(-1, 2)$. Esa propiedad es lo que hace que los ejes de una covarianza sean independientes entre sí, y que los métodos de reducción de dimensiones puedan quedarse con unos ejes y tirar el resto sin interferencias.',
+          },
           prompt:
             'Una matriz simétrica de $2\\times 2$ tiene a $(2, 1)$ como autovector, y sus dos autovalores son distintos. Da la dirección del otro autovector, escrita con primera componente $-1$.',
           hints: [

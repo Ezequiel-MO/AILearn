@@ -196,6 +196,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex01.1',
           type: 'numero',
+          purpose: {
+            why: 'Muchos sistemas repiten un paso de transición: un navegante que salta entre pantallas de una aplicación, un recomendador que pasa de un producto a otro. La proporción de tiempo que se pasa en cada sitio a largo plazo es un autovector de la matriz de transición, con autovalor $1$. Comprobar que un candidato lo es se hace con $A\\vec{v}=\\lambda\\vec{v}$.',
+            aim: 'Vas a calcular $A\\vec{v}$ para una flecha concreta y a decidir si sale un múltiplo de ella. Verás que la comprobación de un autovector es una sola multiplicación, y que además te da el factor.',
+            takeaway:
+              'Cuando $A\\vec{v}$ sale paralelo a $\\vec{v}$, el factor es el autovalor y la flecha es una dirección propia. Es la prueba que se usa para validar lo que devuelve una biblioteca, como `np.linalg.eig`: si $A\\vec{v}$ y $\\lambda\\vec{v}$ no coinciden, algo falla en el cálculo.',
+          },
           prompt:
             'Sea $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$ y $\\vec{v}=(1, -2)$. Comprueba que $\\vec{v}$ es un autovector de $A$ calculando $A\\vec{v}$, y escribe su autovalor $\\lambda$, el número con $A\\vec{v}=\\lambda\\vec{v}$.',
           hints: [
@@ -212,6 +218,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex01.2',
           type: 'vector',
+          purpose: {
+            why: 'Al depurar código que usa `np.linalg.eig`, o al estudiar si un sistema que se repite en bucle se mantiene estable, conviene tener una forma rápida de saber cuánto estira la matriz. En $2\\times 2$ la traza y el determinante bastan para obtener los dos autovalores a mano y contrastarlos con lo que devuelve la máquina.',
+            aim: 'Vas a plantear la ecuación de segundo grado con la traza y el determinante y a resolverla. Verás que dos números de la matriz resumen los dos factores de estiramiento.',
+            takeaway:
+              'La traza es la suma de los autovalores y el determinante, su producto: con eso se pueden comprobar de un vistazo los resultados de cualquier biblioteca. Los autovalores dicen cuánto estira la matriz en cada dirección, y de su tamaño depende si repetirla acaba en una explosión, en un olvido o en algo estable.',
+          },
           prompt:
             'Los autovalores de $A$ son las soluciones de $\\det(A-\\lambda I)=0$. Para una matriz de $2\\times 2$ esa ecuación es $\\lambda^2-t\\lambda+d=0$, con $t$ la traza (la suma de los dos números de la diagonal) y $d=\\det A$. Con la misma $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$, escribe sus dos autovalores, de menor a mayor.',
           hints: [
@@ -228,6 +240,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex01.3',
           type: 'vector',
+          purpose: {
+            why: 'En el agrupamiento espectral, los puntos o los documentos se unen en una red según lo parecidos que son, y los grupos se leen en los autovectores de una matriz de esa red. Sacar el autovector de un autovalor dado, resolviendo $(A-\\lambda I)\\vec{v}=\\vec{0}$, es el paso que hace cualquier biblioteca por dentro.',
+            aim: 'Vas a resolver el sistema de ecuaciones de $(A-5I)\\vec{v}=\\vec{0}$ y a dar la flecha que sale. Verás que el autovector no es un número único, sino una recta entera, y que se fija con la primera componente.',
+            takeaway:
+              'Un autovector está definido salvo escala: cualquier múltiplo de $(1, 1)$ sirve, y por eso las bibliotecas lo devuelven con norma $1$. En el agrupamiento espectral lo que importa de un autovector no es su tamaño, sino cómo se reparten sus componentes entre los puntos, porque esa repartición decide a qué grupo va cada uno.',
+          },
           prompt:
             'Con la misma $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$, un autovector de autovalor $\\lambda=5$ cumple $(A-5I)\\vec{v}=\\vec{0}$. Escribe el autovector de $\\lambda=5$ cuya primera componente es $1$.',
           hints: [
@@ -244,6 +262,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex01.4',
           type: 'opcion',
+          purpose: {
+            why: 'Algunos modelos de lenguaje codifican la posición de cada palabra girando pares de componentes de su vector. Una transformación así no estira nada, solo gira, y por eso no deja ninguna dirección en su sitio. Saber detectar a ojo qué matrices no tienen autovectores reales evita buscar direcciones propias donde no las hay.',
+            aim: 'Vas a revisar cuatro matrices, cada una con su efecto sobre el plano, y a decidir cuál no conserva ninguna recta. Verás que la ecuación de segundo grado de los autovalores lo anuncia sin dibujar nada.',
+            takeaway:
+              'Un giro tiene sus autovalores complejos: no hay recta que se conserve, solo se cambia la orientación. En una red recurrente, autovalores complejos con módulo cercano a $1$ son señal de oscilación, no de crecimiento ni de olvido. Cuando $\\lambda^2-t\\lambda+d=0$ no tiene solución real, hay que mirar los autovalores complejos.',
+          },
           prompt:
             'Un autovector real es un vector que la matriz deja en su recta. ¿Cuál de estas matrices **no deja ninguna recta en su sitio**, es decir, no tiene autovectores reales?',
           hints: [
@@ -265,6 +289,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex01.5',
           type: 'numero',
+          purpose: {
+            why: 'Al entrenar una red recurrente, el gradiente vuelve hacia atrás por la secuencia y en cada paso se multiplica otra vez por la misma matriz. Si en una dirección el factor es mayor que $1$, el gradiente crece como una potencia con el número de pasos, y el entrenamiento se desboca.',
+            aim: 'Vas a aplicar $W$ diez veces a un autovector, en lugar de hacer diez multiplicaciones de matrices, y a calcular cuánto mide el resultado. Verás qué ocurre con un factor aparentemente pequeño cuando se repite.',
+            takeaway:
+              'Un autovector de autovalor $\\lambda=2$ queda con longitud $2^{10}=1024$ tras diez pasos: con $\\lambda$ mayor que $1$, la señal crece como una potencia. Por eso, en secuencias largas, se recorta el gradiente cuando supera un tope, o se usan arquitecturas que controlan este factor para que no explote ni se apague.',
+          },
           prompt:
             'Una red recurrente aplica la misma matriz $W$ en cada paso: el estado $\\vec{h}$ pasa a $W\\vec{h}$, después a $W^2\\vec{h}$, y así sucesivamente. Si el estado inicial $\\vec{v}$ es un autovector de $W$ con autovalor $\\lambda=2$ y mide $1$, ¿cuánto mide el estado tras $10$ pasos, $W^{10}\\vec{v}$?',
           hints: [

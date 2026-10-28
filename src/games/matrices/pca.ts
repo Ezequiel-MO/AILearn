@@ -201,6 +201,12 @@ export const pca: Project = {
         {
           id: 'pca.ex01.1',
           type: 'vector',
+          purpose: {
+            why: 'PCA busca la dirección en que los datos varían más, pero solo si antes se les ha restado la media. Sin centrar, la primera componente tiende a apuntar hacia el centro de la nube, no hacia su dispersión. Con embeddings se hace igual: se resta el embedding medio del conjunto antes de nada.',
+            aim: 'Vas a calcular la media de cada variable y a restarla del primer dato. Verás cuánto se aleja ese dato del centro de la nube, que es lo que PCA va a analizar.',
+            takeaway:
+              'El dato centrado dice dónde cae respecto al centro de la nube. PCA analiza esas desviaciones, no los valores en bruto. Las bibliotecas como scikit-learn centran por dentro, pero hay que guardar la media: se necesita para centrar igual cualquier dato nuevo y para deshacer la reducción.',
+          },
           prompt:
             'Antes de buscar direcciones, los datos se **centran**: a cada dato se le resta la media de cada variable. Tres datos tienen dos variables cada uno: $(2, 3)$, $(4, 5)$ y $(6, 10)$. Calcula la media de cada variable y escribe el **primer dato centrado**: primero la $x$ y después la $y$.',
           hints: [
@@ -217,6 +223,12 @@ export const pca: Project = {
         {
           id: 'pca.ex01.2',
           type: 'numero',
+          purpose: {
+            why: 'Todo informe de PCA enseña la proporción de varianza que explica cada componente. Si la primera domina, los datos son casi una línea y varios rasgos están repitiendo la misma información. Si se reparte entre muchas, los datos usan el espacio entero y comprimir cuesta más.',
+            aim: 'Vas a dividir el autovalor mayor entre la suma de los dos autovalores. Verás qué parte de la dispersión recoge una sola recta.',
+            takeaway:
+              'Si la primera componente explica el $75\\,\\%$, una sola recta describe tres cuartas partes de la variación de los datos. Es la cifra que sale en el atributo `explained_variance_ratio_` de scikit-learn. Cuanto más cerca de $100\\,\\%$, más redundantes son los rasgos originales.',
+          },
           prompt:
             'La matriz de covarianza de unos datos tiene autovalores $6$ y $2$. Cada autovalor es la varianza de los datos a lo largo de su componente principal. ¿Qué **porcentaje** de la varianza total explica la primera componente, la del autovalor mayor? Escribe solo el número, sin el símbolo %.',
           hints: [
@@ -233,6 +245,12 @@ export const pca: Project = {
         {
           id: 'pca.ex01.3',
           type: 'numero',
+          purpose: {
+            why: 'Una vez ajustado PCA con los datos de entrenamiento, cada consulta o dato nuevo se reduce con las mismas componentes y la misma media. Su coordenada en cada componente es un producto escalar con un vector de norma $1$. Cambiar la media o las componentes en producción haría incomparables los vectores nuevos con los guardados.',
+            aim: 'Vas a calcular el producto escalar del dato centrado con la primera componente. Verás qué número representa al dato cuando se reduce a una sola coordenada.',
+            takeaway:
+              'La coordenada es la longitud con signo de la sombra del dato sobre la componente. Es el número que se guarda en lugar de las coordenadas originales. Con embeddings se hace una vez por componente, y siempre con la media y las componentes ajustadas con los datos de entrenamiento, nunca recalculadas con los nuevos.',
+          },
           prompt:
             'La primera componente principal de unos datos es el vector $u=(0{,}6; 0{,}8)$, de norma $1$. Un dato centrado es $(2, 1)$. ¿Cuál es su **coordenada** en la primera componente?',
           hints: [
@@ -249,6 +267,12 @@ export const pca: Project = {
         {
           id: 'pca.ex01.4',
           type: 'numero',
+          purpose: {
+            why: 'PCA se usa también como paso previo a otro modelo: se conservan las componentes que explican la mayor parte de la varianza y se descartan las demás, que suelen ser sobre todo ruido. Se entrena más deprisa y a veces se generaliza mejor. Un umbral de varianza, como el $90\\,\\%$, es una regla práctica habitual.',
+            aim: 'Vas a ir sumando los autovalores de mayor a menor hasta pasar del $90\\,\\%$ del total. Verás cuántas direcciones de las cuatro hacen falta.',
+            takeaway:
+              'Con tres componentes se conserva el $95\\,\\%$ de la varianza, y con dos solo el $80\\,\\%$. El umbral del $90\\,\\%$ es una convención, no una ley: en la práctica se afina probando el modelo posterior con distintos números de componentes y viendo cuál rinde mejor.',
+          },
           prompt:
             'Unos datos con cuatro variables tienen una covarianza con autovalores $5$, $3$, $1{,}5$ y $0{,}5$. Se conservan las primeras componentes, de mayor a menor autovalor. ¿Cuántas hacen falta, como mínimo, para conservar al menos el $90\\,\\%$ de la varianza?',
           hints: [
@@ -265,6 +289,12 @@ export const pca: Project = {
         {
           id: 'pca.ex01.5',
           type: 'opcion',
+          purpose: {
+            why: 'Los mapas de embeddings en dos dimensiones, de palabras o de documentos de una base de consulta, se usan para explorar grupos y detectar rarezas. Pero un mapa es una sombra: tira la varianza de casi todas las direcciones, y dos puntos que se tocan en la sombra pueden estar lejos en el espacio real.',
+            aim: 'Vas a decidir qué se puede afirmar de dos palabras juntas en un mapa de dos componentes. Verás si la cercanía en el dibujo basta para hablar de parecido.',
+            takeaway:
+              'La cercanía en un mapa de PCA es una pista, no una prueba. Para saber si dos embeddings se parecen, se calcula el coseno en el espacio original, con todas sus componentes. El mapa sirve para explorar y para dar ideas; la decisión se toma con los vectores completos.',
+          },
           prompt:
             'Se dibujan en un plano embeddings de 384 dimensiones con PCA, quedándose con las dos primeras componentes. En ese mapa, dos palabras quedan muy juntas. ¿Qué se puede concluir con seguridad?',
           hints: [
