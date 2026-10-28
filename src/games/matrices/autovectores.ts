@@ -33,6 +33,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'El algoritmo **PageRank**, con el que Google empezó a ordenar páginas web, multiplica un vector de puntuaciones por la misma matriz una y otra vez. Tras muchas vueltas el vector deja de cambiar de dirección: ha caído en un autovector, y ese autovector es la clasificación. El mismo truco, la iteración de potencias, calcula la primera componente de un PCA sin resolver ninguna ecuación.',
+            aim: 'Vas a buscar a mano las flechas que $A$ no saca de su recta y a ver que son muy pocas: casi todas giran, y solo unas direcciones concretas se limitan a estirarse.',
+            takeaway:
+              'Esta matriz tiene dos rectas propias: la de $(1, 1)$, con $\\lambda=3$, y la de $(1, -1)$, con $\\lambda=1$. Al aplicar $A$ muchas veces, la recta del autovalor mayor arrastra hacia ella a casi cualquier vector: por eso repetir una matriz revela su autovector dominante.',
+          },
           prompt:
             'Casi todo vector cambia de dirección cuando se le aplica una matriz. Aquí $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$: $\\hat{\\imath}$ va a $(2, 1)$ y $\\hat{\\jmath}$ va a $(1, 2)$. La flecha continua es $\\vec{v}$ y la discontinua, su imagen $A\\vec{v}$. Un **autovector** de $A$ es un vector no nulo que la matriz deja en su propia recta, $A\\vec{v}=\\lambda\\vec{v}$, y el número $\\lambda$ es su **autovalor**.\n\nMueve $\\vec{v}$ hasta que la lectura del ángulo entre $\\vec{v}$ y $A\\vec{v}$ sea de $0$ grados, con la coordenada $x$ de $\\vec{v}$ igual a $1$.',
           hints: [
@@ -57,6 +63,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'En la versión más simple de una red recurrente, sin activación, el estado se multiplica por la misma matriz en cada paso de la secuencia. La parte del estado que va en la dirección de un autovector de autovalor $\\lambda$ queda multiplicada por $\\lambda^{n}$ tras $n$ pasos: si $\\lambda$ vale más que $1$, explota; si está entre $-1$ y $1$, se apaga. Es la raíz de la explosión y el desvanecimiento del gradiente.',
+            aim: 'Vas a encontrar la segunda dirección propia de una matriz que ya enseña una, y a usar el cociente para leer cuánto estira cada dirección.',
+            takeaway:
+              'Cada autovector tiene su propio factor: aquí $3$ en el eje $x$ y $2$ en la recta de $(1, -1)$. El cociente solo da ese factor cuando el ángulo es $0$; en otra dirección puede coincidir con un autovalor sin que la flecha sea un autovector, como le pasa a $(0, 1)$.',
+          },
           prompt:
             'Ahora $A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$: $\\hat{\\imath}$ va a $(3, 0)$ y $\\hat{\\jmath}$ va a $(1, 2)$. El vector de partida, $\\vec{v}=(1, 0)$, **ya es** un autovector: $A\\vec{v}=(3, 0)=3\\vec{v}$. Busca el otro, el que $A$ estira por $2$.\n\nLa tercera lectura es el cociente $\\dfrac{\\vec{v}^{T}A\\vec{v}}{\\vec{v}^{T}\\vec{v}}$, que vale $\\lambda$ cuando $\\vec{v}$ es un autovector. Deja el ángulo en $0$ grados y esa lectura en $2$.',
           hints: [
@@ -81,6 +93,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'El descenso de gradiente sobre una pérdida cuadrática multiplica el error por la misma matriz en cada paso. Si en una dirección propia el autovalor de esa matriz es negativo, el error cambia de signo a cada paso y el entrenamiento salta de un lado a otro del mínimo; si además es menor que $-1$, los saltos crecen y diverge. Es lo que ocurre cuando la tasa de aprendizaje es demasiado alta.',
+            aim: 'Vas a encontrar una flecha a la que el espejo da la vuelta sin sacarla de su recta: un autovector de autovalor negativo, con la imagen apuntando al lado contrario.',
+            takeaway:
+              'Un ángulo de $180$ grados entre $\\vec{v}$ y $A\\vec{v}$ es un autovalor negativo, aquí $\\lambda=-1$: la recta se conserva y el sentido se invierte. Al repetir la matriz, esa componente alterna de signo: en el descenso de gradiente, es el parámetro que salta de un lado a otro del mínimo en cada paso.',
+          },
           prompt:
             '$A=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$ es el espejo en la diagonal: $\\hat{\\imath}$ y $\\hat{\\jmath}$ se intercambian, $\\hat{\\imath}$ va a $(0, 1)$ y $\\hat{\\jmath}$ va a $(1, 0)$. Un autovector también puede salir **al revés**: si $\\lambda$ es negativo, $A\\vec{v}$ apunta justo al lado opuesto de $\\vec{v}$, pero en la misma recta.\n\nMueve $\\vec{v}$ hasta que la lectura del ángulo entre $\\vec{v}$ y $A\\vec{v}$ sea de $180$ grados.',
           hints: [
@@ -105,6 +123,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Si una capa de una red neuronal tiene dos columnas en la misma recta, los dos rasgos de entrada que las mueven producen el mismo efecto, y hay una dirección de entrada que la capa manda al origen. Esa información se pierde y ninguna capa posterior la recupera. Lo mismo delata una matriz de covarianza con un autovalor $0$: dos rasgos de los datos son redundantes.',
+            aim: 'Vas a buscar la flecha que $A$ aplasta hasta el origen y a ver que, aunque su imagen no tiene dirección, cumple la definición de autovector con $\\lambda=0$.',
+            takeaway:
+              'El vector $(1, -2)$ y sus múltiplos forman el **núcleo** de $A$: son autovectores de autovalor $0$. Una matriz tiene un $\\lambda=0$ exactamente cuando su determinante es $0$, y entonces no tiene inversa: lo que se aplastó no se puede deshacer.',
+          },
           prompt:
             '$A=\\begin{pmatrix}2&1\\\\4&2\\end{pmatrix}$ lleva $\\hat{\\imath}$ a $(2, 4)$ y $\\hat{\\jmath}$ a $(1, 2)$: las dos columnas están en la misma recta y el plano entero se aplasta sobre ella. Un autovector puede tener $\\lambda=0$: es un vector al que $A$ aplasta en el origen, $A\\vec{v}=\\vec{0}=0\\cdot\\vec{v}$.\n\nMueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(0, 0)$, con la coordenada $x$ de $\\vec{v}$ igual a $1$. Cuando lo consigas, la lectura del ángulo dirá «sin ángulo»: el vector nulo no tiene dirección.',
           hints: [
@@ -133,6 +157,12 @@ export const autovectores: Project = {
         {
           id: 'autovectores.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'Decir qué direcciones conserva una matriz y cuánto estira cada una basta para fijarla entera. Así se diseña un **filtro**: unas direcciones se mantienen y otras se atenúan o se refuerzan. Las redes neuronales de grafos con filtros espectrales trabajan así, y PCA hace lo mismo cuando conserva unas componentes y descarta las demás.',
+            aim: 'Vas a montar la matriz a partir de lo que debe hacer con dos flechas fijas, moviendo sus columnas, y a ver cuántas matrices cumplen las dos condiciones.',
+            takeaway:
+              'Con $\\vec{v}$ estirado por $2$ y $\\vec{w}$ quieto sale $A=\\begin{pmatrix}3&-1\\\\2&0\\end{pmatrix}$, cuyos cuatro números no dejan ver nada de eso. Los autovectores y autovalores son la descripción legible de una matriz; sus números, la que guarda el ordenador.',
+          },
           prompt:
             'Ahora se construye la matriz a partir de sus autovectores. Los vectores $\\vec{v}=(1, 1)$ y $\\vec{w}=(1, 2)$ están fijos, y lo que se mueve son $\\hat{\\imath}$ y $\\hat{\\jmath}$, que son las columnas de $A$. Coloca las columnas para que $A\\vec{v}=(2, 2)$ y $A\\vec{w}=(1, 2)$: así $\\vec{v}$ es un autovector de autovalor $2$ y $\\vec{w}$ lo es de autovalor $1$.\n\nAl empezar, con la identidad, $\\vec{w}$ ya cumple su meta porque la identidad deja quieto cualquier vector. Cuando muevas las columnas dejará de cumplirla, y tendrás que recuperarla.',
           hints: [

@@ -50,6 +50,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'La matriz de similitudes de un conjunto de embeddings, con el coseno de cada par, es **simétrica**: el parecido de $a$ con $b$ es el de $b$ con $a$. La matriz de puntuaciones de la atención de un transformer, en cambio, no suele serlo: compara la consulta de un token con la clave de otro, y lo que un token atiende a otro no es lo que el otro le atiende a él.',
+            aim: 'Vas a fijar la coordenada de $\\hat{\\jmath}$ que decide la simetría y a ajustar la otra para el determinante, viendo que son dos condiciones independientes.',
+            takeaway:
+              'Simetría y determinante fijan cada uno una coordenada de $\\hat{\\jmath}$, y sale $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$. En una matriz de similitudes basta con calcular la mitad de los pares fuera de la diagonal: la otra mitad es la misma.',
+          },
           prompt:
             'Una matriz es **simétrica** si es igual a su traspuesta, $A=A^{T}$: lo que hay arriba a la derecha es igual a lo que hay abajo a la izquierda. En el plano, arriba a la derecha está la $x$ de $\\hat{\\jmath}$, y abajo a la izquierda, la $y$ de $\\hat{\\imath}$. Aquí $\\hat{\\imath}=(2, 1)$ está fijo. Mueve $\\hat{\\jmath}$ para que la matriz sea simétrica **y** tenga $\\det A=3$.',
           hints: [
@@ -69,6 +75,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'Antes de entrenar, a veces se **blanquean** los datos: se giran hasta los ejes de su matriz de covarianza y se escala cada eje para que los rasgos varíen lo mismo y dejen de estar correlacionados. Ese giro existe porque la covarianza es simétrica: sus direcciones propias son perpendiculares, y pasar a ellas es una rotación que no deforma la nube.',
+            aim: 'Vas a buscar dos direcciones que $A$ solo estira y que además formen ángulo recto, y a comprobar dónde caen respecto a la elipse.',
+            takeaway:
+              'En una matriz simétrica las direcciones propias son perpendiculares y coinciden con los ejes de la elipse: aquí, $(1, 1)$ con $\\lambda=3$ y $(1, -1)$ con $\\lambda=1$. Es el teorema espectral, y garantiza que toda covarianza tiene unos ejes propios en ángulo recto.',
+          },
           prompt:
             'La matriz $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ es simétrica y está fija. La curva discontinua, la **elipse**, es lo que $A$ hace con la circunferencia de radio $1$. Mueve $\\vec{v}$ y $\\vec{w}$ hasta cumplir las tres condiciones a la vez: que $A\\vec{v}$ vaya en la misma dirección que $\\vec{v}$ (la lectura «ángulo(v, A·v)» vale $0°$), que $A\\vec{w}$ vaya en la misma dirección que $\\vec{w}$, y que $\\vec{v}$ y $\\vec{w}$ formen $90°$. Después fíjate en dónde caen respecto a los ejes de la elipse y en lo que vale cada cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$: dice cuánto estira $A$ en la dirección de $\\vec{v}$, y vale $\\lambda$ cuando $\\vec{v}$ solo se estira, $A\\vec{v}=\\lambda\\vec{v}$.',
           hints: [
@@ -102,6 +114,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'La matriz de pesos de una capa de una red neuronal casi nunca es simétrica, y sus direcciones propias no tienen por qué formar ángulo recto (a veces ni siquiera existen en el plano real, como en un giro). Para describir cómo deforma el espacio una capa se usan los valores singulares, que dan siempre ejes perpendiculares porque salen de la matriz simétrica $A^{T}A$.',
+            aim: 'Vas a encontrar las dos direcciones que una matriz no simétrica solo estira y a medir el ángulo que forman entre ellas.',
+            takeaway:
+              'Las direcciones propias de esta matriz forman $45^\\circ$, no $90^\\circ$: sin simetría no hay ejes perpendiculares garantizados. Un análisis que necesita ejes en ángulo recto, como PCA, tiene que partir de una matriz simétrica.',
+          },
           prompt:
             'Esta matriz **no** es simétrica: $A=\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$ tiene un $1$ arriba a la derecha y un $0$ abajo a la izquierda. Aun así hay direcciones que solo estira. Coloca $\\vec{v}$ para que $A\\vec{v}$ vaya en su misma dirección y el cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ valga $2$; coloca $\\vec{w}$ para que también conserve su dirección y su cociente valga $1$. Después mira el ángulo entre $\\vec{v}$ y $\\vec{w}$.',
           hints: [
@@ -134,6 +152,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Un modelo que describe unos datos con una campana gaussiana, como los que detectan anomalías, guarda la forma de la nube en una matriz de covarianza. Esa matriz se puede construir al revés: eligiendo primero los ejes de la nube y cuánto se extiende en cada uno.',
+            aim: 'Vas a montar la matriz a partir de dos direcciones perpendiculares fijas y de lo que estira cada una, y a mirar qué forma tiene la matriz que sale.',
+            takeaway:
+              'Sale $A=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, simétrica: dos direcciones perpendiculares con factores reales dan siempre una matriz simétrica. Es la otra cara del teorema espectral: una covarianza se puede guardar como sus ejes y sus factores, y recomponerse cuando haga falta.',
+          },
           prompt:
             'Ahora, al revés: se fijan las dos direcciones y se construye la matriz. Las flechas $\\vec{v}=(1, 1)$ y $\\vec{w}=(1, -1)$ están fijas, y también se dibuja la imagen de la circunferencia por $A$. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ para que $A\\vec{v}=(4, 4)$ y $A\\vec{w}=(2, -2)$: la matriz estira $\\vec{v}$ por $4$ y $\\vec{w}$ por $2$. Al terminar, mira si la matriz que ha salido es simétrica.',
           hints: [
@@ -166,6 +190,12 @@ export const simetricas: Project = {
         {
           id: 'simetricas.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'La curvatura de una función de pérdida en una dirección es este mismo cociente aplicado a su matriz de segundas derivadas, el **hessiano**, que es simétrica. Su valor más alto limita la tasa de aprendizaje: un paso demasiado largo en esa dirección hace divergir el entrenamiento. Un valor negativo señala una dirección en la que la pérdida baja: el punto no es un mínimo.',
+            aim: 'Vas a recorrer direcciones con $\\vec{v}$ buscando dónde el cociente se vuelve negativo, y a comprobar que alargar la flecha no lo cambia.',
+            takeaway:
+              'El cociente de una matriz simétrica va siempre de su menor autovalor a su mayor, aquí de $-1$ a $3$, y alcanza los extremos en las direcciones propias. Buscar la dirección que lo hace máximo es una forma de encontrar autovectores sin calcularlos: así estiman algunos métodos la curvatura de una red sin construir el hessiano entero.',
+          },
           prompt:
             'La matriz $A=\\begin{pmatrix}1&2\\\\2&1\\end{pmatrix}$ es simétrica y está fija. El cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ no depende de la longitud de $\\vec{v}$: solo de su dirección. Mueve $\\vec{v}$ hasta que el cociente valga $-1$.',
           hints: [

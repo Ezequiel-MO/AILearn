@@ -40,6 +40,12 @@ export const pca: Project = {
         {
           id: 'pca.ex00.1',
           type: 'manipular',
+          purpose: {
+            why: 'Los embeddings tienen cientos de dimensiones y una pantalla, dos. Para ver cómo se agrupan, se proyectan sobre las dos direcciones en las que más se separan los puntos, y esas son las dos primeras componentes de **PCA**. Elegir la dirección de mayor varianza conserva en el dibujo la mayor dispersión posible.',
+            aim: 'Vas a girar $v$ buscando la dirección en la que los datos varían más, guiándote por la lectura de la varianza y por la forma de la elipse.',
+            takeaway:
+              'La varianza máxima, $4$, está en la recta de $(1, 1)$, que es un autovector de $C$: la primera componente principal es el autovector del autovalor mayor de la covarianza. Una biblioteca de PCA calcula exactamente eso, solo que en cientos de dimensiones.',
+          },
           prompt:
             'El análisis de componentes principales (**PCA**) busca las direcciones en las que más varían unos datos. Unos datos centrados tienen matriz de **covarianza** $C=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$: la diagonal dice cuánto varía cada variable y los otros números, cuánto varían juntas. En el plano, sus columnas son $\\hat{\\imath}$ y $\\hat{\\jmath}$, y la elipse es lo que queda de la circunferencia unidad al aplicarle $C$.\n\nLa lectura $v^{T}Av\\,/\\,v^{T}v$ del panel, con $A=C$, es la **varianza de los datos en la dirección de $v$**, y no depende de la longitud de $v$. Mueve $v$ hasta que esa varianza valga **4**, la mayor posible.',
           hints: [
@@ -63,8 +69,14 @@ export const pca: Project = {
         {
           id: 'pca.ex00.2',
           type: 'manipular',
+          purpose: {
+            why: 'PCA elige las direcciones con más varianza, y la varianza depende de las unidades: un rasgo medido en euros varía mucho más, en números, que uno medido en años, y acapara la primera componente solo por eso. Por eso, antes de PCA, se suele **normalizar** cada rasgo para que todos tengan varianza $1$, salvo que sus escalas sean comparables de verdad.',
+            aim: 'Vas a buscar la dirección de máxima varianza cuando las dos variables no están correladas y a ver cómo queda la elipse en ese caso.',
+            takeaway:
+              'Sin correlación, las componentes principales son los propios ejes y PCA solo ordena las variables por su varianza: aquí gana la primera, con $4$ frente a $1$. Si esa diferencia viene de las unidades y no de los datos, la componente no dice nada útil.',
+          },
           prompt:
-            'Dos variables **sin correlación** tienen covarianza $0$ fuera de la diagonal. Aquí $C=\\begin{pmatrix}4&0\\\\0&1\\end{pmatrix}$: varianza $4$ en la primera variable y $1$ en la segunda. La lectura $v^{T}Av\\,/\\,v^{T}v$, con $A=C$, es la varianza de los datos en la dirección de $v$. Ahora $v$ parte de $(1, 1)$. Muévelo hasta que la varianza en su dirección valga **4**.',
+            'Dos variables **sin correlación** tienen covarianza $0$ fuera de la diagonal. Aquí $C=\\begin{pmatrix}4&0\\\\0&1\\end{pmatrix}$: varianza $4$ en la primera variable y $1$ en la segunda. La elipse es lo que $C$ hace con la circunferencia unidad. La lectura $v^{T}Av\\,/\\,v^{T}v$, con $A=C$, es la varianza de los datos en la dirección de $v$. Ahora $v$ parte de $(1, 1)$. Muévelo hasta que la varianza en su dirección valga **4**.',
           hints: [
             'En $(1, 1)$ la lectura es $2{,}5$, un promedio de $4$ y $1$. Busca una dirección donde no se mezclen.',
             'La elipse queda alineada con los ejes. ¿Cuál de los dos es el largo?',
@@ -86,8 +98,14 @@ export const pca: Project = {
         {
           id: 'pca.ex00.3',
           type: 'manipular',
+          purpose: {
+            why: 'Una componente principal se lee por sus pesos, los números de su dirección: si dos rasgos tienen pesos del mismo signo, la componente mide cuánto suben juntos; si los tienen de signo contrario, mide un contraste entre ellos. Leer así las primeras componentes es una forma habitual de averiguar qué ha encontrado PCA en unos datos o en un conjunto de embeddings.',
+            aim: 'Vas a sacar $v$ de la dirección de mínima varianza y a buscar la de máxima, en unos datos donde una variable baja cuando la otra sube.',
+            takeaway:
+              'Con covarianza negativa, la primera componente es descendente, la recta de $(1, -1)$ con varianza $3$, y la diagonal ascendente se queda con la mínima, $1$. Sus pesos de signo contrario dicen que esa componente mide un contraste entre las dos variables.',
+          },
           prompt:
-            'Cuando una variable sube y la otra baja, la covarianza es **negativa**. Aquí $C=\\begin{pmatrix}2&-1\\\\-1&2\\end{pmatrix}$, con $\\hat{\\imath}=(2, -1)$ y $\\hat{\\jmath}=(-1, 2)$. El vector $v$ parte de $(1, 1)$, donde la varianza es la **mínima**. Llévalo a una dirección donde la varianza valga **3**, la máxima. La lectura $A\\,v$ te dice adónde lo manda $C$.',
+            'Cuando una variable sube y la otra baja, la covarianza es **negativa**. Aquí $C=\\begin{pmatrix}2&-1\\\\-1&2\\end{pmatrix}$, con $\\hat{\\imath}=(2, -1)$ y $\\hat{\\jmath}=(-1, 2)$; la elipse es lo que $C$ hace con la circunferencia unidad. El vector $v$ parte de $(1, 1)$, donde la varianza es la **mínima**. Llévalo a una dirección donde la varianza valga **3**, la máxima. La lectura $A\\,v$ te dice adónde lo manda $C$.',
           hints: [
             'En $(1, 1)$ la varianza vale $1$ y $C$ no cambia su dirección. Prueba direcciones que no estén sobre los ejes ni sobre esa diagonal.',
             'Si una variable sube cuando la otra baja, la nube de datos cae de izquierda a derecha. Mira hacia dónde se estira la elipse.',
@@ -109,6 +127,12 @@ export const pca: Project = {
         {
           id: 'pca.ex00.4',
           type: 'manipular',
+          purpose: {
+            why: 'Para abaratar un índice de búsqueda se puede guardar cada embedding como sus coordenadas en unas pocas componentes principales, en vez de en sus cientos de dimensiones. Esas coordenadas son proyecciones, y su signo depende del sentido de la componente: dos ejecuciones o dos bibliotecas pueden devolver la misma componente con el sentido cambiado.',
+            aim: 'Vas a orientar $u$ en la dirección de máxima varianza y a elegir su sentido para que la coordenada del dato $p$ salga positiva.',
+            takeaway:
+              'La coordenada de $p$ en la primera componente es $2{,}83$ o $-2{,}83$ según el sentido de $u$, y las dos describen lo mismo. Al comprimir embeddings, la consulta y los documentos se proyectan siempre con la misma matriz de componentes, guardada una vez, para que los signos casen.',
+          },
           prompt:
             'Con $C=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, un dato centrado $p=(3, 1)$ queda fijo. La **coordenada** de un dato en una dirección es su proyección sobre ella: la lectura «proy de p sobre u». Mueve $u$, que parte de $(0, 1)$, hasta que apunte en la dirección de **máxima varianza** (lectura $u^{T}Au\\,/\\,u^{T}u$ igual a $4$, con $A=C$) y que la coordenada de $p$ en esa dirección valga **$2{,}83$**, positiva.',
           hints: [
@@ -138,8 +162,14 @@ export const pca: Project = {
         {
           id: 'pca.ex00.5',
           type: 'manipular',
+          purpose: {
+            why: 'La pregunta práctica de PCA es con cuántas componentes quedarse. Se responde con la **varianza explicada**: el autovalor de cada componente dividido entre la suma de todos. Es habitual quedarse con las suficientes para explicar, por ejemplo, el $90\\,\\%$ de la varianza, y saber así cuánto se pierde al comprimir.',
+            aim: 'Vas a construir una covarianza con las varianzas de la diagonal fijadas y una dirección propia dada, y a leer en la elipse cuánto domina esa dirección.',
+            takeaway:
+              'Sale $C=\\begin{pmatrix}3&2\\\\2&3\\end{pmatrix}$, con autovalores $5$ y $1$: la primera componente explica $\\frac{5}{6}\\approx 83\\,\\%$ de la varianza. Proyectar estos datos sobre una sola recta conserva la mayor parte de su variación y pierde el $17\\,\\%$ restante.',
+          },
           prompt:
-            'Construye una matriz de covarianza. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ (sus coordenadas son las columnas de la matriz) hasta que las dos varianzas, los números de la diagonal, valgan **3**; que $v=(1, 1)$, fijo, **no gire** al aplicarle la matriz (la lectura de su ángulo con $A\\,v$ vale $0$°); y que la varianza en la dirección de $v$ valga **5**.',
+            'Construye una matriz de covarianza. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ (sus coordenadas son las columnas de la matriz) hasta que las dos varianzas, los números de la diagonal, valgan **3**; que $v=(1, 1)$, fijo, **no gire** al aplicarle la matriz (la lectura de su ángulo con $A\\,v$ vale $0$°); y que la varianza en la dirección de $v$ valga **5**. La elipse, imagen de la circunferencia unidad, cambia con la matriz que vas formando.',
           hints: [
             'La diagonal fija la $x$ de $\\hat{\\imath}$ y la $y$ de $\\hat{\\jmath}$. Quedan libres la $y$ de $\\hat{\\imath}$ y la $x$ de $\\hat{\\jmath}$. Llámalas $c$ y $b$.',
             'Con $A=\\begin{pmatrix}3&b\\\\c&3\\end{pmatrix}$, $A\\,v=(3+b,\\ c+3)$. Que esté en la recta de $v$ obliga a que sus dos coordenadas coincidan.',
