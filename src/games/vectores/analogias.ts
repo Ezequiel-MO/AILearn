@@ -1,4 +1,5 @@
 import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import { py } from '../py';
 import { analogiasWarmup } from './analogias.calentamiento';
 
 /** Plano del proyecto: rango 6 y rejilla de 1 en 1, salvo que se diga otra cosa. */
@@ -17,9 +18,6 @@ const arrow = (
   movable: boolean,
   label: string = id,
 ): PlaneVector => ({ id, label, x, y, movable });
-
-/** Bloque de código Python para una pista, una línea por argumento. */
-const py = (...lines: string[]): string => ['```python', ...lines, '```'].join('\n');
 
 /** Segundo proyecto de la Órbita 3: aritmética con significados, a − b + c y relaciones como diferencias. */
 export const analogias: Project = {

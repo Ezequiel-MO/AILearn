@@ -1,3 +1,4 @@
+import { describe, expect, it } from 'vitest';
 import type { CodigoQ } from '../../src/content/schema';
 import { runInPyodide, type RunResult } from '../../src/python/core';
 import { loadNodePyodide } from '../../src/python/node';
@@ -84,4 +85,39 @@ export const fillSkeleton = (q: CodigoQ, fills: readonly string[]): string => {
     throw new Error(`${q.id}: el esqueleto tiene ${holes} huecos y hay ${fills.length} rellenos`);
   let i = 0;
   return skeleton.code.replaceAll(HOLE, () => fills[i++]!);
+};
+
+/**
+ * Pruebas de las pistas de las preguntas de código de un proyecto: cada una tiene relleno para el
+ * esqueleto de su última pista, cada ejemplo sin huecos de sus pistas se ejecuta sin error tras el
+ * `starter`, y el esqueleto rellenado con `fills[id]` aprueba. `pyodide` es un getter porque el
+ * intérprete se carga en el `beforeAll` del fichero.
+ */
+export const defineHintTests = (
+  questions: readonly CodigoQ[],
+  fills: Readonly<Record<string, readonly string[]>>,
+  pyodide: () => unknown,
+): void => {
+  describe('pistas de las preguntas de código del proyecto', { timeout: 60_000 }, () => {
+    it('cada pregunta de código tiene relleno para el esqueleto de su última pista', () => {
+      // contract: petición de Oliver 2026-10-28: toda pista de código acaba en un esqueleto con huecos
+      expect(Object.keys(fills).sort()).toEqual(questions.map((q) => q.id).sort());
+    });
+    for (const q of questions) {
+      const examples = hintBlocks(q).filter((b) => !b.code.includes(HOLE));
+      for (const [k, block] of examples.entries()) {
+        it(`${q.id}: el ejemplo ${k + 1} de las pistas se ejecuta sin error tras el starter`, async () => {
+          const r = await runInPyodide(pyodide(), q.starter + block.code, q.checks);
+          // contract: petición de Oliver 2026-10-28: los ejemplos de las pistas se pueden probar tal cual
+          expect(r.error, describeRun(r)).toBeNull();
+        });
+      }
+      it(`${q.id}: el esqueleto de la última pista, rellenado, aprueba`, async () => {
+        const code = q.starter + fillSkeleton(q, fills[q.id] ?? []);
+        const r = await runInPyodide(pyodide(), code, q.checks);
+        // contract: petición de Oliver 2026-10-28: la última pista lleva a una solución que aprueba
+        expect(r.passed, describeRun(r)).toBe(true);
+      });
+    }
+  });
 };
