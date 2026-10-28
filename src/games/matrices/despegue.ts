@@ -1,4 +1,5 @@
 import type { Question } from '../../content/schema';
+import { py } from '../py';
 import { transformPlane } from './plane';
 
 export const launch: Question[] = [
@@ -126,8 +127,17 @@ export const launch: Question[] = [
     prompt:
       'Una matriz de NumPy se construye con una **lista de listas**: cada lista interior es una fila. Por ejemplo, `np.array([[1, 2], [3, 4]])` tiene dos filas y dos columnas, y su atributo `.shape` es la tupla `(2, 2)`, es decir, `(filas, columnas)`.\n\nCrea en `A` la matriz $\\begin{pmatrix}2&0&1\\\\1&3&-1\\end{pmatrix}$ y guarda en `forma` su `.shape`.',
     hints: [
-      'Cada fila es una lista: `[2, 0, 1]` es la primera. Mete las dos filas dentro de otra lista.',
-      '`forma` se lee del propio array `A`, sin paréntesis.',
+      'El plan: escribe cada fila como una lista de tres números (la primera es `[2, 0, 1]`), mete las dos listas dentro de otra lista y pásala a `np.array(...)` para tener `A`. Después `forma` se lee del propio `A` con `.shape`, sin paréntesis. Un error típico: poner los seis números en una sola lista, que da un vector y no una matriz.',
+      'Las piezas, con otros datos (una matriz de tres filas y dos columnas):\n\n' +
+        py(
+          'B = np.array([[1, 2], [3, 4], [5, 6]])   # una lista por fila, todas dentro de otra lista',
+          'print(B)          # se imprime una fila por línea',
+          'print(B.shape)    # (3, 2): primero las filas, luego las columnas',
+        ) +
+        '\n\nLa forma es una tupla: dos números entre paréntesis, el primero el de filas y el segundo el de columnas.',
+      'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+        py('A = np.array([[___], [___]])', 'forma = ___.shape') +
+        '\n\nEn cada uno de los dos primeros huecos va una fila entera, con sus tres números separados por comas. Si la forma sale `(3, 2)`, has puesto las filas como columnas.',
     ],
     explain:
       'Una matriz tiene tantas filas como listas interiores y tantas columnas como elementos tiene cada una. Si la forma no sale `(2, 3)`, revisa cómo has agrupado los números.',
@@ -138,10 +148,26 @@ export const launch: Question[] = [
       '`forma` existe y es una tupla (o una lista) de dos números enteros: el número de filas y el de columnas de `A`.',
     ],
     starter: `import numpy as np
+# Esta línea trae NumPy (la librería de Python para trabajar con números en tablas)
+# y le pone el nombre np, que es como lo vas a escribir.
 
-# Crea A con dos filas y tres columnas, y guarda en forma su .shape
+# PASO 1. Crear la matriz A, con dos filas y tres columnas.
+# Una matriz de NumPy es un array con dos ejes: las filas (de arriba abajo)
+# y las columnas (de izquierda a derecha). Se construye con np.array(...)
+# y una lista de listas: cada lista interior es UNA FILA.
+# Por ejemplo, np.array([[1, 2], [3, 4]]) tiene dos filas, [1, 2] y [3, 4].
+# Aquí hay dos filas de tres números cada una, las de la matriz del enunciado.
+# Sale un array con números, no una lista suelta.
 A = None
+
+# PASO 2. Guardar en forma la forma de A.
+# Todo array de NumPy tiene un atributo .shape (sin paréntesis: no es una función)
+# que dice cuántas filas y columnas tiene. Se lee con el nombre del array,
+# un punto y shape. Es una tupla de dos números: (filas, columnas).
+# Sirve para comprobar que A salió con las filas y columnas que querías.
 forma = None
+
+# Para ver qué vale algo antes de entregar: print(A) o print(forma) y pulsa «Ejecutar».
 `,
     checks: `_exp = np.array([[2, 0, 1], [1, 3, -1]])
 _arr = isinstance(A, np.ndarray) and np.issubdtype(A.dtype, np.number)
@@ -161,8 +187,18 @@ check((not _f) or tuple(forma) == (2, 3), "\`forma\` tiene que valer (2, 3): dos
     prompt:
       'En Python, el operador `@` multiplica una matriz por un vector y devuelve otro vector: la matriz **transforma** el vector. Ya tienes la matriz `A` y el vector `v`. Guarda en `w` el resultado de multiplicar `A` por `v`.',
     hints: [
-      'El operador `@` va entre la matriz y el vector, y la matriz va a la izquierda.',
-      'No lo confundas con `*`, que multiplica componente a componente: es otra operación.',
+      'El plan: `A` es la matriz y `v` es el vector; `w` es el resultado de ponerlos a los dos con `@` en medio, con la matriz a la izquierda y el vector a la derecha. Un error típico: usar `*`, que multiplica componente a componente y da otra cosa, o poner `v` antes que `A`.',
+      'Las piezas, con otros datos:\n\n' +
+        py(
+          'M = np.array([[1, 0], [0, 2]])   # la matriz: dos filas',
+          'u = np.array([3, 4])             # el vector: dos componentes',
+          'print(M @ u)    # [3 8]: el vector transformado, con una componente por cada fila de M',
+          'print(M * u)    # una matriz 2x2: esto NO es lo que se pide',
+        ) +
+        '\n\nCon `@` la matriz va a la izquierda: cada componente del resultado sale de multiplicar una fila de la matriz por el vector.',
+      'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+        py('w = ___ @ ___') +
+        '\n\nA la izquierda de `@` va la matriz y a la derecha el vector. Si los cambias, sale otro vector.',
     ],
     explain:
       'El operador `@` hace el producto de una matriz por un vector, con la matriz a la izquierda. El resultado es un vector nuevo, con una componente por cada fila de la matriz.',
@@ -174,10 +210,24 @@ check((not _f) or tuple(forma) == (2, 3), "\`forma\` tiene que valer (2, 3): dos
     ],
     starter: `import numpy as np
 
+# A es una matriz de NumPy: un array con dos filas, [2, 1] y [0, 3].
+# Ya está hecha: no hace falta tocarla.
 A = np.array([[2, 1], [0, 3]])
+# v es un vector: un array de una sola fila de dos números, sus componentes.
+# Ya está hecho: no hace falta tocarlo.
 v = np.array([1, 2])
-# Guarda en w el resultado de multiplicar A por v
+
+# PASO 1. Guardar en w el resultado de multiplicar A por v.
+# Qué: aplicar la matriz al vector. La matriz transforma el vector y sale otro vector.
+# Por qué: es la idea de todo este juego, que una matriz es una máquina que
+# recibe un vector y devuelve otro.
+# Cómo: el operador @ multiplica una matriz por un vector. Se escribe
+# matriz @ vector, con la matriz a la IZQUIERDA y el vector a la derecha.
+# Ojo: el * de siempre NO hace esto, multiplica componente a componente.
+# Sale un array de NumPy con dos componentes, una por cada fila de A.
 w = None
+
+# Para ver qué vale algo antes de entregar: print(w) y pulsa «Ejecutar».
 `,
     checks: `_arr = isinstance(w, np.ndarray) and np.issubdtype(w.dtype, np.number)
 _ok = _arr and w.shape == (2,)
@@ -195,8 +245,19 @@ check((not _ok) or not np.allclose(w, [2, 7]), "\`w\` vale (2, 7): has multiplic
     prompt:
       'En una matriz de NumPy, `A[i, j]` es el número de la fila `i` y la columna `j` (se empieza a contar en 0), y el símbolo `:` en un sitio significa «todos». Así, `A[0, :]` es la primera fila entera.\n\nGuarda en `col` la primera columna de `A`. Y guarda en `imagen_i` el resultado de multiplicar `A` por el vector $\\hat{\\imath}=(1, 0)$, es decir, adónde manda `A` a $\\hat{\\imath}$. Fíjate en que salen lo mismo.',
     hints: [
-      'Para la primera columna hacen falta todas las filas y una sola columna, la 0: `A[:, 0]`.',
-      'Para `imagen_i`, `np.array([1, 0])` es $\\hat{\\imath}$ y se multiplica con `@`, con la matriz a la izquierda.',
+      'El plan: `col` se saca de `A` con corchetes, pidiendo todas las filas y solo la columna 0. `imagen_i` es `A` multiplicada con `@` por el vector $(1, 0)$, que hay que escribir como `np.array(...)`, con la matriz a la izquierda. Los dos salen igual. Un error típico: `A[0]`, que da la primera fila y no la primera columna.',
+      'Las piezas, con otra matriz:\n\n' +
+        py(
+          'B = np.array([[5, 6], [7, 8]])',
+          'print(B[1, 0])    # 7: fila 1, columna 0 (se cuenta desde 0)',
+          'print(B[0, :])    # [5 6]: la fila 0 entera, el : significa todas las columnas',
+          'print(B[:, 1])    # [6 8]: la columna 1 entera, el : significa todas las filas',
+          'print(B @ np.array([0, 1]))    # [6 8]: igual que la columna 1',
+        ) +
+        '\n\nLos corchetes llevan `[fila, columna]`. El `:` en el primer sitio coge todas las filas, y por eso saca una columna.',
+      'El esqueleto, con huecos `___` donde decides tú:\n\n' +
+        py('col = A[___, ___]', 'imagen_i = A @ np.array([___])') +
+        '\n\nEn los dos huecos de `col` van «todas las filas» y «la columna 0». En el último, las dos componentes de $\\hat{\\imath}$ separadas por una coma.',
     ],
     explain:
       'Multiplicar una matriz por $(1, 0)$ selecciona su primera columna: la columna es el sitio al que va $\\hat{\\imath}$. Y para coger una columna, el `:` en el primer sitio significa «todas las filas».',
@@ -209,11 +270,29 @@ check((not _ok) or not np.allclose(w, [2, 7]), "\`w\` vale (2, 7): has multiplic
     ],
     starter: `import numpy as np
 
+# A es una matriz de NumPy: un array con dos filas, [3, 1] y [2, 4].
+# Ya está hecha: no hace falta tocarla.
 A = np.array([[3, 1], [2, 4]])
-# Guarda en col la primera columna de A
+
+# PASO 1. Guardar en col la primera columna de A.
+# Qué: los números de la primera columna, de arriba abajo.
+# Por qué: la primera columna de una matriz es adónde manda la matriz al vector
+# i = (1, 0); en el paso 2 lo vas a ver.
+# Cómo: A[fila, columna] es el número de esa fila y esa columna, contando desde 0.
+# El símbolo : en un sitio significa «todos». Así A[0, :] es la primera fila entera,
+# y para una columna entera hay que poner el : en el sitio de las filas.
+# Sale un array de NumPy con dos números.
 col = None
-# Guarda en imagen_i el resultado de multiplicar A por el vector (1, 0)
+
+# PASO 2. Guardar en imagen_i el resultado de multiplicar A por el vector (1, 0).
+# Qué: adónde manda A a i = (1, 0).
+# Cómo: primero hay que escribir el vector (1, 0) como un array de NumPy,
+# np.array([...]) con sus dos componentes. Después, el operador @ multiplica
+# la matriz por el vector: matriz @ vector, con la matriz a la IZQUIERDA.
+# Sale un array de NumPy con dos componentes, y es igual que col.
 imagen_i = None
+
+# Para ver qué vale algo antes de entregar: print(col) o print(imagen_i) y pulsa «Ejecutar».
 `,
     checks: `def _vec(a):
     return isinstance(a, np.ndarray) and a.shape == (2,) and np.issubdtype(a.dtype, np.number)

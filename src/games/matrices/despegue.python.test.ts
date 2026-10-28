@@ -4,6 +4,7 @@ import { runInPyodide } from '../../python/core';
 import {
   PYODIDE_LOAD_TIMEOUT_MS,
   codeQuestionProblems,
+  defineHintTests,
   describeRun,
   getPyodide,
 } from '../../../tests/content/python-helpers';
@@ -277,3 +278,14 @@ describe('datos de tipo equivocado: sin errores de NumPy en inglés', { timeout:
     }
   }
 });
+
+// ---------- pistas: los ejemplos se ejecutan y el esqueleto de la última pista, rellenado, aprueba ----------
+
+/** Lo que el jugador escribe en cada hueco `___` del esqueleto de la última pista, en orden. */
+const SKELETON_FILLS: Record<string, string[]> = {
+  'despegue.7': ['2, 0, 1', '1, 3, -1', 'A'],
+  'despegue.8': ['A', 'v'],
+  'despegue.9': [':', '0', '1, 0'],
+};
+
+defineHintTests([...byId.values()], SKELETON_FILLS, () => pyodide);
