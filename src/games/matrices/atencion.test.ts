@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkReachable, checkStartNotSolved } from '../../content/validate';
+import { checkProject, checkReachable, checkStartNotSolved } from '../../content/validate';
 import { grade } from '../../content/grade';
 import { measure } from '../../engine/vectors';
 import {
@@ -8,7 +8,12 @@ import {
   type ManipularQ,
   type Question,
 } from '../../content/schema';
-import { defineProseTests, projectQuestions } from '../../../tests/content/prose-helpers';
+import {
+  checkMessages,
+  defineProseTests,
+  projectQuestions,
+  withoutCode,
+} from '../../../tests/content/prose-helpers';
 import { atencion } from './atencion';
 import { examen3Atencion } from './examen-3-atencion';
 
@@ -46,6 +51,17 @@ const answerOf = (q: Question): unknown => {
 };
 
 describe('proyecto atencion', () => {
+  it('pasa checkProject sin problemas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): checkProject(atencion) devuelve la lista vacía
+    expect(checkProject(atencion)).toEqual([]);
+  });
+
+  it('tiene calentamiento de Python de 1 a 4 fichas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): calentamiento de 1 a 4 fichas enlazado con warmup
+    expect(atencion.warmup?.length).toBeGreaterThanOrEqual(1);
+    expect(atencion.warmup?.length).toBeLessThanOrEqual(4);
+  });
+
   it('se identifica como pide el encargo', () => {
     // contract: encargo de la Órbita 3 de matrices (tabla de la parte común): id atencion, nombre «Atención como matriz», subtítulo «Quién mira a quién»
     expect([atencion.id, atencion.name, atencion.sub]).toEqual([
@@ -55,17 +71,17 @@ describe('proyecto atencion', () => {
     ]);
   });
 
-  it('tiene los tres ejercicios en orden, 5 + 5 preguntas hechas y programar vacío, y tres hojas', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): ex00 manipular y ex01 calcular de 5 preguntas, ex02 programar como marcador vacío; tres hojas
+  it('tiene los tres ejercicios en orden, 5 preguntas cada uno, y tres hojas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): ex00 manipular, ex01 calcular y ex02 programar, de 5 preguntas cada uno; tres hojas
     expect(atencion.exercises.map((e) => e.kind)).toEqual(['manipular', 'calcular', 'programar']);
-    expect(atencion.exercises.map((e) => e.questions.length)).toEqual([5, 5, 0]);
+    expect(atencion.exercises.map((e) => e.questions.length)).toEqual([5, 5, 5]);
     expect(atencion.sheets).toHaveLength(3);
   });
 
   it('los ids siguen el patrón atencion.exNN.k y atencion.hoja.k', () => {
-    // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex01.5` y `<id>.hoja.1`…`<id>.hoja.3` (la fase A no escribe ex02)
+    // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
     expect(projectQuestions(atencion).map((q) => q.id)).toEqual([
-      ...[0, 1].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `atencion.ex0${e}.${k}`)),
+      ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `atencion.ex0${e}.${k}`)),
       'atencion.hoja.1',
       'atencion.hoja.2',
       'atencion.hoja.3',
@@ -280,9 +296,92 @@ describe('ex01 de atencion: Calcular', () => {
     expect(q.type === 'opcion' ? q.options.length : 0).toBe(4);
   });
 
-  it('ex02: queda como marcador vacío hasta la fase B', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): ex02 programar es el marcador vacío
-    expect(ex02!.questions).toEqual([]);
+  it('ex02: cinco preguntas de código', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): ex02 programar, cinco preguntas de código
+    expect(ex02!.questions.map((q) => q.type)).toEqual(Array(5).fill('codigo'));
+  });
+
+  it('ex02: las cifras de las soluciones se recalculan', () => {
+    const softmaxRow = (r: number[]): number[] => {
+      const m = Math.max(...r);
+      const e = r.map((x) => Math.exp(x - m));
+      const t = e.reduce((a, b) => a + b, 0);
+      return e.map((x) => x / t);
+    };
+    const mul = (a: number[][], b: number[][]): number[][] =>
+      a.map((row) => b[0]!.map((_, j) => row.reduce((t, x, k) => t + x * b[k]![j]!, 0)));
+    const T = (a: number[][]): number[][] => a[0]!.map((_, j) => a.map((row) => row[j]!));
+    // contract: ex02.1: Q y K de 6 filas y 3 columnas (los de la pregunta); la consulta 0 con la clave 0 da 1/√3 = 0,58 y con la clave 2 da 4/√3 = 2,31
+    const Q1 = [
+      [1, 0, 2],
+      [2, 1, 0],
+      [0, 1, 1],
+      [1, 1, 1],
+      [2, 0, 1],
+      [0, 2, 1],
+    ];
+    const K1 = [
+      [1, 1, 0],
+      [0, 2, 1],
+      [2, 0, 1],
+      [1, 0, 1],
+      [0, 1, 2],
+      [1, 2, 0],
+    ];
+    const S1 = mul(Q1, T(K1)).map((r) => r.map((x) => x / Math.sqrt(3)));
+    expect(S1[0]![0]).toBeCloseTo(0.58, 2);
+    expect(S1[0]![2]).toBeCloseTo(2.31, 2);
+    // contract: ex02.3: pesos de 4 palabras y V de 4 filas y 2 columnas; la primera palabra da (2,5; 1,5), las columnas suman 0,9; 1,2; 0,8; 1,1 y el mayor de cada fila está en 0, 1, 3, 3
+    const P = [
+      [0.5, 0.25, 0.25, 0],
+      [0.1, 0.6, 0.1, 0.2],
+      [0, 0.25, 0.25, 0.5],
+      [0.3, 0.1, 0.2, 0.4],
+    ];
+    const V3 = [
+      [4, 0],
+      [0, 4],
+      [2, 2],
+      [1, 3],
+    ];
+    const out = mul(P, V3);
+    expect(out[0]![0]).toBeCloseTo(2.5, 12);
+    expect(out[0]![1]).toBeCloseTo(1.5, 12);
+    [0.9, 1.2, 0.8, 1.1].forEach((c, j) =>
+      expect(P.reduce((t, r) => t + r[j]!, 0)).toBeCloseTo(c, 12),
+    );
+    expect(P.map((r) => r.indexOf(Math.max(...r)))).toEqual([0, 1, 3, 3]);
+    // contract: ex02.5: 5 palabras con máscara causal: la primera fila de pesos es (1, 0, 0, 0, 0), la última (0,08; 0,26; 0,15; 0,05; 0,46) y su salida (0,84; 0,82)
+    const Q5 = [
+      [1, 0, 1],
+      [0, 2, 1],
+      [1, 1, 0],
+      [2, 0, 0],
+      [0, 1, 2],
+    ];
+    const K5 = [
+      [1, 1, 0],
+      [0, 1, 1],
+      [2, 0, 1],
+      [1, 0, 0],
+      [0, 2, 1],
+    ];
+    const V5 = [
+      [1, 0],
+      [0, 1],
+      [2, 0],
+      [0, 2],
+      [1, 1],
+    ];
+    const S5 = mul(Q5, T(K5)).map((r, i) =>
+      r.map((x, j) => (j > i ? -Infinity : x / Math.sqrt(3))),
+    );
+    const W5 = S5.map(softmaxRow);
+    expect(W5[0]).toEqual([1, 0, 0, 0, 0]);
+    [0.08, 0.26, 0.15, 0.05, 0.46].forEach((w, j) => expect(W5[4]![j]).toBeCloseTo(w, 2));
+    const o5 = mul(W5, V5);
+    expect(o5[4]![0]).toBeCloseTo(0.84, 2);
+    expect(o5[4]![1]).toBeCloseTo(0.82, 2);
   });
 });
 
@@ -324,16 +423,17 @@ describe('banco examen-3 de atencion', () => {
     }
   });
 
-  it('dos entradas fijas de este paso, del proyecto y con ids únicos', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): una opcion y un numero, project atencion, ids examen-3.<tema>
+  it('tres entradas fijas, del proyecto y con ids únicos', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): una opcion, un numero y un codigo, project atencion, ids examen-3.<tema>
     expect(examen3Atencion.map((e) => [e.project, e.question.id, e.question.type])).toEqual([
       ['atencion', 'examen-3.mascara-causal', 'opcion'],
       ['atencion', 'examen-3.pesos-no-nulos', 'numero'],
+      ['atencion', 'examen-3.palabra-mas-dispersa', 'codigo'],
     ]);
   });
 
   it('respuestas del banco', () => {
-    const [op, nu] = bankQuestions as Graded[] as [Graded, Graded];
+    const [op, nu] = bankQuestions.slice(0, 2) as [Graded, Graded];
     // contract: máscara causal: peso 0 sobre las posteriores y la fila sigue sumando 1 (opción 1)
     expect(answerOf(op)).toBe(1);
     // contract: 6 palabras con máscara causal: 1 + 2 + 3 + 4 + 5 + 6 = 21 entradas posibles de 36
@@ -342,5 +442,52 @@ describe('banco examen-3 de atencion', () => {
     expect(grade(op, { type: 'opcion', index: 1 })).toBe(true);
     expect(grade(nu, { type: 'numero', value: 21 })).toBe(true);
     expect(grade(nu, { type: 'numero', value: 15 })).toBe(false);
+  });
+
+  it('palabra-mas-dispersa: los pesos y la posición se recalculan', () => {
+    // contract: Q = (1, 0), (0, 2), (1, 1) y K = (1, 0), (0, 1), (2, 0), (1, 2): pesos mayores 0,45; 0,73 y 0,51 (con raíz de 2), el menor en la palabra 0
+    const Q = [
+      [1, 0],
+      [0, 2],
+      [1, 1],
+    ];
+    const K = [
+      [1, 0],
+      [0, 1],
+      [2, 0],
+      [1, 2],
+    ];
+    const maxes = Q.map((q) => {
+      const s = K.map((k) => (q[0]! * k[0]! + q[1]! * k[1]!) / Math.sqrt(2));
+      const m = Math.max(...s);
+      const e = s.map((x) => Math.exp(x - m));
+      return Math.max(...e) / e.reduce((a, b) => a + b, 0);
+    });
+    [0.45, 0.73, 0.51].forEach((w, i) => expect(maxes[i]).toBeCloseTo(w, 2));
+    expect(maxes.indexOf(Math.min(...maxes))).toBe(0);
+  });
+});
+
+describe('atencion: lo que ninguna regla por pregunta ve', () => {
+  const code = [...projectQuestions(atencion), ...bankQuestions].filter(
+    (q): q is CodigoQ => q.type === 'codigo',
+  );
+
+  it('los mensajes de las comprobaciones llevan el código en línea entre acentos graves', () => {
+    for (const q of code) {
+      for (const m of checkMessages(q)) {
+        // contract: rereview-17d n1 (prosa.test.ts): `np.`, `plt.`, `None` y `emb` van en código en línea
+        expect(withoutCode(m), `${q.id}: ${m}`).not.toMatch(/\b(np|plt)\.\w|\bNone\b|\bemb\b/);
+      }
+    }
+  });
+
+  it('cada pregunta de código tiene mensajes que revisar', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): cinco preguntas de código en ex02 y una en el banco
+    expect(code.map((q) => q.id)).toEqual([
+      ...[1, 2, 3, 4, 5].map((n) => `atencion.ex02.${n}`),
+      'examen-3.palabra-mas-dispersa',
+    ]);
+    for (const c of code) expect(checkMessages(c).length, c.id).toBeGreaterThan(0);
   });
 });
