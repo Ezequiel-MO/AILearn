@@ -59,7 +59,7 @@ forma = afinidad.shape
   },
   {
     id: 'atencion.cal.2',
-    title: '`axis=1, keepdims=True`: normalizar cada fila',
+    title: '`axis` y `keepdims=True`: normalizar cada fila',
     explain:
       '`T.sum(axis=1)` suma **cada fila** (a lo largo de las columnas) y devuelve un número por fila; `T.sum(axis=0)` suma cada columna. Para dividir una tabla entre esas sumas hay un problema: un array de 3 números no se puede alinear con las filas de una tabla de 3 filas y 4 columnas, porque NumPy alinea por la última columna.\n\n`keepdims=True` lo arregla: la suma sale como una **columna** de 3 filas y 1 columna, y `T / T.sum(axis=1, keepdims=True)` divide cada fila entre su propia suma. El resultado tiene la suma de cada fila igual a 1, pero no la de cada columna.\n\n`np.exp(x)` es el exponencial de cada número: siempre positivo. Exponenciar y luego normalizar cada fila es el **softmax** por filas.',
     example: `import numpy as np
@@ -171,7 +171,7 @@ limpia = np.where(futuro, 0, puntos)
   },
   {
     id: 'atencion.cal.4',
-    title: '`argmax(axis=1)`: la mejor columna de cada fila',
+    title: '`argmax` con `axis`: la mejor columna de cada fila',
     explain:
       '`T.argmax()` sin más da la posición del mayor número de toda la tabla, aplanada. Con `axis=1` busca **en cada fila** y devuelve un número por fila: la columna donde está el mayor. Con `axis=0` busca en cada columna y devuelve la fila.\n\n`T.max(axis=1)` usa el mismo eje pero devuelve el **valor** del mayor en vez de su posición. Las posiciones empiezan en 0. Si hay un empate, `argmax` devuelve la primera posición.\n\nEn una tabla donde cada fila reparte atención entre columnas, `argmax(axis=1)` dice a quién mira más cada fila, y `T.sum(axis=0)` dice cuánta atención recibe cada columna.',
     example: `import numpy as np
