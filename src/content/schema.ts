@@ -23,6 +23,7 @@ const METRICS = [
   'img_y',
   'img_angle',
   'rayleigh',
+  'stretch',
 ] as const satisfies readonly Metric[];
 
 /** Lecturas que comparan los dos vectores de `pair`. */
@@ -39,8 +40,11 @@ export const planeVectorSchema = z.strictObject({
 /** Lecturas de la matriz A cuyas columnas son los vectores de `transform.columns`. */
 const TRANSFORM_READOUTS = ['matrix', 'det'] as const;
 
-/** Lecturas por cada vector de `transform.apply`: su imagen, el ángulo con ella y el cociente de Rayleigh. */
-const APPLY_READOUTS = ['image', 'img_angle', 'rayleigh'] as const;
+/**
+ * Lecturas por cada vector de `transform.apply`: su imagen, el ángulo con ella, el cociente de Rayleigh y
+ * el estiramiento |A·v| / |v|.
+ */
+const APPLY_READOUTS = ['image', 'img_angle', 'rayleigh', 'stretch'] as const;
 
 /**
  * Transformación lineal dibujada en el plano: A tiene por columnas las posiciones actuales de los

@@ -918,6 +918,15 @@ describe('VectorPlane: lecturas de autovectores y elipse (Órbita 2)', () => {
     expect(pts[0]).toBe(`${CENTER + 2 * unit},${CENTER - 1 * unit}`);
     expect(container.innerHTML).not.toMatch(/NaN|Infinity/); // contract: brief de la tarea 1 de la Órbita 2, nada roto
   });
+  it('la lectura stretch muestra |A·w| / |w| y un texto fijo con w nulo (Órbita 3)', () => {
+    const st = aspec({ readouts: ['stretch'] });
+    const first = render(<VectorPlane spec={st} positions={{ v: [1, 1] }} />);
+    expect(rowOf('|A·w| / |w|')).toBe('3'); // contract: encargo de la Órbita 3 de matrices, A·(1,1) = (3,3) y |(3,3)| / |(1,1)| = 3
+    first.unmount();
+    const { container } = render(<VectorPlane spec={st} positions={{ v: [0, 0] }} />);
+    expect(rowOf('|A·w| / |w|')).toBe('sin dirección'); // contract: encargo de la Órbita 3 de matrices, v nulo no tiene dirección
+    expect(container.innerHTML).not.toMatch(/NaN/); // contract: encargo de la Órbita 3 de matrices, nada de NaN en pantalla
+  });
   it('con A singular la elipse degenera en un segmento sin romper nada', () => {
     const { container } = render(
       <VectorPlane

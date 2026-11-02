@@ -37,6 +37,8 @@ export const t = {
     imgAngleName: (name: string) => `ángulo(${name}, A·${name})`,
     rayleighName: (name: string) => `${name}ᵀA${name} / ${name}ᵀ${name}`,
     noRayleigh: 'sin dirección',
+    // estiramiento: cuánto alarga A la dirección del vector (sus extremos son los valores singulares)
+    stretchName: (name: string) => `|A·${name}| / |${name}|`,
   },
 
   // --- Preguntas (tarea 10) ---

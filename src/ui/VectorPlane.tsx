@@ -325,7 +325,12 @@ export function VectorPlane({
       }
     } else if (kind === 'det') {
       rows.push({ key: 'det', name: t.plane.detName, value: fmt(detA) });
-    } else if (kind === 'image' || kind === 'img_angle' || kind === 'rayleigh') {
+    } else if (
+      kind === 'image' ||
+      kind === 'img_angle' ||
+      kind === 'rayleigh' ||
+      kind === 'stretch'
+    ) {
       // una fila por cada vector de transform.apply, en su orden; el esquema exige transform y apply
       if (transform) {
         for (const id of transform.apply ?? []) {
@@ -344,11 +349,18 @@ export function VectorPlane({
               name: t.plane.imgAngleName(label),
               value: Number.isNaN(value) ? t.plane.noAngle : `${fmt(value)}°`,
             });
-          } else {
+          } else if (kind === 'rayleigh') {
             const value = measure('rayleigh', of, asVecs);
             rows.push({
               key: `rayleigh-${id}`,
               name: t.plane.rayleighName(label),
+              value: Number.isNaN(value) ? t.plane.noRayleigh : fmt(value),
+            });
+          } else {
+            const value = measure('stretch', of, asVecs);
+            rows.push({
+              key: `stretch-${id}`,
+              name: t.plane.stretchName(label),
               value: Number.isNaN(value) ? t.plane.noRayleigh : fmt(value),
             });
           }

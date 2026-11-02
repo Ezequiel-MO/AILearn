@@ -244,6 +244,23 @@ describe('checkReachable con img_angle (Órbita 2)', () => {
   });
 });
 
+describe('checkReachable con stretch (Órbita 3)', () => {
+  it('A fija (2 2; −1 1) y v móvil desde (1, 0): v = (1, 1) da σ₁ = 2√2 y no está resuelta al inicio', () => {
+    const vs: Mover[] = [
+      { id: 'i', x: 2, y: -1, movable: false },
+      { id: 'j', x: 2, y: 1, movable: false },
+      { id: 'v', x: 1, y: 0, movable: true },
+    ];
+    const goals: ManipularQ['goals'] = [
+      { metric: 'stretch', of: ['i', 'j', 'v'], target: 2.83, tol: 0.01 },
+    ];
+    // contract: encargo de la Órbita 3 de matrices: |A·(1,1)| / |(1,1)| = 4 / √2 ≈ 2,828 en la rejilla de snap 1
+    expect(checkReachable(manipular('q', vs, goals, 3))).toEqual([]);
+    // contract: encargo de la Órbita 3 de matrices: desde v = (1,0) el estiramiento es √5 ≈ 2,24, no 2,83
+    expect(checkStartNotSolved(manipular('q', vs, goals, 3))).toEqual([]);
+  });
+});
+
 describe('checkReachable', () => {
   const at = (x: number) => [{ metric: 'x' as const, of: ['u'], target: x, tol: 0.1 }];
 

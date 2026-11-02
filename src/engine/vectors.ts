@@ -15,7 +15,8 @@ export type Metric =
   | 'img_x'
   | 'img_y'
   | 'img_angle'
-  | 'rayleigh';
+  | 'rayleigh'
+  | 'stretch';
 
 const sameDim = (a: Vec, b: Vec): void => {
   if (a.length !== b.length) {
@@ -111,6 +112,7 @@ export const METRIC_ARITY: Record<Metric, 1 | 2 | 3> = {
   img_y: 3,
   img_angle: 3,
   rayleigh: 3,
+  stretch: 3,
 };
 
 /**
@@ -120,6 +122,8 @@ export const METRIC_ARITY: Record<Metric, 1 | 2 | 3> = {
  * el ángulo en grados entre v y su imagen A·v (NaN si v o A·v es nulo). `rayleigh` de `[i, j, v]` es
  * v·(A·v) / v·v: vale λ si v es autovector de autovalor λ; si A es una matriz de covarianza, es la
  * varianza de los datos en la dirección de v; no depende de la longitud de v (NaN si v es nulo).
+ * `stretch` de `[i, j, v]` es |A·v| / |v|, cuánto estira A la dirección de v: su máximo y su mínimo son
+ * los valores singulares σ₁ y σ₂; tampoco depende de la longitud de v (NaN si v es nulo).
  * `proj` es la proyección escalar del primero sobre el segundo. `cos`, `angle` y `proj` dan NaN
  * cuando el ángulo no existe (vector nulo), y NaN no cumple ninguna meta.
  */
@@ -167,6 +171,11 @@ export const measure = (metric: Metric, of: string[], vectors: Record<string, Ve
       const cc = dot(c, c);
       if (cc === 0) return NaN;
       return dot(c, applyColumns(a, b, c)) / cc;
+    }
+    case 'stretch': {
+      const nc = norm(c);
+      if (nc === 0) return NaN;
+      return norm(applyColumns(a, b, c)) / nc;
     }
   }
 };

@@ -181,3 +181,27 @@ describe('img_angle y rayleigh (Órbita 2)', () => {
     expect(() => measure('rayleigh', ['i', 'j', 'v', 'v'], vs)).toThrow(); // contract: brief de la tarea 1 de la Órbita 2, aridad 3
   });
 });
+
+describe('stretch (Órbita 3)', () => {
+  // A = (2 2; −1 1): sin autovalores reales, valores singulares 2√2 y √2 en las direcciones (1, 1) y (1, −1)
+  const a = { i: [2, -1], j: [2, 1] };
+  const at = (v: number[], m: Record<string, number[]> = a) =>
+    measure('stretch', ['i', 'j', 'v'], { ...m, v });
+
+  it('vale σ₁ y σ₂ en las direcciones singulares y no depende de la longitud', () => {
+    expect(at([1, 1])).toBeCloseTo(2 * Math.SQRT2, 9); // contract: encargo de la Órbita 3 de matrices, A·(1,1) = (4,0) y |(4,0)| / √2 = 2√2
+    expect(at([2, 2])).toBeCloseTo(2 * Math.SQRT2, 9); // contract: encargo de la Órbita 3 de matrices, misma dirección, mismo estiramiento
+    expect(at([1, -1])).toBeCloseTo(Math.SQRT2, 9); // contract: encargo de la Órbita 3 de matrices, A·(1,−1) = (0,−2) y 2 / √2 = √2
+  });
+  it('de (1, 0) es la longitud de la primera columna', () => {
+    expect(at([1, 0])).toBeCloseTo(Math.sqrt(5), 9); // contract: encargo de la Órbita 3 de matrices, A·(1,0) = (2,−1)
+  });
+  it('vale 0 en el núcleo de una matriz singular y NaN con v nulo', () => {
+    const singular = { i: [2, 1], j: [2, 1] };
+    expect(at([1, -1], singular)).toBe(0); // contract: encargo de la Órbita 3 de matrices, A·(1,−1) = (0,0)
+    expect(at([0, 0])).toBeNaN(); // contract: encargo de la Órbita 3 de matrices, v nulo no tiene dirección
+  });
+  it('exige tres vectores', () => {
+    expect(() => measure('stretch', ['i', 'j'], { ...a, v: [1, 0] })).toThrow(); // contract: encargo de la Órbita 3 de matrices, aridad 3
+  });
+});

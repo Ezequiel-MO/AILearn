@@ -428,6 +428,20 @@ describe('métricas y lecturas de autovectores (Órbita 2)', () => {
       ).toBe(true);
     }
   });
+  it('stretch exige tres vectores en una meta y su lectura, transform con apply', () => {
+    // contract: encargo de la Órbita 3 de matrices: stretch de [i, j, v] como img_angle y rayleigh
+    expect(questionSchema.safeParse(q('stretch', ['i', 'j', 'v'])).success).toBe(true);
+    expect(questionSchema.safeParse(q('stretch', ['i', 'j'])).success).toBe(false);
+    const withReadout = { ...tplane, readouts: ['stretch'] };
+    // contract: encargo de la Órbita 3 de matrices: la lectura stretch es por vector de transform.apply
+    expect(planeSpecSchema.safeParse(withReadout).success).toBe(false);
+    expect(
+      planeSpecSchema.safeParse({
+        ...withReadout,
+        transform: { columns: ['i', 'j'], apply: ['v'] },
+      }).success,
+    ).toBe(true);
+  });
   it('circleImage exige circle y transform', () => {
     const transform = { columns: ['i', 'j'], apply: ['v'] };
     // contract: brief de la tarea 1 de la Órbita 2: la elipse es la imagen de la circunferencia por A
