@@ -24,11 +24,13 @@ describe('el juego «Matrices y transformaciones»', () => {
       10,
     ]);
     // contract: primera entrega del juego 2 (2026-10-17): despegue y Órbita 0 «La máquina»; README: la siguiente es
-    // «El área» (determinante, inversa, rango), entregada el 2026-10-20, y «Direcciones propias» (autovectores, simétricas, PCA), entregada el 2026-10-26; las demás órbitas llegan después
+    // «El área» (determinante, inversa, rango), entregada el 2026-10-20, «Direcciones propias» (autovectores, simétricas, PCA), entregada el 2026-10-26,
+    // y «Descomponer y aproximar» (SVD, rango bajo y LoRA, atención), entregada el 2026-11-02, la última de src/games/roadmap.ts
     expect(matrices.orbits.map((o) => o.name)).toEqual([
       'La máquina',
       'El área',
       'Direcciones propias',
+      'Descomponer y aproximar',
     ]);
   });
 

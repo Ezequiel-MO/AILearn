@@ -2,9 +2,9 @@
 
 Juegos para aprender ingeniería de IA con la matemática como columna vertebral. Cada juego enseña un bloque de matemáticas y lo aplica a un tema de IA. Los niveles tienen un despegue de entrada, órbitas con proyectos de tres ejercicios que se validan con nota 80 y un examen por órbita, con XP y nivel decimal.
 
-Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings», y el despegue, la órbita 0 («La máquina»: Columnas, Matriz por vector, Componer), la órbita 1 («El área»: Determinante, Inversa, Rango) y la órbita 2 («Direcciones propias»: Autovectores, Matrices simétricas, PCA) del juego 2, «Matrices y transformaciones». Todo el texto visible está en castellano.
+Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings», y el despegue, la órbita 0 («La máquina»: Columnas, Matriz por vector, Componer), la órbita 1 («El área»: Determinante, Inversa, Rango), la órbita 2 («Direcciones propias»: Autovectores, Matrices simétricas, PCA) y la órbita 3 («Descomponer y aproximar»: SVD, Rango bajo y LoRA, Atención como matriz) del juego 2, «Matrices y transformaciones». Todo el texto visible está en castellano.
 
-Siguientes órbitas previstas del juego 2: «Direcciones propias» (autovectores) y «Descomponer y aproximar» (SVD, rango bajo y LoRA, atención como producto de matrices), como en `src/games/roadmap.ts`.
+Con la órbita 3, el juego 2 tiene construidas todas las órbitas que prevé `src/games/roadmap.ts`.
 
 El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. La ruta completa (los nueve juegos previstos, con sus órbitas y proyectos) vive en `src/games/roadmap.ts` y se ve en `#/ruta`, enlazada desde el inicio; lo que no está construido sale como «Próximamente».
 
@@ -48,7 +48,7 @@ src/
   ui/         Marco, plano de vectores, editor, tipos de pregunta, pantallas y textos fijos.
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
     vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, embeddings de juguete.
-    matrices/ Juego 2: Despegue, proyectos de las Órbitas 0 a 2, sus bancos de examen y `plane.ts` (plano con î y ĵ como columnas).
+    matrices/ Juego 2: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen y `plane.ts` (plano con î y ĵ como columnas).
 tests/
   content/    Pruebas que recorren el registro de juegos y ayudantes compartidos.
   deps/       Imports declarados en package.json y versión única de KaTeX.
