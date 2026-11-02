@@ -1,9 +1,20 @@
 import { describe, expect, it } from 'vitest';
-import { checkReachable, checkStartNotSolved } from '../../content/validate';
+import { checkProject, checkReachable, checkStartNotSolved } from '../../content/validate';
 import { grade } from '../../content/grade';
 import { measure } from '../../engine/vectors';
-import { bankEntrySchema, type ManipularQ, type Question } from '../../content/schema';
-import { defineProseTests, projectQuestions } from '../../../tests/content/prose-helpers';
+import {
+  bankEntrySchema,
+  type CodigoQ,
+  type ManipularQ,
+  type Question,
+} from '../../content/schema';
+import {
+  checkMessages,
+  defineProseTests,
+  projectQuestions,
+  withoutCode,
+} from '../../../tests/content/prose-helpers';
+import { warmupAsQuestion } from '../../../tests/content/warmup-helpers';
 import { svd } from './svd';
 import { examen3Svd } from './examen-3-svd';
 
@@ -13,6 +24,7 @@ const bankQuestions = examen3Svd
 
 defineProseTests('proyecto svd', projectQuestions(svd));
 defineProseTests('banco examen-3 svd', bankQuestions);
+defineProseTests('calentamiento svd', (svd.warmup ?? []).map(warmupAsQuestion));
 
 type V = [number, number];
 type M = [[number, number], [number, number]];
@@ -41,17 +53,28 @@ describe('proyecto svd', () => {
     expect([svd.id, svd.name, svd.sub]).toEqual(['svd', 'SVD', 'Girar, estirar, girar']);
   });
 
-  it('tiene tres ejercicios, de los tipos del encargo, y tres hojas (programar vacío hasta la fase B)', () => {
-    // contract: encargo de la Órbita 3 de matrices: ex00 manipular, ex01 calcular, ex02 programar; 5 + 5 preguntas hechas; tres hojas
+  it('pasa checkProject sin problemas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): checkProject(svd) devuelve la lista vacía
+    expect(checkProject(svd)).toEqual([]);
+  });
+
+  it('tiene calentamiento de Python de 1 a 4 fichas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): calentamiento de 1 a 4 fichas enlazado con warmup
+    expect(svd.warmup?.length).toBeGreaterThanOrEqual(1);
+    expect(svd.warmup?.length).toBeLessThanOrEqual(4);
+  });
+
+  it('tiene tres ejercicios de 5 preguntas, de los tipos del encargo, y tres hojas', () => {
+    // contract: encargo de la Órbita 3 de matrices: ex00 manipular, ex01 calcular, ex02 programar; 5 preguntas cada uno; tres hojas
     expect(svd.exercises.map((e) => e.kind)).toEqual(['manipular', 'calcular', 'programar']);
-    expect(svd.exercises.map((e) => e.questions.length)).toEqual([5, 5, 0]);
+    expect(svd.exercises.map((e) => e.questions.length)).toEqual([5, 5, 5]);
     expect(svd.sheets).toHaveLength(3);
   });
 
   it('los ids siguen el patrón svd.exNN.k y svd.hoja.k', () => {
     // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex01.5` y `<id>.hoja.1`…`<id>.hoja.3`
     expect(projectQuestions(svd).map((q) => q.id)).toEqual([
-      ...[0, 1].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `svd.ex0${e}.${k}`)),
+      ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `svd.ex0${e}.${k}`)),
       'svd.hoja.1',
       'svd.hoja.2',
       'svd.hoja.3',
@@ -362,9 +385,86 @@ describe('valores de la tabla del proyecto svd', () => {
     expect(q.type === 'opcion' ? q.options.length : 0).toBe(4);
   });
 
-  it('ex02: programar está vacío hasta la fase B', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): el ejercicio programar es un marcador sin preguntas
-    expect(svd.exercises[2]).toEqual({ kind: 'programar', questions: [] });
+  it('ex02: cinco preguntas de código', () => {
+    // contract: encargo de la Órbita 3 de matrices: ex02 programar, cinco preguntas de código
+    expect(svd.exercises[2]!.questions.map((q) => q.type)).toEqual(Array(5).fill('codigo'));
+  });
+
+  it('ex02: las cifras de las soluciones se recalculan', () => {
+    // contract: ex02.1: A = (3 2; 0 2): AᵀA = (9 6; 6 8), autovalores 8,5 ± √6,25... se recalculan con sv2: σ₁ = 3,81 y σ₂ = 1,57
+    const A: M = [
+      [3, 2],
+      [0, 2],
+    ];
+    expect(sv2(A)[0]).toBeCloseTo(3.81, 2);
+    expect(sv2(A)[1]).toBeCloseTo(1.57, 2);
+    // contract: ex02.1: v₁ ≈ (0,74; 0,68) y A·v₁ ≈ (3,56; 1,35), de norma σ₁ (u₁ ≈ (0,93; 0,36))
+    const v1: V = [0.73588229, 0.67710949];
+    expect(apply(A, v1)[0]).toBeCloseTo(3.56, 2);
+    expect(apply(A, v1)[1]).toBeCloseTo(1.35, 2);
+    expect(norm(apply(A, v1))).toBeCloseTo(sv2(A)[0], 6);
+    // contract: ex02.2: A = (1 0; 2 1; 0 3): AᵀA = (1+4 2; 2 1+9) = (5 2; 2 10), autovalores 7,5 ± √(6,25+4) = 10,70 y 4,30: σ = 3,27 y 2,07
+    const ata2: M = [
+      [5, 2],
+      [2, 10],
+    ];
+    const tr2 = ata2[0][0] + ata2[1][1];
+    const d2 = Math.sqrt(tr2 * tr2 - 4 * det2(ata2));
+    expect(Math.sqrt((tr2 + d2) / 2)).toBeCloseTo(3.27, 2);
+    expect(Math.sqrt((tr2 - d2) / 2)).toBeCloseTo(2.07, 2);
+    // contract: ex02.3: A = (2 1; 0 2; 1 0): AᵀA = (4+0+1 2+0+0; 2 1+4+0) = (5 2; 2 5), autovalores 7 y 3: σ = √7 ≈ 2,65 y √3 ≈ 1,73
+    const ata3: M = [
+      [5, 2],
+      [2, 5],
+    ];
+    expect(2 * 2 + 0 * 0 + 1 * 1).toBe(ata3[0][0]);
+    expect(1 * 1 + 2 * 2 + 0 * 0).toBe(ata3[1][1]);
+    expect(2 * 1 + 0 * 2 + 1 * 0).toBe(ata3[0][1]);
+    expect(ata3[0][0] + ata3[1][1]).toBe(10);
+    expect(det2(ata3)).toBe(21);
+    expect((10 + Math.sqrt(100 - 84)) / 2).toBe(7);
+    expect((10 - Math.sqrt(100 - 84)) / 2).toBe(3);
+    expect(Math.sqrt(7)).toBeCloseTo(2.65, 2);
+    expect(Math.sqrt(3)).toBeCloseTo(1.73, 2);
+    // contract: ex02.5: W = (3 1 0; 1 2 −1; 0 2 2) y x = (0,6; 0; 0,8): W·x = (1,8; −0,2; 1,6), de norma 2,42; con σ₁ = 3,82 (NumPy) la salida normalizada mide 0,63
+    const W = [
+      [3, 1, 0],
+      [1, 2, -1],
+      [0, 2, 2],
+    ];
+    const x = [0.6, 0, 0.8];
+    const wx = W.map((r) => r[0]! * x[0]! + r[1]! * x[1]! + r[2]! * x[2]!);
+    expect(Math.hypot(...wx)).toBeCloseTo(2.42, 2);
+    expect(Math.hypot(...wx) / 3.816353138401893).toBeCloseTo(0.63, 2);
+  });
+
+  it('ex02: los mensajes de las comprobaciones llevan el código en línea entre acentos graves', () => {
+    const code = [...projectQuestions(svd), ...bankQuestions].filter(
+      (q): q is CodigoQ => q.type === 'codigo',
+    );
+    // contract: encargo de la Órbita 3 de matrices: cinco preguntas de código en ex02 y una en el banco
+    expect(code.map((q) => q.id)).toEqual([
+      ...[1, 2, 3, 4, 5].map((n) => `svd.ex02.${n}`),
+      'examen-3.volumen-con-valores-singulares',
+    ]);
+    for (const q of code) {
+      expect(checkMessages(q).length, q.id).toBeGreaterThan(0);
+      const names = new Set(
+        [...`${q.starter}\n${q.reference}`.matchAll(/^(\w+)\s*=/gm)].map((m) => m[1]!),
+      );
+      for (const m of checkMessages(q)) {
+        const plain = withoutCode(m);
+        // contract: rereview-17d n1 (prosa.test.ts): `np.`, `plt.` y `None` van en código en línea
+        expect(plain, `${q.id}: ${m}`).not.toMatch(/\b(np|plt)\.\w|\bNone\b/);
+        for (const n of names)
+          // contract: review-18r m3 (M18, prosa.test.ts): ningún nombre que el jugador escribe va suelto en un mensaje
+          expect(plain, `${q.id}: ${m}`).not.toMatch(
+            new RegExp(`(?<![\\p{L}_\\d])${n}(?![\\p{L}_\\d])`, 'u'),
+          );
+        // contract: review-18r bn1 (prosa.test.ts): las comillas rectas son código
+        expect(plain, `${q.id}: ${m}`).not.toMatch(/\\?"/);
+      }
+    }
   });
 
   it('hojas: línea errónea de cada una y formato', () => {
@@ -415,14 +515,15 @@ describe('valores de la tabla del proyecto svd', () => {
 });
 
 describe('banco de examen 3 del proyecto svd', () => {
-  it('tiene dos entradas fijas del proyecto svd, con ids examen-3.* (la de código la añade la fase B)', () => {
-    // contract: encargo de la Órbita 3 de matrices (svd): entradas `{ project: 'svd', question }` con una opción y un número de ids examen-3.svd-sin-autovalores y examen-3.numero-de-condicion
-    expect(examen3Svd.map((e) => e.project)).toEqual(['svd', 'svd']);
+  it('tiene tres entradas fijas del proyecto svd, con ids examen-3.*', () => {
+    // contract: encargo de la Órbita 3 de matrices (svd): entradas `{ project: 'svd', question }` con una opción, un número y un código, de ids examen-3.svd-sin-autovalores, examen-3.numero-de-condicion y examen-3.volumen-con-valores-singulares
+    expect(examen3Svd.map((e) => e.project)).toEqual(['svd', 'svd', 'svd']);
     expect(examen3Svd.map((e) => e.question.id)).toEqual([
       'examen-3.svd-sin-autovalores',
       'examen-3.numero-de-condicion',
+      'examen-3.volumen-con-valores-singulares',
     ]);
-    expect(examen3Svd.map((e) => e.question.type)).toEqual(['opcion', 'numero']);
+    expect(examen3Svd.map((e) => e.question.type)).toEqual(['opcion', 'numero', 'codigo']);
   });
 
   it('cada entrada cumple el esquema del banco, ninguna usa un id reservado y no chocan con el proyecto', () => {
@@ -442,7 +543,7 @@ describe('banco de examen 3 del proyecto svd', () => {
   });
 
   it('respuestas del banco', () => {
-    const [opc, num] = examen3Svd.map((e) => e.question);
+    const [opc, num, cod] = examen3Svd.map((e) => e.question);
     // contract: examen-3.svd-sin-autovalores: la opción correcta es la 1, «existe, como en toda matriz»
     expect(
       opc!.type === 'opcion' ? [opc!.correct, opc!.options.length, opc!.options[opc!.correct]] : [],
@@ -464,5 +565,17 @@ describe('banco de examen 3 del proyecto svd', () => {
     expect(num!.type === 'numero' ? [num!.answer, num!.tol] : []).toEqual([3, 0]);
     expect(Math.sqrt(36) / Math.sqrt(4)).toBe(3);
     expect(36 / 4).toBe(9);
+    // contract: examen-3.volumen-con-valores-singulares: V = (2 −1 1; 0 3 1; 1 1 −2) tiene det = 2·(−6−1) − (−1)·(0−1) + 1·(0−3) = −14 − 1 − 3 = −18, y |det| = producto de los σ = 18
+    expect(cod!.type).toBe('codigo');
+    const V = [
+      [2, -1, 1],
+      [0, 3, 1],
+      [1, 1, -2],
+    ];
+    const detV =
+      V[0]![0]! * (V[1]![1]! * V[2]![2]! - V[1]![2]! * V[2]![1]!) -
+      V[0]![1]! * (V[1]![0]! * V[2]![2]! - V[1]![2]! * V[2]![0]!) +
+      V[0]![2]! * (V[1]![0]! * V[2]![1]! - V[1]![1]! * V[2]![0]!);
+    expect(detV).toBe(-18);
   });
 });
