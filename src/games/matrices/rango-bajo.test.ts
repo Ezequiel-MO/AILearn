@@ -1,9 +1,19 @@
 import { describe, expect, it } from 'vitest';
-import { checkReachable, checkStartNotSolved } from '../../content/validate';
+import { checkProject, checkReachable, checkStartNotSolved } from '../../content/validate';
 import { grade, type Answer } from '../../content/grade';
 import { measure } from '../../engine/vectors';
-import { bankEntrySchema, type ManipularQ, type Question } from '../../content/schema';
-import { defineProseTests, projectQuestions } from '../../../tests/content/prose-helpers';
+import {
+  bankEntrySchema,
+  type CodigoQ,
+  type ManipularQ,
+  type Question,
+} from '../../content/schema';
+import {
+  checkMessages,
+  defineProseTests,
+  projectQuestions,
+  withoutCode,
+} from '../../../tests/content/prose-helpers';
 import { rangoBajo } from './rango-bajo';
 import { examen3RangoBajo } from './examen-3-rango-bajo';
 
@@ -26,17 +36,28 @@ describe('proyecto rango-bajo', () => {
     ]);
   });
 
-  it('tiene tres ejercicios, de los tipos de la tabla, y tres hojas', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): ex00 manipular y ex01 calcular de 5 preguntas, ex02 programar vacío hasta la fase B; tres hojas
+  it('pasa checkProject sin problemas', () => {
+    // contract: encargo de la Órbita 3 de matrices (fase B): checkProject(rangoBajo) devuelve la lista vacía
+    expect(checkProject(rangoBajo)).toEqual([]);
+  });
+
+  it('tiene tres ejercicios de 5 preguntas, de los tipos de la tabla, y tres hojas', () => {
+    // contract: encargo de la Órbita 3 de matrices: ex00 manipular, ex01 calcular, ex02 programar; 5 preguntas cada uno; tres hojas
     expect(rangoBajo.exercises.map((e) => e.kind)).toEqual(['manipular', 'calcular', 'programar']);
-    expect(rangoBajo.exercises.map((e) => e.questions.length)).toEqual([5, 5, 0]);
+    expect(rangoBajo.exercises.map((e) => e.questions.length)).toEqual([5, 5, 5]);
     expect(rangoBajo.sheets).toHaveLength(3);
   });
 
+  it('tiene calentamiento de Python de 1 a 4 fichas', () => {
+    // contract: encargo de la Órbita 3 de matrices: calentamiento de 1 a 4 fichas enlazado con warmup
+    expect(rangoBajo.warmup?.length).toBeGreaterThanOrEqual(1);
+    expect(rangoBajo.warmup?.length).toBeLessThanOrEqual(4);
+  });
+
   it('los ids siguen el patrón rango-bajo.exNN.k y rango-bajo.hoja.k', () => {
-    // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex01.5` y `<id>.hoja.1`…`<id>.hoja.3` (ex02 llega en la fase B)
+    // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
     expect(projectQuestions(rangoBajo).map((q) => q.id)).toEqual([
-      ...[0, 1].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `rango-bajo.ex0${e}.${k}`)),
+      ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `rango-bajo.ex0${e}.${k}`)),
       'rango-bajo.hoja.1',
       'rango-bajo.hoja.2',
       'rango-bajo.hoja.3',
@@ -359,12 +380,17 @@ describe('valores del proyecto rango-bajo: Calcular, hojas y banco', () => {
     expect((16 + 4) / 100).toBe(0.2);
   });
 
-  it('banco: dos entradas fijas del proyecto rango-bajo, con ids examen-3.* y cumpliendo el esquema', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase A): `{ project: 'rango-bajo', question }` con ids examen-3.lora-b-cero (opción) y examen-3.error-peor-direccion (número); el código llega en la fase B
-    expect(examen3RangoBajo.map((e) => e.project)).toEqual(['rango-bajo', 'rango-bajo']);
+  it('banco: tres entradas fijas del proyecto rango-bajo, con ids examen-3.* y cumpliendo el esquema', () => {
+    // contract: encargo de la Órbita 3 de matrices (fases A y B): `{ project: 'rango-bajo', question }` con ids examen-3.lora-b-cero (opción), examen-3.error-peor-direccion (número) y examen-3.mejor-rango-k (código)
+    expect(examen3RangoBajo.map((e) => e.project)).toEqual([
+      'rango-bajo',
+      'rango-bajo',
+      'rango-bajo',
+    ]);
     expect(examen3RangoBajo.map((e) => [e.question.id, e.question.type])).toEqual([
       ['examen-3.lora-b-cero', 'opcion'],
       ['examen-3.error-peor-direccion', 'numero'],
+      ['examen-3.mejor-rango-k', 'codigo'],
     ]);
     for (const entry of examen3RangoBajo) {
       // contract: bankEntrySchema es el esquema de una entrada del banco
@@ -390,5 +416,84 @@ describe('valores del proyecto rango-bajo: Calcular, hojas y banco', () => {
     expect(e!.type === 'numero' ? [e!.answer, e!.tol] : []).toEqual([2, 0]);
     expect([9, 5, 2, 1][2]).toBe(2);
     expect(Math.sqrt(2 ** 2 + 1 ** 2)).toBeCloseTo(2.24, 2);
+  });
+});
+
+describe('proyecto rango-bajo: ejercicio Programar', () => {
+  const [, , ex02] = rangoBajo.exercises;
+
+  it('ex02 son cinco preguntas de código con requisitos y tres pistas', () => {
+    // contract: encargo de la Órbita 3 de matrices: ex02 son cinco `codigo` «de la mano» (README, «Añadir una pregunta», punto 4): tres pistas y `requirements`
+    expect(ex02!.questions.map((q) => q.type)).toEqual(Array(5).fill('codigo'));
+    for (const q of ex02!.questions) {
+      if (q.type !== 'codigo') continue;
+      expect(q.hints, q.id).toHaveLength(3);
+      expect(q.requirements?.length ?? 0, q.id).toBeGreaterThan(0);
+      // contract: README, «de la mano»: el starter lleva un bloque `# PASO N.` por cada variable
+      expect(q.starter, q.id).toMatch(/# PASO 1\./);
+    }
+  });
+
+  it('las cifras de las soluciones se recalculan', () => {
+    // contract: ex02.1: u = (2; 1; 3), v = (1; -1; 2), x = (4; 3; 1): v·x = 4 - 3 + 2 = 3 y u·x = 8 + 3 + 3 = 14
+    const u = [2, 1, 3];
+    const v = [1, -1, 2];
+    const x = [4, 3, 1];
+    const dot = (a: number[], b: number[]): number => a.reduce((t, ai, i) => t + ai * b[i]!, 0);
+    expect(dot(v, x)).toBe(3);
+    expect(dot(u, x)).toBe(14);
+    // contract: ex02.1 solution: A·x = (v·x)·u = (6; 3; 9)
+    expect(u.map((ui) => dot(v, x) * ui)).toEqual([6, 3, 9]);
+    // contract: ex02.3 solution: σ = 8,264; 4,967; 2,860; 1,688 (calculados con NumPy fuera de la prueba): √(2,860² + 1,688²) ≈ 3,32 y √(2,860 + 1,688) ≈ 2,13
+    expect(Math.sqrt(2.8603 ** 2 + 1.6883 ** 2)).toBeCloseTo(3.32, 2);
+    expect(Math.sqrt(2.8603 + 1.6883)).toBeCloseTo(2.13, 2);
+    // contract: ex02.4 solution: B de 8·2 = 16 números y A de 2·6 = 12: 28 frente a 8·6 = 48
+    expect(8 * 2 + 2 * 6).toBe(28);
+    expect(8 * 6).toBe(48);
+  });
+});
+
+describe('proyecto rango-bajo: lo que ninguna regla por pregunta ve', () => {
+  const code = [...projectQuestions(rangoBajo), ...bankQuestions].filter(
+    (q): q is CodigoQ => q.type === 'codigo',
+  );
+
+  it('los mensajes de las comprobaciones llevan el código en línea entre acentos graves', () => {
+    for (const q of code) {
+      for (const m of checkMessages(q)) {
+        // contract: rereview-17d n1 (prosa.test.ts): `np.`, `plt.`, `None` y `emb` van en código en línea
+        expect(withoutCode(m), `${q.id}: ${m}`).not.toMatch(/\b(np|plt)\.\w|\bNone\b|\bemb\b/);
+      }
+    }
+  });
+
+  it('los identificadores del starter y de la reference van en código en línea (review-18r m3)', () => {
+    const SPANISH_WORDS = new Set(['y', 'e', 'o', 'a']);
+    for (const q of code) {
+      const names = new Set(
+        [...`${q.starter}\n${q.reference}`.matchAll(/^(\w+)\s*=/gm)]
+          .map((m) => m[1]!)
+          .filter((n) => !SPANISH_WORDS.has(n)),
+      );
+      for (const m of checkMessages(q)) {
+        const plain = withoutCode(m);
+        for (const n of names)
+          // contract: review-18r m3 (M18, prosa.test.ts): ningún nombre que el jugador escribe va suelto en un mensaje
+          expect(plain, `${q.id}: ${m}`).not.toMatch(
+            new RegExp(`(?<![\\p{L}_\\d])${n}(?![\\p{L}_\\d])`, 'u'),
+          );
+        // contract: review-18r bn1 (prosa.test.ts): las comillas rectas son código
+        expect(plain, `${q.id}: ${m}`).not.toMatch(/\\?"/);
+      }
+    }
+  });
+
+  it('cada pregunta de código tiene mensajes que revisar', () => {
+    // contract: encargo de la Órbita 3 de matrices: cinco preguntas de código en ex02 y una en el banco
+    expect(code.map((q) => q.id)).toEqual([
+      ...[1, 2, 3, 4, 5].map((n) => `rango-bajo.ex02.${n}`),
+      'examen-3.mejor-rango-k',
+    ]);
+    for (const c of code) expect(checkMessages(c).length, c.id).toBeGreaterThan(0);
   });
 });
