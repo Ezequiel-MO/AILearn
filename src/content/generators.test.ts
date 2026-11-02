@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { grade } from './grade';
 import { generators, resolve } from './generators';
 import { numeroQSchema, vectorQSchema, type GeneradaQ } from './schema';
+import { defineProseTests } from '../../tests/content/prose-helpers';
 
 const SEEDS = Array.from({ length: 200 }, (_, i) => i + 1);
 
@@ -49,6 +50,9 @@ const IDS = [
   'autovalores',
   'covarianza',
   'varianza-explicada',
+  'valores-singulares',
+  'parametros-lora',
+  'puntuacion-atencion',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -122,6 +126,9 @@ describe('bounds declarados', () => {
       autovalores: [-3, 5], // contract: brief de la tarea 2 de la Órbita 2, autovalores enteros sorteados en -3..5
       covarianza: [-28, 28], // contract: brief de la tarea 2 de la Órbita 2, puntos en -4..6 con medias enteras: el extremo es 28 (prueba de enumeración)
       'varianza-explicada': [35, 95], // contract: brief de la tarea 2 de la Órbita 2, cuatro autovalores distintos que suman 20: de 35 % (k=1, 3-4-6-7) a 95 % (k=3, 1-…)
+      'valores-singulares': [1, 15], // contract: brief de la Órbita 3, σ enteros: de 1 (permutación con signo) a 15 (3-4-5 con múltiplo 3)
+      'parametros-lora': [128, 32768], // contract: brief de la Órbita 3, r(d+k): de 1·(64+64) a 16·(1024+1024)
+      'puntuacion-atencion': [-18, 18], // contract: brief de la Órbita 3, |q·k| ≤ 4·9 = 36 y se divide entre 2
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -748,6 +755,9 @@ describe('oráculo de la Órbita 1 de Matrices: determinante, resolver-sistema y
       'autovalores',
       'covarianza',
       'varianza-explicada',
+      'valores-singulares',
+      'parametros-lora',
+      'puntuacion-atencion',
     ]) {
       for (const seed of SEEDS.slice(0, 50)) {
         const q = resolve(call(id), seed);
@@ -887,6 +897,104 @@ describe('oráculo de la Órbita 2 de Matrices: autovalores, covarianza y varian
     expect([...ks].sort()).toEqual([1, 2, 3]); // contract: brief, salen los tres valores de k
   });
 });
+
+describe('oráculo de la Órbita 3 de Matrices: valores-singulares, parametros-lora y puntuacion-atencion (200 semillas)', () => {
+  it('valores-singulares: A entera con |entradas| ≤ 12 y columnas perpendiculares; σ son sus longitudes, enteras, distintas, de mayor a menor', () => {
+    const seen = new Set<number>();
+    let shorterFirst = 0;
+    let negatives = 0;
+    for (const seed of SEEDS) {
+      const q = resolve(call('valores-singulares'), seed);
+      if (q.type !== 'vector') throw new Error('valores-singulares debe dar un vector');
+      const [a] = matricesOf(q.prompt) as [number[]];
+      expect(a.length, `semilla ${seed}`).toBe(4); // contract: brief de la Órbita 3, A es 2×2
+      expect(a.every((x) => Number.isInteger(x) && Math.abs(x) <= 12)).toBe(true); // contract: brief, entradas enteras de valor absoluto ≤ 12
+      const [x, y, z, w] = a as [number, number, number, number];
+      expect(x * y + z * w + 0, `semilla ${seed}`).toBe(0); // contract: brief, columnas perpendiculares (producto escalar nulo)
+      const lengths = [Math.hypot(x, z), Math.hypot(y, w)];
+      expect(q.answer.length).toBe(2); // contract: brief, respuesta [σ1, σ2]
+      expect(q.answer[0]! > q.answer[1]!, `semilla ${seed}`).toBe(true); // contract: brief, de mayor a menor y σ1 ≠ σ2
+      expect(q.answer[1]! > 0, `semilla ${seed}`).toBe(true); // contract: brief, σ positivos
+      expect(Number.isInteger(q.answer[0]!) && Number.isInteger(q.answer[1]!)).toBe(true); // contract: brief, longitudes enteras
+      expect([...q.answer].sort(), `semilla ${seed}`).toEqual([...lengths].sort()); // contract: con columnas perpendiculares, σ son las longitudes de las columnas
+      // contract: brief, nunca una diagonal con las dos entradas positivas y ya ordenada
+      expect(y === 0 && z === 0 && x > 0 && w > 0 && x > w, `semilla ${seed}`).toBe(false);
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+      seen.add(q.answer[0]!).add(q.answer[1]!);
+      if (lengths[0]! < lengths[1]!) shorterFirst++;
+      if (a.some((v) => v < 0)) negatives++;
+    }
+    expect(shorterFirst > 20, 'columna corta primero').toBe(true); // contract: brief, a veces la columna corta va primero (el orden importa)
+    expect(negatives > 20, 'entradas negativas').toBe(true); // contract: brief, a veces hay entradas negativas
+    expect(seen.has(5) && seen.has(10) && seen.has(15)).toBe(true); // contract: brief, también salen las rotaciones 3-4-5 (σ múltiplos de 5)
+    expect(seen.has(1) && seen.has(12)).toBe(true); // contract: brief, las permutaciones con signo llegan de 1 a 12
+  });
+
+  it('valores-singulares: la solución escribe AᵀA, las raíces y el orden', () => {
+    for (const seed of SEEDS.slice(0, 50)) {
+      const q = resolve(call('valores-singulares'), seed);
+      expect(q.solution).toContain('A^\\top A'); // contract: brief, la solución calcula AᵀA
+      expect(q.solution).toContain('\\sqrt{'); // contract: brief, y las raíces cuadradas
+      expect(q.solution).toMatch(/de mayor a menor/); // contract: brief, y el orden
+    }
+  });
+
+  it('parametros-lora: d y k de {64…1024}, r de {1…16}; respuesta r·(d + k) sin puntos de millares', () => {
+    const sizes = [64, 128, 256, 512, 768, 1024];
+    const ranks = [1, 2, 4, 8, 16];
+    for (const seed of SEEDS) {
+      const q = resolve(call('parametros-lora'), seed);
+      if (q.type !== 'numero') throw new Error('parametros-lora debe dar un número');
+      const d = Number(/d=(\d+)/.exec(q.prompt)![1]);
+      const k = Number(/k=(\d+)/.exec(q.prompt)![1]);
+      const r = Number(/r=(\d+)/.exec(q.prompt)![1]);
+      expect(sizes, `semilla ${seed}`).toContain(d); // contract: brief, d en {64, 128, 256, 512, 768, 1024}
+      expect(sizes, `semilla ${seed}`).toContain(k); // contract: brief, k en el mismo conjunto
+      expect(ranks, `semilla ${seed}`).toContain(r); // contract: brief, r en {1, 2, 4, 8, 16}
+      expect(q.answer, `semilla ${seed}`).toBe(d * r + r * k); // contract: B es d×r y A es r×k: d·r + r·k = r·(d + k)
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+      expect(q.solution).toContain(`${q.answer}`); // contract: brief, la solución muestra el total de este sorteo
+      expect(q.solution).toContain(`${d * k * r}`); // contract: brief, el fallo d·k·r aparece con su valor
+      expect(`${q.prompt}${q.solution}`).not.toMatch(/\d\.\d{3}/); // contract: brief, números grandes sin puntos de millares
+    }
+    const dk = new Set(
+      SEEDS.map((s) => (resolve(call('parametros-lora'), s).prompt.match(/d=(\d+)/) ?? [])[1]),
+    );
+    expect(dk.size).toBeGreaterThan(3); // contract: brief, d se sortea de varios valores
+  });
+
+  it('puntuacion-atencion: q y k de 4 componentes en -3..3, q·k ≠ 0; respuesta q·k / 2 (múltiplo de 0,5)', () => {
+    for (const seed of SEEDS) {
+      const q = resolve(call('puntuacion-atencion'), seed);
+      if (q.type !== 'numero') throw new Error('puntuacion-atencion debe dar un número');
+      const [u, v] = tuplesOf(q.prompt) as [number[], number[]];
+      expect([u.length, v.length], `semilla ${seed}`).toEqual([4, 4]); // contract: brief, d_k = 4
+      expect([...u, ...v].every((x) => x >= -3 && x <= 3)).toBe(true); // contract: brief, componentes en -3..3
+      expect(u.some((x) => x !== 0) && v.some((x) => x !== 0)).toBe(true); // contract: brief, no nulos
+      const dot = u.reduce((t, x, i) => t + x * v[i]!, 0);
+      expect(dot, `semilla ${seed}`).not.toBe(0); // contract: brief, q·k ≠ 0
+      expect(q.answer, `semilla ${seed}`).toBe(dot / 2); // contract: brief, se divide entre √d_k = 2
+      expect(Number.isInteger(q.answer * 2)).toBe(true); // contract: brief, múltiplo de 0,5
+      expect(q.tol).toBe(0); // contract: brief, tol 0
+      expect(q.solution).toContain(`${dot}`.replace('.', '{,}')); // contract: brief, la solución muestra el producto escalar
+    }
+  });
+
+  it('parametros-lora y puntuacion-atencion cubren varios sorteos distintos', () => {
+    const prompts = (id: string) => new Set(SEEDS.map((s) => resolve(call(id), s).prompt));
+    expect(prompts('parametros-lora').size).toBeGreaterThan(30); // contract: brief, 6·6·5 sorteos posibles
+    expect(prompts('puntuacion-atencion').size).toBeGreaterThan(150); // contract: brief, 7⁸ sorteos posibles
+    expect(prompts('valores-singulares').size).toBeGreaterThan(60); // contract: brief, cada examen con números distintos
+  });
+});
+
+// contract: prosa de las preguntas generadas: las mismas reglas que el contenido (KaTeX estricto, coma decimal, sin $ sueltos)
+defineProseTests(
+  'generadores de la Órbita 3 (50 sorteos cada uno)',
+  ['valores-singulares', 'parametros-lora', 'puntuacion-atencion'].flatMap((id) =>
+    SEEDS.slice(0, 50).map((seed) => resolve(call(id), seed)),
+  ),
+);
 
 describe('texto de la solución', () => {
   const finalStep = (solution: string): { relation: string; value: string } => {

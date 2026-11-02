@@ -1091,6 +1091,154 @@ const varianzaExplicada: Generator = {
   },
 };
 
+// ---------- Juego 2, Órbita 3: descomponer y aproximar ----------
+
+type Mat2 = readonly [number, number, number, number];
+
+const mulMat2 = (x: Mat2, y: Mat2): [number, number, number, number] => [
+  x[0] * y[0] + x[1] * y[2],
+  x[0] * y[1] + x[1] * y[3],
+  x[2] * y[0] + x[3] * y[2],
+  x[2] * y[1] + x[3] * y[3],
+];
+
+/** Las ocho permutaciones con signo de 2×2. */
+const SIGNED_PERMUTATIONS: readonly Mat2[] = [
+  [1, 0, 0, 1],
+  [-1, 0, 0, 1],
+  [1, 0, 0, -1],
+  [-1, 0, 0, -1],
+  [0, 1, 1, 0],
+  [0, -1, 1, 0],
+  [0, 1, -1, 0],
+  [0, -1, -1, 0],
+];
+
+/** Rotaciones y reflexiones 3-4-5 por 5: (3 -4; 4 3), (4 -3; 3 4), (3 4; 4 -3) y sus signos. */
+const PYTHAGOREAN_TURNS: readonly Mat2[] = (() => {
+  const out: Mat2[] = [];
+  for (const [c, s] of [
+    [3, 4],
+    [4, 3],
+  ] as const)
+    for (const sc of [1, -1])
+      for (const ss of [1, -1]) {
+        out.push([sc * c, -ss * s, ss * s, sc * c]); // rotación
+        out.push([sc * c, ss * s, ss * s, -sc * c]); // reflexión
+      }
+  return out;
+})();
+
+const valoresSingulares: Generator = {
+  id: 'valores-singulares',
+  bounds: { min: 1, max: 15 },
+  make(id, _params, rng) {
+    for (;;) {
+      const pythagorean = rng() < 0.5;
+      // Con una 3-4-5, A = R5·diag(m1, m2)·P y los valores singulares son 5·m; con una permutación, son s.
+      const top = pythagorean ? 3 : 12;
+      const s1 = int(rng, 1, top);
+      const s2 = int(rng, 1, top);
+      if (s1 === s2) continue;
+      const turns = pythagorean ? PYTHAGOREAN_TURNS : SIGNED_PERMUTATIONS;
+      const r = turns[int(rng, 0, turns.length - 1)]!;
+      const p = SIGNED_PERMUTATIONS[int(rng, 0, SIGNED_PERMUTATIONS.length - 1)]!;
+      const m = mulMat2(mulMat2(r, [s1, 0, 0, s2]), p).map(clean);
+      if (m.some((x) => Math.abs(x) > 12)) continue;
+      const [a, b, c, e] = m as [number, number, number, number];
+      if (b === 0 && c === 0 && a > 0 && e > 0 && a > e) continue; // diagonal positiva y ya ordenada: demasiado fácil
+      const q1 = a * a + c * c;
+      const q2 = b * b + e * e;
+      const first = Math.round(Math.sqrt(q1));
+      const second = Math.round(Math.sqrt(q2));
+      const answer = [Math.max(first, second), Math.min(first, second)];
+      const cross = a * b + c * e;
+      const ata = [q1, cross, cross, q2];
+      const order =
+        first < second
+          ? `La segunda columna es la más larga, así que de mayor a menor son $\\sigma_1=${answer[0]}$ y $\\sigma_2=${answer[1]}$, al revés que el orden de las columnas: si los escribieras tal como salen, $${tuple([first, second])}$, tendrías los dos valores bien pero en el orden equivocado.`
+          : `La primera columna ya es la más larga, así que de mayor a menor son $\\sigma_1=${answer[0]}$ y $\\sigma_2=${answer[1]}$.`;
+      return vectorQ(
+        id,
+        {
+          prompt: `Sea $A=${matrix2Tex(m)}$. Calcula sus dos valores singulares $\\sigma_1$ y $\\sigma_2$ y escríbelos de mayor a menor.`,
+          hints: [
+            'Los cuadrados $\\sigma^2$ de los valores singulares son los autovalores de $A^\\top A$.',
+            'Mira las dos columnas de $A$: si son perpendiculares, $A^\\top A$ es diagonal y los valores singulares son las longitudes de las columnas.',
+          ],
+          explain:
+            'Los valores singulares de $A=U\\Sigma V^\\top$ son los números $\\sigma\\ge 0$ de la diagonal de $\\Sigma$, ordenados de mayor a menor, y sus cuadrados son los autovalores de $A^\\top A$. Cuando las columnas de $A$ son perpendiculares, $A^\\top A$ es diagonal y cada $\\sigma$ es la longitud de una columna. Los fallos habituales son escribirlos en el orden de las columnas en vez de ordenarlos de mayor a menor, y dar un valor negativo: un valor singular nunca es negativo, por mucho que la matriz tenga entradas negativas.',
+          solution: `Calculamos $A^\\top A=${matrix2Tex(ata)}$. Fuera de la diagonal sale $${tex(cross)}$, porque las columnas son perpendiculares, y en la diagonal están los cuadrados de las longitudes de las columnas: $${paren(a)}^2+${paren(c)}^2=${tex(q1)}$ y $${paren(b)}^2+${paren(e)}^2=${tex(q2)}$. Los valores singulares son sus raíces: $\\sqrt{${tex(q1)}}=${tex(first)}$ y $\\sqrt{${tex(q2)}}=${tex(second)}$. ${order} Los signos negativos de $A$ no cambian nada: un valor singular nunca es negativo.`,
+        },
+        answer,
+        0,
+      );
+    }
+  },
+};
+
+const LORA_SIZES = [64, 128, 256, 512, 768, 1024] as const;
+const LORA_RANKS = [1, 2, 4, 8, 16] as const;
+
+const parametrosLora: Generator = {
+  id: 'parametros-lora',
+  bounds: { min: 128, max: 32768 },
+  make(id, _params, rng) {
+    const d = LORA_SIZES[int(rng, 0, LORA_SIZES.length - 1)]!;
+    const k = LORA_SIZES[int(rng, 0, LORA_SIZES.length - 1)]!;
+    const r = LORA_RANKS[int(rng, 0, LORA_RANKS.length - 1)]!;
+    const answer = r * (d + k);
+    const full = d * k;
+    const percent = (answer / full) * 100;
+    return numeroQ(
+      id,
+      {
+        prompt: `Una matriz de pesos congelada $W$ tiene $${d}$ filas y $${k}$ columnas, es decir, $d=${d}$ y $k=${k}$. La adaptamos con LoRA: no tocamos $W$ y entrenamos solo una actualización $\\Delta W=BA$ de rango $r=${r}$. ¿Cuántos parámetros se entrenan en total, entre $B$ y $A$?`,
+        hints: [
+          '$\\Delta W$ tiene la misma forma que $W$, de $d\\times k$. Por eso $B$ es de $d\\times r$ y $A$ de $r\\times k$.',
+          'Cuenta las entradas de cada una (filas por columnas) y suma las dos cantidades.',
+        ],
+        explain:
+          'LoRA escribe la actualización como producto de dos matrices estrechas, $B$ de $d\\times r$ y $A$ de $r\\times k$, en vez de entrenar las $d\\cdot k$ entradas de $\\Delta W$. Se entrenan $d\\cdot r+r\\cdot k=r(d+k)$ parámetros. Los fallos habituales son multiplicar $d\\cdot k$ por $r$ o contar los $d\\cdot k$ de la matriz entera: justo lo que LoRA se ahorra.',
+        solution: `$B$ es de $${d}\\times ${r}$ y tiene $${d}\\cdot ${r}=${d * r}$ entradas; $A$ es de $${r}\\times ${k}$ y tiene $${r}\\cdot ${k}=${r * k}$. En total, $${d * r}+${r * k}=${answer}$ parámetros, que también es $r(d+k)=${r}\\cdot ${d + k}=${answer}$. Entrenar $W$ entera serían $${d}\\cdot ${k}=${full}$, así que LoRA entrena ${equalsOrApprox(percent) === '=' ? 'el' : 'aproximadamente el'} $${tex(percent)}\\,\\%$ de ellos. Si multiplicaras $d\\cdot k\\cdot r$ saldrían $${full * r}$, y si contaras $d\\cdot k$, $${full}$: ninguno de los dos es lo que se entrena.`,
+      },
+      answer,
+      0,
+    );
+  },
+};
+
+const puntuacionAtencion: Generator = {
+  id: 'puntuacion-atencion',
+  bounds: { min: -18, max: 18 },
+  make(id, _params, rng) {
+    for (;;) {
+      const q = Array.from({ length: 4 }, () => int(rng, -3, 3));
+      const k = Array.from({ length: 4 }, () => int(rng, -3, 3));
+      if (isZero(q) || isZero(k)) continue;
+      const terms = q.map((x, i) => x * k[i]!);
+      const dot = terms.reduce((t, v) => t + v, 0);
+      if (dot === 0) continue;
+      const answer = dot / 2;
+      return numeroQ(
+        id,
+        {
+          prompt: `En una cabeza de atención con $d_k=4$, la consulta es $\\vec{q}=${tuple(q)}$ y la clave es $\\vec{k}=${tuple(k)}$. ¿Cuál es la puntuación escalada $\\dfrac{\\vec{q}\\cdot\\vec{k}}{\\sqrt{d_k}}$? Si sale un decimal, escríbelo con coma.`,
+          hints: [
+            'Empieza por el producto escalar $\\vec{q}\\cdot\\vec{k}$: multiplica componente a componente y suma.',
+            'Luego divide entre $\\sqrt{d_k}$, que aquí vale $2$, no entre $d_k$.',
+          ],
+          explain:
+            'La puntuación de atención es el producto escalar de la consulta y la clave, dividido entre $\\sqrt{d_k}$ para que no crezca con la dimensión. Aquí $d_k=4$ y $\\sqrt{d_k}=2$. Los fallos habituales son dividir entre $d_k$ (aquí $4$) en vez de entre su raíz, o no dividir.',
+          solution: `El producto escalar es $\\vec{q}\\cdot\\vec{k}=${q.map((x, i) => `${paren(x)}\\cdot ${paren(k[i]!)}`).join('+')}=${terms.map(paren).join('+')}=${tex(dot)}$. Como $d_k=4$, $\\sqrt{d_k}=2$, y la puntuación es $\\dfrac{${tex(dot)}}{2}=${tex(answer)}$. Si dividieras entre $d_k=4$ saldría $${tex(dot / 4)}$, y si no dividieras, $${tex(dot)}$: ninguno es la puntuación escalada.`,
+        },
+        answer,
+        0,
+      );
+    }
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -1117,6 +1265,9 @@ export const generators: Record<string, Generator> = {
   autovalores,
   covarianza,
   'varianza-explicada': varianzaExplicada,
+  'valores-singulares': valoresSingulares,
+  'parametros-lora': parametrosLora,
+  'puntuacion-atencion': puntuacionAtencion,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */
