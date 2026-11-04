@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import type { PlaneSpec, Purpose as PurposeSpec } from '../../content/schema';
+import { graphPositions } from '../../content/grade';
+import type { GraphSpec, PlaneSpec, Purpose as PurposeSpec } from '../../content/schema';
+import { CurvePlane } from '../CurvePlane';
 import { Md } from '../Md';
 import { t } from '../strings';
 import { VectorPlane } from '../VectorPlane';
@@ -62,10 +64,12 @@ export function Purpose({ purpose }: { purpose: PurposeSpec }) {
 export function Stem({
   prompt,
   plane,
+  graph,
   purpose,
 }: {
   prompt: string;
   plane?: PlaneSpec;
+  graph?: GraphSpec;
   purpose?: PurposeSpec;
 }) {
   return (
@@ -73,6 +77,7 @@ export function Stem({
       {purpose ? <Purpose purpose={purpose} /> : null}
       <Md>{prompt}</Md>
       {plane ? <VectorPlane spec={plane} positions={startPositions(plane)} /> : null}
+      {graph ? <CurvePlane spec={graph} positions={graphPositions(graph)} /> : null}
     </div>
   );
 }

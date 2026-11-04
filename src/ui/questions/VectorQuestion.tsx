@@ -54,7 +54,12 @@ export function VectorQuestion({ question, locked, onSubmit }: QuestionProps<Vec
 
   return (
     <form className="question" onSubmit={handleSubmit} noValidate>
-      <Stem prompt={question.prompt} plane={question.plane} purpose={question.purpose} />
+      <Stem
+        prompt={question.prompt}
+        plane={question.plane}
+        graph={question.graph}
+        purpose={question.purpose}
+      />
       <div className="question__answer">
         {question.shape ? (
           <div

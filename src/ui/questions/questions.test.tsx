@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type {
+  CurvaQ,
   ManipularQ,
   NumeroQ,
   OpcionQ,
@@ -775,5 +776,65 @@ describe('ronda de arreglo 1 (revisión de la tarea 10)', () => {
     );
     expect(submitButton()).toBeDisabled();
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+});
+
+describe('curva', () => {
+  // f(x) = x², un punto sobre la curva en x = 1; la meta es x = 3
+  const curva = (over: Partial<CurvaQ> = {}): CurvaQ => ({
+    ...base,
+    id: 'c1',
+    type: 'curva',
+    prompt: 'Lleva P a x = 3',
+    graph: {
+      x: [-2, 4],
+      y: [-2, 10],
+      snap: 1,
+      curve: { kind: 'poly', coefs: [0, 0, 1] },
+      points: [{ id: 'p', label: 'P', x: 1, movable: true, onCurve: true }],
+      readouts: ['coords'],
+    },
+    goals: [{ metric: 'x', of: ['p'], target: 3, tol: 0.01 }],
+    ...over,
+  });
+
+  // contract: grade.ts gradeCurva, meta x = 3: dos pasos de snap 1 desde x = 1 la cumplen -> onSubmit(true)
+  it('mover con teclado hasta la meta y entregar', async () => {
+    const { onSubmit, user } = setup(curva());
+    await user.tab();
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(screen.getByRole('button', { name: 'Punto P, en (3, 9)' })).toBeInTheDocument();
+    await user.click(submitButton());
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(true);
+  });
+
+  // contract: grade.ts gradeCurva, la meta no se cumple en x = 1 -> onSubmit(false)
+  it('entregar sin mover entrega false', async () => {
+    const { onSubmit, user } = setup(curva());
+    await user.click(submitButton());
+    expect(onSubmit).toHaveBeenCalledExactlyOnceWith(false);
+  });
+
+  // contract: tarea 10, «Recolocar» vuelve a la posición inicial (x = 1, f = 1)
+  it('«Recolocar» devuelve el punto a su sitio', async () => {
+    const { user } = setup(curva());
+    await user.tab();
+    await user.keyboard('{ArrowRight}');
+    await user.click(screen.getByRole('button', { name: 'Recolocar' }));
+    expect(screen.getByRole('button', { name: 'Punto P, en (1, 1)' })).toBeInTheDocument();
+  });
+
+  // contract: brief, «bloqueada, la figura queda estática»: sin asas
+  it('bloqueada: figura sin asas (los botones quedan desactivados)', () => {
+    setup(curva(), true);
+    expect(screen.queryByRole('button', { name: /Punto/ })).toBeNull();
+    expect(screen.getByRole('img', { name: 'Plano de curvas' })).toBeInTheDocument();
+  });
+
+  // contract: brief, «Stem acepta graph y pinta un CurvePlane estático» en Calcular
+  it('numero con graph muestra la figura sin asas', () => {
+    setup(numero({ graph: curva().graph }));
+    expect(screen.getByRole('img', { name: 'Plano de curvas' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Punto/ })).toBeNull();
   });
 });

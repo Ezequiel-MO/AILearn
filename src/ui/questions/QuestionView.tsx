@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import type { Question } from '../../content/schema';
 import { t } from '../strings';
+import { CurvaQuestion } from './CurvaQuestion';
 import { ManipularQuestion } from './ManipularQuestion';
 import { NumeroQuestion } from './NumeroQuestion';
 import { OpcionQuestion } from './OpcionQuestion';
@@ -42,6 +43,10 @@ export function QuestionView({
           locked={locked}
           onSubmit={onSubmit}
         />
+      );
+    case 'curva':
+      return (
+        <CurvaQuestion key={question.id} question={question} locked={locked} onSubmit={onSubmit} />
       );
     case 'numero':
       return (
