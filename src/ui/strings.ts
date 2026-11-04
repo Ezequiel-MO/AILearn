@@ -41,6 +41,29 @@ export const t = {
     stretchName: (name: string) => `|A·${name}| / |${name}|`,
   },
 
+  // --- Plano de curvas (juego 3) ---
+  curve: {
+    figure: 'Plano de curvas',
+    fitFigure: 'Datos, recta y errores',
+    readouts: 'Lecturas',
+    lossName: 'pérdida',
+    lossCaption: 'La pérdida según w',
+    fitCaption: (w: string) => `Los datos y la recta ŷ = ${w}·x`,
+    fitNote: 'La pérdida es la media de las áreas de estos cuadrados.',
+    derivativeName: 'f′',
+    slopeCurveName: 'pendiente',
+    stepName: 'un paso',
+    stepNote: 'El paso va cuesta abajo: en contra de la pendiente.',
+    runName: (v: string) => `avance ${v}`,
+    riseName: (v: string) => `subida ${v}`,
+    slopeAt: (p: string) => `pendiente en ${p}`,
+    secantName: (p: string, q: string) => `pendiente de la secante ${p}${q}`,
+    lineSlope: 'pendiente',
+    lineIntercept: 'corta el eje y en',
+    noSlope: 'sin pendiente',
+    handleLabel: (name: string, position: string) => `Punto ${name}, en ${position}`,
+  },
+
   // --- Preguntas (tarea 10) ---
   questions: {
     submit: 'Entregar',
@@ -293,5 +316,31 @@ export const t = {
     panelOpen: 'Abrir el calentamiento de Python',
     exerciseHint: '¿Te cuesta el Python de este ejercicio? Prueba antes lo nuevo en el',
     exerciseLink: 'calentamiento de Python',
+  },
+
+  // --- La red por dentro (dibujo de la red, tarjeta «Dónde encaja» y página #/red) ---
+  network: {
+    title: 'La red por dentro',
+    intro:
+      'Un modelo de lenguaje pequeño, pieza a pieza. Elige una pieza del dibujo para ver qué hace y dónde la practicas.',
+    groups: { use: 'Responder', train: 'Aprender', around: 'Alrededor' },
+    block: 'Bloque × N',
+    diagramLabel: 'Dibujo de un modelo de lenguaje pequeño con sus piezas',
+    diagramLabelOn: (names: string[]) =>
+      `Dibujo de un modelo de lenguaje pequeño. Piezas resaltadas: ${names.join(', ')}`,
+    // tarjeta
+    cardHeading: 'Dónde encaja en la red',
+    cardPieces: 'Piezas que toca',
+    cardMore: 'Ver la red entera',
+    // página
+    groupsHeading: 'Los tres grupos',
+    pickHint: 'Elige una pieza del dibujo.',
+    practiceHeading: 'Dónde lo practicas',
+    practiceNone: 'Aún no hay ningún proyecto construido que la toque.',
+    roadmapHeading: 'En la ruta',
+    roadmapItem: (orbit: string) => `Órbita «${orbit}»`,
+    soon: 'Próximamente',
+    link: 'La red por dentro',
+    linkMap: 'Ver la red por dentro',
   },
 } as const;

@@ -46,6 +46,17 @@
   --plane-image: #7aa2f7;
   --plane-flip: #ef6f6c;
 
+  /* Plano de curvas (juego 3) */
+  --curve-curve: #7aa2f7;
+  --curve-derivative: #5fcf8a;
+  --curve-tangent: #f2b84b;
+  --curve-secant: #b79cf2;
+  --curve-line: #4fc3d9;
+  --curve-step: #f08a6c;
+  --curve-point: #f2b84b;
+  --curve-error: #ef6f6c;
+  --curve-error-fill: rgba(239, 111, 108, 0.2);
+
   /* Espaciado */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -1851,4 +1862,528 @@ a {
   margin: 0 0 var(--space-3);
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
+}
+
+/* === Curvas === */
+
+.curve {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.curve__panels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-5);
+  align-items: flex-start;
+}
+
+.curve__figure {
+  flex: 1 1 18rem;
+  min-width: 0;
+  max-width: 34rem;
+  margin: 0;
+}
+
+.curve__caption {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.9rem;
+}
+
+.curve__note {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+}
+
+.curve__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 480 / 340;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.curve__svg--interactive {
+  touch-action: none;
+}
+
+.curve__area {
+  fill: var(--plane-area);
+  stroke: var(--color-border);
+}
+
+.curve__grid line {
+  stroke: var(--color-grid);
+  stroke-width: 1;
+}
+
+.curve__axes line {
+  stroke: var(--plane-axis);
+  stroke-width: 1.5;
+}
+
+.curve__tick-label,
+.curve__axis-name,
+.curve__name,
+.curve__point-label {
+  font-family: var(--font-mono);
+}
+
+.curve__tick-label {
+  fill: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.curve__axis-name {
+  fill: var(--color-text-muted);
+  font-size: 15px;
+  font-style: italic;
+}
+
+.curve__curve,
+.curve__derivative,
+.curve__tangent,
+.curve__secant,
+.curve__line,
+.curve__triangle,
+.curve__step line,
+.curve__fit-line,
+.curve__fit-gap {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.curve__curve {
+  stroke: var(--curve-curve);
+  stroke-width: 3;
+}
+
+.curve__derivative {
+  stroke: var(--curve-derivative);
+  stroke-width: 2.5;
+  stroke-dasharray: 7 5;
+}
+
+.curve__tangent {
+  stroke: var(--curve-tangent);
+  stroke-width: 3;
+}
+
+.curve__secant {
+  stroke: var(--curve-secant);
+  stroke-width: 2.5;
+}
+
+.curve__line,
+.curve__fit-line {
+  stroke: var(--curve-line);
+  stroke-width: 3;
+}
+
+.curve__triangle {
+  stroke: var(--curve-line);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.curve__step line {
+  stroke: var(--curve-step);
+  stroke-width: 3.5;
+}
+
+.curve__step polygon {
+  fill: var(--curve-step);
+}
+
+.curve__ghost {
+  fill: none;
+  stroke: var(--curve-step);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 3;
+}
+
+.curve__name {
+  font-size: 16px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.curve__name--curve {
+  fill: var(--curve-curve);
+}
+
+.curve__name--derivative {
+  fill: var(--curve-derivative);
+}
+
+.curve__name--step {
+  fill: var(--curve-step);
+}
+
+.curve__name--line {
+  fill: var(--curve-line);
+}
+
+.curve__point-label {
+  fill: var(--curve-point);
+  font-size: 17px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.curve__point-dot {
+  fill: var(--curve-point);
+}
+
+.curve__handle {
+  cursor: grab;
+  outline: none;
+}
+
+.curve__handle--dragging {
+  cursor: grabbing;
+}
+
+.curve__handle-hit {
+  fill: transparent;
+}
+
+.curve__handle-dot {
+  fill: var(--curve-point);
+  stroke: var(--plane-area);
+  stroke-width: 2;
+}
+
+.curve__handle-ring {
+  fill: none;
+  stroke: var(--curve-point);
+  stroke-width: 2;
+  opacity: 0.45;
+}
+
+.curve__handle:hover .curve__handle-ring,
+.curve__handle--dragging .curve__handle-ring {
+  opacity: 1;
+}
+
+.curve__handle:focus-visible .curve__handle-ring {
+  stroke: var(--color-focus);
+  stroke-width: 3;
+  opacity: 1;
+}
+
+.curve__fit-square {
+  fill: var(--curve-error-fill);
+  stroke: var(--curve-error);
+  stroke-width: 1.5;
+}
+
+.curve__fit-gap {
+  stroke: var(--curve-error);
+  stroke-width: 2.5;
+}
+
+.curve__fit-datum {
+  fill: var(--color-text);
+  stroke: var(--plane-area);
+  stroke-width: 1.5;
+}
+
+.curve__readouts-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin: 0;
+}
+
+.curve__readout {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+}
+
+.curve__readout dt {
+  color: var(--color-text-muted);
+}
+
+.curve__readout dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+/* === Red === */
+/* Dibujo de la red (.red), tarjeta «Dónde encaja» (.bigpic) y página #/red (.net). */
+
+.red {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-sans);
+}
+
+.red__box {
+  fill: var(--color-surface);
+  stroke: var(--color-border);
+  stroke-width: 1;
+}
+
+.red__mlp {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.red__frame {
+  fill: var(--color-bg);
+  stroke: var(--color-text-muted);
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+}
+
+.red__frame-label,
+.red__group {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.red__group--loop {
+  fill: var(--color-vector);
+}
+
+.red__text {
+  fill: var(--color-text);
+  font-size: 12px;
+}
+
+.red__name {
+  font-weight: 600;
+  font-size: 12.5px;
+}
+
+.red__short {
+  fill: var(--color-text-muted);
+  font-size: 11px;
+}
+
+.red__arrows path,
+.red__link {
+  fill: none;
+  stroke: var(--color-text-muted);
+  stroke-width: 1.5;
+}
+
+.red__link {
+  stroke-dasharray: 2 3;
+}
+
+.red__arrows--loop path {
+  stroke: var(--color-vector);
+}
+
+.red__head {
+  fill: var(--color-text-muted);
+}
+
+.red__head--loop {
+  fill: var(--color-vector);
+}
+
+.red__node--dim {
+  opacity: 0.7;
+}
+
+/* En la tarjeta el dibujo sale más pequeño: texto algo mayor (sin frases, hay sitio). */
+.red--compact .red__name {
+  font-size: 13px;
+}
+
+.red--compact .red__group,
+.red--compact .red__frame-label {
+  font-size: 12px;
+}
+
+.red__node--on .red__box {
+  fill: color-mix(in srgb, var(--color-accent) 18%, var(--color-surface));
+  stroke: var(--color-accent-strong);
+  stroke-width: 2.5;
+}
+
+.red__node--on .red__name {
+  fill: var(--color-accent-strong);
+}
+
+.red__ring {
+  fill: none;
+  stroke: var(--color-focus);
+  stroke-width: 2;
+  stroke-dasharray: 4 2;
+  opacity: 0;
+}
+
+.red__node--sel .red__ring,
+.red__node:focus-visible .red__ring {
+  opacity: 1;
+}
+
+.red__node:focus {
+  outline: none;
+}
+
+.red__node--click {
+  cursor: pointer;
+}
+
+.red__node--click:hover .red__box {
+  stroke: var(--color-accent);
+}
+
+/* Tarjeta «Dónde encaja en la red» */
+
+.bigpic {
+  margin: 0 0 var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.bigpic__heading {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.bigpic__body {
+  display: grid;
+  grid-template-columns: minmax(0, 24rem) minmax(0, 1fr);
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+}
+
+.bigpic__figure,
+.bigpic__text {
+  min-width: 0;
+}
+
+.bigpic__parts {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-3) 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bigpic__part {
+  display: grid;
+  gap: 0;
+}
+
+.bigpic__short {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 40rem) {
+  .bigpic {
+    padding: var(--space-3);
+  }
+
+  .bigpic__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Página «La red por dentro» */
+
+.net__intro {
+  margin: 0 0 var(--space-4);
+}
+
+.net__figure {
+  max-width: 36rem;
+  margin: 0 auto var(--space-5);
+}
+
+.net__sheet {
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.net__sheet-name {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.net__sheet-short {
+  margin: 0 0 var(--space-3);
+  color: var(--color-text-muted);
+}
+
+.net__sheet-heading {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: var(--text-base);
+}
+
+.net__links {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.net__link-game {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.net__soon {
+  color: var(--color-warn);
+  font-size: var(--text-sm);
+}
+
+.net__none {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.net__group-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.net__group dt {
+  font-weight: 600;
+}
+
+.net__group dd {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.map__net,
+.roadmap__net {
+  margin: 0 0 var(--space-4);
 }
