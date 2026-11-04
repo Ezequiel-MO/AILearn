@@ -156,9 +156,10 @@ export const garbageProbes = (q: Question): { name: string; code: string }[] => 
     '"hola"',
     '[None]',
   ];
+  // La sonda importa NumPy ella misma: un reto de Python puro (funciones, `lambda`) no lo importa.
   return values.map((value) => ({
     name: value,
-    code: q.starter + targets.map((t) => `${t} = ${value}\n`).join(''),
+    code: 'import numpy as np\n' + q.starter + targets.map((t) => `${t} = ${value}\n`).join(''),
   }));
 };
 

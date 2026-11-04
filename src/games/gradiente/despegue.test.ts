@@ -17,15 +17,15 @@ const byId = <T extends Question>(id: string): T => {
 };
 
 describe('el juego «Derivadas y gradiente»', () => {
-  it('se llama así, tiene 8 preguntas de despegue y todavía ninguna órbita', () => {
+  it('se llama así, tiene 8 preguntas de despegue y la Órbita 0', () => {
     // contract: encargo del despegue del juego 3 (2026-11-04) y roadmap.ts: id `gradiente`, título «Derivadas y gradiente»
     expect([gradiente.id, gradiente.title, gradiente.launch.length]).toEqual([
       'gradiente',
       'Derivadas y gradiente',
       8,
     ]);
-    // contract: encargo del despegue del juego 3: «orbits: [] (la Órbita 0 llega en otro encargo)»
-    expect(gradiente.orbits).toEqual([]);
+    // contract: brief-orbita-0.md, E.2 (2026-11-04): la Órbita 0 «La pendiente» entra en el montaje; amplía la lista vacía del encargo del despegue
+    expect(gradiente.orbits.map((o) => o.name)).toEqual(['La pendiente']);
   });
 
   it('su bigPicture nombra la pérdida, el gradiente y la actualización', () => {
