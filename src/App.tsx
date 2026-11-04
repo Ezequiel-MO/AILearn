@@ -30,6 +30,9 @@ const Hub = lazy(() => import('./ui/screens/Hub').then((m) => ({ default: m.Hub 
 const RoadmapScreen = lazy(() =>
   import('./ui/screens/RoadmapScreen').then((m) => ({ default: m.RoadmapScreen })),
 );
+const NetworkScreen = lazy(() =>
+  import('./ui/screens/NetworkScreen').then((m) => ({ default: m.NetworkScreen })),
+);
 const GameMap = lazy(() => import('./ui/screens/GameMap').then((m) => ({ default: m.GameMap })));
 const ProjectPanel = lazy(() =>
   import('./ui/screens/ProjectPanel').then((m) => ({ default: m.ProjectPanel })),
@@ -55,6 +58,14 @@ export function AppRoutes() {
         element={
           <Suspense fallback={null}>
             <RoadmapScreen />
+          </Suspense>
+        }
+      />
+      <Route
+        path="/red"
+        element={
+          <Suspense fallback={null}>
+            <NetworkScreen />
           </Suspense>
         }
       />

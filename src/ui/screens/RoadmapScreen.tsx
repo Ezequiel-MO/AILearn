@@ -5,7 +5,7 @@ import { roadmap } from '../../games/roadmap';
 import { GamesContext } from '../GamesContext';
 import { Layout } from '../Layout';
 import { t } from '../strings';
-import { mapPath, useFocusTitle } from './lookup';
+import { mapPath, networkPath, useFocusTitle } from './lookup';
 
 /** `/ruta`: todos los juegos previstos. Lo que no está registrado (o la órbita que el juego aún no tiene) dice «Próximamente». */
 export function RoadmapScreen() {
@@ -23,6 +23,11 @@ export function RoadmapScreen() {
       <p className="roadmap__intro">{t.roadmap.intro}</p>
       <p className="roadmap__totals num">
         {t.roadmap.totals(roadmap.length, orbits, projects, ready)}
+      </p>
+      <p className="roadmap__net">
+        <Link className="play__action" to={networkPath()}>
+          {t.network.link}
+        </Link>
       </p>
       <ol className="roadmap__list">
         {roadmap.map((game, i) => (

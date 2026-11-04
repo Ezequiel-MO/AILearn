@@ -29,6 +29,14 @@ export function parseOrbit(text: string | undefined, game: Game): number | null 
 /** `/ruta`: todos los juegos previstos, construidos o no. */
 export const roadmapPath = '/ruta';
 
+/** `/red`: «La red por dentro»; con una pieza elegida (`?pieza=`) y, si hace falta, `?abierto`. */
+export const networkPath = (part?: string, open = false): string => {
+  const query = [part ? `pieza=${encodeURIComponent(part)}` : '', open ? 'abierto' : '']
+    .filter(Boolean)
+    .join('&');
+  return query ? `/red?${query}` : '/red';
+};
+
 /** Ruta del mapa de un juego. */
 export const mapPath = (gameId: string): string => `/j/${encodeURIComponent(gameId)}`;
 

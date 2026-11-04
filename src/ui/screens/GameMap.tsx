@@ -11,6 +11,7 @@ import {
   xp,
 } from '../../engine/progression';
 import type { Shape, Summary } from '../../engine/types';
+import { BigPicture } from '../BigPicture';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
 import { t } from '../strings';
@@ -19,6 +20,7 @@ import { Gate } from './Gate';
 import {
   examPath,
   launchPath,
+  networkPath,
   projectPath,
   statsPath,
   useFocusTitle,
@@ -47,6 +49,12 @@ function MapView({ game }: { game: Game }) {
           {t.hub.statsLink}
         </Link>
       </div>
+      {game.bigPicture && <BigPicture bigPicture={game.bigPicture} />}
+      <p className="map__net">
+        <Link className="play__action" to={networkPath()}>
+          {t.network.linkMap}
+        </Link>
+      </p>
       <LaunchCard gameId={game.id} done={summary.launch} />
       {game.orbits.map((orbit, c) => (
         <OrbitCard

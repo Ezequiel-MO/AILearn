@@ -11,6 +11,7 @@ import {
   xp,
 } from '../../engine/progression';
 import { QUESTIONS_PER_EXERCISE, VALID } from '../../engine/types';
+import { BigPicture } from '../BigPicture';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
 import { t } from '../strings';
@@ -63,6 +64,7 @@ function PanelView({ game, orbit, project }: { game: Game; orbit: number; projec
         <span>{t.hub.projectMark(projectMark(summary, project.id), VALID)}</span>{' '}
         <span className="map__state">{validated ? t.hub.stateValidated : t.hub.stateOpen}</span>
       </p>
+      {project.bigPicture && <BigPicture bigPicture={project.bigPicture} />}
 
       <section className="panel__block" aria-labelledby={exercisesId}>
         <h2 id={exercisesId} className="panel__heading">

@@ -4,6 +4,7 @@ import type { Game } from '../../content/schema';
 import { toShape } from '../../content/schema';
 import { level, xp } from '../../engine/progression';
 import type { QuestionResult, SavedRun } from '../../engine/session';
+import { BigPicture } from '../BigPicture';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
@@ -49,6 +50,7 @@ function LaunchPlay({ game }: { game: Game }) {
       level={level(xp(toShape(game), summary))}
       warning={warning}
     >
+      {game.bigPicture && <BigPicture bigPicture={game.bigPicture} />}
       <div className="play__runner">
         <ExerciseRunner
           key={run}
