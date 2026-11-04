@@ -1239,6 +1239,181 @@ const puntuacionAtencion: Generator = {
   },
 };
 
+// ---------- Órbita 0 del juego 3: derivadas y mínimos ----------
+
+type GraphSpec = NonNullable<NumeroQ['graph']>;
+
+/** Polinomio en LaTeX con los coeficientes de menor a mayor grado; omite los términos nulos. */
+const polyTex = (coefs: readonly number[]): string => {
+  const parts: string[] = [];
+  for (let k = coefs.length - 1; k >= 0; k--) {
+    const c = coefs[k]!;
+    if (c === 0) continue;
+    const mag = Math.abs(c);
+    const power = k === 0 ? '' : k === 1 ? 'x' : `x^{${k}}`;
+    const body = k === 0 ? tex(mag) : `${mag === 1 ? '' : tex(mag)}${power}`;
+    parts.push(parts.length === 0 ? (c < 0 ? `-${body}` : body) : `${c < 0 ? '-' : '+'}${body}`);
+  }
+  return parts.length === 0 ? '0' : parts.join('');
+};
+
+const evalPoly = (coefs: readonly number[], x: number): number =>
+  coefs.reduceRight((acc, k) => acc * x + k, 0);
+
+/** Ventana vertical entera que contiene la función en [x0, x1] y los valores extra, con margen. */
+const yWindow = (
+  f: (x: number) => number,
+  x0: number,
+  x1: number,
+  extra: readonly number[] = [],
+): [number, number] => {
+  const ys = [...extra];
+  for (let i = 0; i <= 60; i++) ys.push(f(x0 + ((x1 - x0) * i) / 60));
+  const lo = Math.min(...ys);
+  const hi = Math.max(...ys);
+  const pad = Math.max(1, (hi - lo) * 0.1);
+  return [Math.floor(lo - pad), Math.ceil(hi + pad)];
+};
+
+const pendienteSecante: Generator = {
+  id: 'pendiente-secante',
+  bounds: { min: -16, max: 16 },
+  make(id, _params, rng) {
+    const a = [-2, -1, 1, 2][int(rng, 0, 3)]!;
+    const b = int(rng, -4, 4);
+    const c = int(rng, -4, 4);
+    const x1 = int(rng, -3, 2);
+    const x2 = int(rng, x1 + 1, 3);
+    const coefs = [c, b, a];
+    const f1 = evalPoly(coefs, x1);
+    const f2 = evalPoly(coefs, x2);
+    const answer = (f2 - f1) / (x2 - x1);
+    const graph: GraphSpec = {
+      x: [-4, 4],
+      y: yWindow((x) => evalPoly(coefs, x), -4, 4),
+      snap: 1,
+      curve: { kind: 'poly', coefs },
+      points: [
+        { id: 'p', label: 'P', x: x1, movable: false, onCurve: true },
+        { id: 'q', label: 'Q', x: x2, movable: false, onCurve: true },
+      ],
+      readouts: [],
+    };
+    return {
+      ...numeroQ(
+        id,
+        {
+          prompt: `Sea $f(x)=${polyTex(coefs)}$. La recta secante pasa por los puntos de la curva con $x=${tex(x1)}$ y $x=${tex(x2)}$ (P y Q en la figura). ¿Cuál es su pendiente?`,
+          hints: [
+            `Calcula $f(${tex(x1)})$ y $f(${tex(x2)})$: son las alturas de P y de Q.`,
+            'La pendiente de la secante es lo que sube la curva entre lo que avanza: $\\dfrac{f(x_2)-f(x_1)}{x_2-x_1}$.',
+          ],
+          explain:
+            'La pendiente de la secante es la variación media de $f$ entre los dos puntos: subida ÷ avance. Los fallos habituales son restar las alturas en un orden y las $x$ en el contrario, o dividir entre $x_2$ en vez de entre $x_2-x_1$.',
+          solution: `$f(${tex(x1)})=${tex(f1)}$ y $f(${tex(x2)})=${tex(f2)}$. La subida es $${tex(f2)}-${paren(f1)}=${tex(f2 - f1)}$ y el avance, $${tex(x2)}-${paren(x1)}=${tex(x2 - x1)}$. La pendiente es $\\dfrac{${tex(f2 - f1)}}{${tex(x2 - x1)}}=${tex(answer)}$.`,
+        },
+        answer,
+        0,
+      ),
+      graph,
+    };
+  },
+};
+
+const derivadaPolinomio: Generator = {
+  id: 'derivada-polinomio',
+  bounds: { min: -40, max: 40 },
+  make(id, _params, rng) {
+    const a = [-2, -1, 1, 2][int(rng, 0, 3)]!;
+    const b = int(rng, -3, 3);
+    const c = int(rng, -4, 4);
+    const d = int(rng, -5, 5);
+    const x0 = int(rng, -2, 2);
+    const coefs = [d, c, b, a];
+    const deriv = [c, 2 * b, 3 * a];
+    const answer = evalPoly(deriv, x0);
+    const fx0 = evalPoly(coefs, x0);
+    const evalTerms = [
+      `${tex(3 * a)}\\cdot ${paren(x0)}^2`,
+      2 * b !== 0 ? `${tex(2 * b)}\\cdot ${paren(x0)}` : '',
+      c !== 0 ? tex(c) : '',
+    ].filter((t) => t !== '');
+    const graph: GraphSpec = {
+      x: [-3, 3],
+      y: yWindow((x) => evalPoly(coefs, x), -3, 3),
+      snap: 1,
+      curve: { kind: 'poly', coefs },
+      points: [{ id: 'p', label: 'P', x: x0, movable: false, onCurve: true }],
+      readouts: [],
+    };
+    return {
+      ...numeroQ(
+        id,
+        {
+          prompt: `Sea $f(x)=${polyTex(coefs)}$. Deriva con las reglas y calcula $f'(${tex(x0)})$, la pendiente de la tangente en P.`,
+          hints: [
+            'Deriva término a término: la regla de la potencia baja el exponente ($x^n$ pasa a $n\\,x^{n-1}$) y la constante desaparece.',
+            `Cuando tengas $f'(x)$, sustituye $x=${tex(x0)}$. No sustituyas en $f$.`,
+          ],
+          explain:
+            "La derivada de $a\\,x^n$ es $n\\,a\\,x^{n-1}$ y la de una constante es $0$. Después se evalúa $f'$ en el punto. Los fallos habituales son evaluar $f$ en vez de $f'$ o dejar la constante sin borrar.",
+          solution: `$f'(x)=${polyTex(deriv)}$. En $x=${tex(x0)}$: $f'(${tex(x0)})=${evalTerms.join('+')}=${tex(answer)}$. Si evaluaras $f$ en vez de $f'$ saldría $${tex(fx0)}$, que es la altura de P, no su pendiente.`,
+        },
+        answer,
+        0,
+      ),
+      graph,
+    };
+  },
+};
+
+const minimoPerdida: Generator = {
+  id: 'minimo-perdida',
+  bounds: { min: 0, max: 9 },
+  make(id, _params, rng) {
+    for (;;) {
+      const xs = Array.from({ length: 3 }, () => int(rng, 1, 4));
+      const ys = Array.from({ length: 3 }, () => int(rng, 1, 9));
+      const sxy = xs.reduce((t, x, i) => t + x * ys[i]!, 0);
+      const sxx = xs.reduce((t, x) => t + x * x, 0);
+      // la respuesta se teclea con dos decimales como mucho: se exige que sea exacta con ellos
+      if ((sxy * 100) % sxx !== 0) continue;
+      const answer = sxy / sxx;
+      const data: [number, number][] = xs.map((x, i) => [x, ys[i]!]);
+      const loss = (w: number): number =>
+        data.reduce((t, [x, y]) => t + (w * x - y) ** 2, 0) / data.length;
+      const [lo, hi] = yWindow(loss, 0, 10);
+      const graph: GraphSpec = {
+        x: [0, 10],
+        y: [lo, Math.min(hi, Math.ceil(loss(0) * 1.5) + 1)],
+        snap: 1,
+        curve: { kind: 'mse', data },
+        points: [],
+        readouts: [],
+        labels: { x: 'w', y: 'pérdida' },
+      };
+      return {
+        ...numeroQ(
+          id,
+          {
+            prompt: `Un modelo $\\hat{y}=w\\,x$ se ajusta a los datos $(x,y)$: ${data.map((p) => `$${tuple(p)}$`).join(', ')}. La pérdida es el error cuadrático $\\sum (w\\,x_i-y_i)^2$ (su curva, en la figura). ¿Qué $w$ la hace mínima? Si sale un decimal, escríbelo con coma.`,
+            hints: [
+              'El mínimo de la pérdida está donde su pendiente es $0$. Para este modelo sale $w=\\dfrac{\\sum x_i y_i}{\\sum x_i^2}$.',
+              'Calcula por separado $\\sum x_i y_i$ (cada $x$ por su $y$) y $\\sum x_i^2$ (cada $x$ al cuadrado), y divide.',
+            ],
+            explain:
+              'Al derivar la pérdida respecto de $w$ e igualar a $0$ queda $w=\\sum x_i y_i\\,/\\,\\sum x_i^2$: el $w$ que mejor ajusta la recta $\\hat{y}=w\\,x$ a los datos. Los fallos habituales son dividir entre $\\sum x_i$ en vez de entre $\\sum x_i^2$ o mezclar los dos sumatorios.',
+            solution: `$\\sum x_i y_i=${xs.map((x, i) => `${paren(x)}\\cdot ${paren(ys[i]!)}`).join('+')}=${tex(sxy)}$ y $\\sum x_i^2=${xs.map((x) => `${paren(x)}^2`).join('+')}=${tex(sxx)}$. Entonces $w=\\dfrac{${tex(sxy)}}{${tex(sxx)}}${equalsOrApprox(answer)}${tex(answer)}$.`,
+          },
+          answer,
+          0,
+        ),
+        graph,
+      };
+    }
+  },
+};
+
 export const generators: Record<string, Generator> = {
   desplazamiento,
   suma,
@@ -1268,6 +1443,9 @@ export const generators: Record<string, Generator> = {
   'valores-singulares': valoresSingulares,
   'parametros-lora': parametrosLora,
   'puntuacion-atencion': puntuacionAtencion,
+  'pendiente-secante': pendienteSecante,
+  'derivada-polinomio': derivadaPolinomio,
+  'minimo-perdida': minimoPerdida,
 };
 
 /** Convierte una entrada `generada` en una pregunta concreta con una semilla entera. */

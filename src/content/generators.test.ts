@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { grade } from './grade';
 import { generators, resolve } from './generators';
+import { curveAt, curveSlope, mseBest } from '../engine/curves';
 import { numeroQSchema, vectorQSchema, type GeneradaQ } from './schema';
 import { defineProseTests } from '../../tests/content/prose-helpers';
 
@@ -53,6 +54,9 @@ const IDS = [
   'valores-singulares',
   'parametros-lora',
   'puntuacion-atencion',
+  'pendiente-secante',
+  'derivada-polinomio',
+  'minimo-perdida',
 ] as const;
 
 describe('generadores: contrato común', () => {
@@ -129,6 +133,9 @@ describe('bounds declarados', () => {
       'valores-singulares': [1, 15], // contract: brief de la Órbita 3, σ enteros: de 1 (permutación con signo) a 15 (3-4-5 con múltiplo 3)
       'parametros-lora': [128, 32768], // contract: brief de la Órbita 3, r(d+k): de 1·(64+64) a 16·(1024+1024)
       'puntuacion-atencion': [-18, 18], // contract: brief de la Órbita 3, |q·k| ≤ 4·9 = 36 y se divide entre 2
+      'pendiente-secante': [-16, 16], // contract: brief de la Órbita 0 del juego 3, a(x₁+x₂)+b con |a| ≤ 2, |x₁+x₂| ≤ 5 y |b| ≤ 4: el extremo es 2·5+4 = 14, con holgura hasta 16
+      'derivada-polinomio': [-40, 40], // contract: brief de la Órbita 0 del juego 3, 3a·x₀² + 2b·x₀ + c con |a| ≤ 2, |b| ≤ 3, |c| ≤ 4, |x₀| ≤ 2: |f′| ≤ 24 + 12 + 4 = 40
+      'minimo-perdida': [0, 9], // contract: brief de la Órbita 0 del juego 3, x en 1..4 e y en 1..9: w* = Σxy/Σx² está entre 0 y 9
     } as const; // contract: tabla del brief
     for (const id of IDS) {
       expect([generators[id]!.bounds.min, generators[id]!.bounds.max]).toEqual(expected[id]);
@@ -758,6 +765,9 @@ describe('oráculo de la Órbita 1 de Matrices: determinante, resolver-sistema y
       'valores-singulares',
       'parametros-lora',
       'puntuacion-atencion',
+      'pendiente-secante',
+      'derivada-polinomio',
+      'minimo-perdida',
     ]) {
       for (const seed of SEEDS.slice(0, 50)) {
         const q = resolve(call(id), seed);
@@ -994,6 +1004,91 @@ defineProseTests(
   ['valores-singulares', 'parametros-lora', 'puntuacion-atencion'].flatMap((id) =>
     SEEDS.slice(0, 50).map((seed) => resolve(call(id), seed)),
   ),
+);
+
+const G3 = ['pendiente-secante', 'derivada-polinomio', 'minimo-perdida'];
+
+describe('oráculo de la Órbita 0 del juego 3: pendiente-secante, derivada-polinomio y minimo-perdida (200 semillas)', () => {
+  const numero = (id: string, seed: number) => {
+    const q = resolve(call(id), seed);
+    if (q.type !== 'numero') throw new Error(`${id} debe dar un número`);
+    return q;
+  };
+  const decimals = (x: number): boolean => Math.abs(x * 100 - Math.round(x * 100)) < 1e-9;
+
+  it('pendiente-secante: la respuesta es la pendiente de la secante entre P y Q del graph, sin dibujar la secante', () => {
+    for (const seed of SEEDS) {
+      const q = numero('pendiente-secante', seed);
+      const { curve, points, readouts } = q.graph!;
+      expect(curve?.kind, `semilla ${seed}`).toBe('poly'); // contract: brief, parábola a·x² + b·x + c
+      const coefs = (curve as { coefs: number[] }).coefs;
+      expect(coefs.length).toBe(3); // contract: brief, parábola
+      expect(coefs[2]).not.toBe(0); // contract: brief, es una parábola de verdad
+      const [p, r] = points;
+      expect(Number.isInteger(p!.x) && Number.isInteger(r!.x) && p!.x < r!.x).toBe(true); // contract: brief, dos x enteras
+      expect([p!.onCurve, r!.onCurve, p!.movable, r!.movable]).toEqual([true, true, false, false]); // contract: figura estática con P y Q sobre la curva
+      const expected = (curveAt(curve!, r!.x) - curveAt(curve!, p!.x)) / (r!.x - p!.x); // contract: definición de pendiente de la secante
+      expect(q.answer, `semilla ${seed}`).toBeCloseTo(expected, 9);
+      expect(readouts).toEqual([]); // contract: brief, el graph no lleva la lectura que da la respuesta
+      expect(q.tol).toBe(0); // contract: brief, respuesta exacta
+    }
+  });
+
+  it('derivada-polinomio: cúbica de coeficientes enteros pequeños; la respuesta es f′(x₀) y la solución no la lee de una tangente', () => {
+    for (const seed of SEEDS) {
+      const q = numero('derivada-polinomio', seed);
+      const { curve, points } = q.graph!;
+      const coefs = (curve as { coefs: number[] }).coefs;
+      expect(coefs.length, `semilla ${seed}`).toBe(4); // contract: brief, cúbica
+      expect(coefs.every(Number.isInteger)).toBe(true); // contract: brief, coeficientes enteros
+      expect(Math.max(...coefs.map(Math.abs))).toBeLessThanOrEqual(5); // contract: brief, coeficientes pequeños
+      expect(coefs[3]).not.toBe(0); // contract: brief, cúbica de verdad
+      expect(q.answer).toBeCloseTo(curveSlope(curve!, points[0]!.x), 9); // contract: f′(x₀) es la pendiente de la tangente (engine/curves)
+      expect(q.graph!.tangent).toBeUndefined(); // contract: brief, sin la lectura que da la respuesta
+      expect(q.graph!.readouts).toEqual([]); // contract: brief, sin la lectura que da la respuesta
+      expect(q.solution).toContain(`${q.answer}`.replace('.', '{,}')); // contract: brief, la solución muestra la cuenta
+    }
+  });
+
+  it('minimo-perdida: tres datos enteros; la respuesta es Σxy/Σx² con dos decimales exactos', () => {
+    const seen = new Set<number>();
+    for (const seed of SEEDS) {
+      const q = numero('minimo-perdida', seed);
+      const curve = q.graph!.curve!;
+      expect(curve.kind, `semilla ${seed}`).toBe('mse'); // contract: brief, la pérdida de los datos
+      const data = (curve as { data: [number, number][] }).data;
+      expect(data.length).toBe(3); // contract: brief, tres datos
+      expect(data.flat().every(Number.isInteger)).toBe(true); // contract: brief, datos enteros
+      expect(q.answer, `semilla ${seed}`).toBeCloseTo(mseBest(curve as never), 9); // contract: w* = Σxy/Σx² (engine/curves)
+      expect(decimals(q.answer)).toBe(true); // contract: brief, cifras que se teclean con dos decimales
+      expect(q.graph!.readouts).toEqual([]); // contract: brief, sin la lectura que da la respuesta
+      expect(q.graph!.points).toEqual([]); // contract: la figura no marca el mínimo
+      expect(q.tol).toBe(0); // contract: brief, respuesta exacta con dos decimales
+      seen.add(q.answer);
+    }
+    expect(seen.size).toBeGreaterThan(10); // contract: brief, varios valores de w* distintos (la exactitud con dos decimales deja unos 18)
+  });
+
+  it('cubren varios sorteos distintos y la ventana contiene a los puntos', () => {
+    for (const id of G3) {
+      const prompts = new Set(SEEDS.map((s) => resolve(call(id), s).prompt));
+      expect(prompts.size, id).toBeGreaterThan(100); // contract: brief, cada examen con números distintos
+      for (const seed of SEEDS) {
+        const g = numero(id, seed).graph!;
+        for (const p of g.points) {
+          expect(p.x >= g.x[0] && p.x <= g.x[1], `${id} ${seed}`).toBe(true); // contract: la figura debe mostrar sus puntos
+          const y = curveAt(g.curve!, p.x);
+          expect(y >= g.y[0] && y <= g.y[1], `${id} ${seed}`).toBe(true); // contract: la figura debe mostrar sus puntos
+        }
+      }
+    }
+  });
+});
+
+// contract: prosa de las preguntas generadas: las mismas reglas que el contenido (KaTeX estricto, coma decimal, sin $ sueltos)
+defineProseTests(
+  'generadores de la Órbita 0 del juego 3 (50 sorteos cada uno)',
+  G3.flatMap((id) => SEEDS.slice(0, 50).map((seed) => resolve(call(id), seed))),
 );
 
 describe('texto de la solución', () => {
