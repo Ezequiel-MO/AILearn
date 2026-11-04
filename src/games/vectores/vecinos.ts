@@ -35,6 +35,10 @@ export const vecinos: Project = {
   id: 'vecinos',
   name: 'Vecinos y top-k',
   sub: 'Los k más parecidos',
+  bigPicture: {
+    parts: ['search'],
+    text: 'Un sistema RAG guarda el embedding de cada fragmento de sus documentos y, ante una pregunta, busca los $k$ más cercanos al embedding de la pregunta. Esos fragmentos se pegan en el contexto del modelo para que responda con ellos. Lo que aquí haces, ordenar por parecido y quedarte con los primeros, es el corazón de esa búsqueda.',
+  },
   warmup: vecinosWarmup,
   exercises: [
     {

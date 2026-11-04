@@ -24,6 +24,10 @@ export const coseno: Project = {
   id: 'coseno',
   name: 'Coseno',
   sub: 'Similitud por la dirección',
+  bigPicture: {
+    parts: ['search', 'attention'],
+    text: 'Para buscar los documentos que responden a una pregunta, un sistema RAG compara sus embeddings con el coseno: cuanto más cerca de $1$, más se parecen. La atención hace una cuenta hermana, el producto escalar $q\\cdot k$, para decidir cuánto mira un token a otro. El ángulo que mides aquí entre dos flechas es esa misma medida de parecido.',
+  },
   warmup: cosenoWarmup,
   exercises: [
     {

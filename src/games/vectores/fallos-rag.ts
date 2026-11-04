@@ -38,6 +38,10 @@ export const fallosRag: Project = {
   id: 'fallos-rag',
   name: 'Por qué falla un RAG',
   sub: 'Parecido no es correcto',
+  bigPicture: {
+    parts: ['search', 'output'],
+    text: 'Un RAG falla cuando el fragmento más parecido a la pregunta no es el que la responde, y el modelo, al recibirlo, contesta igualmente con total seguridad. Parecido no es correcto. Aquí diagnosticas esos fallos con umbrales y con los números de la búsqueda, que es lo que hace quien construye uno de verdad antes de echarle la culpa al modelo.',
+  },
   warmup: fallosRagWarmup,
   exercises: [
     {

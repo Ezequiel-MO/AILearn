@@ -16,6 +16,10 @@ export const componer: Project = {
   id: 'componer',
   name: 'Componer',
   sub: 'Una transformación tras otra',
+  bigPicture: {
+    parts: ['linear', 'activation'],
+    text: 'Un bloque del modelo encadena varias transformaciones, una tras otra: el orden en que se aplican importa. Dos capas lineales seguidas equivalen a una sola, la matriz producto, y por eso entre ellas se pone una activación que las dobla. Aquí ves cómo se componen dos transformaciones y por qué $AB$ no es $BA$.',
+  },
   warmup: componerWarmup,
   exercises: [
     {

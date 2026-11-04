@@ -34,6 +34,10 @@ export const normalizar: Project = {
   id: 'normalizar',
   name: 'Normalizar',
   sub: 'Todos a la misma longitud',
+  bigPicture: {
+    parts: ['norm', 'search'],
+    text: 'Si los vectores tienen todos longitud $1$, el coseno, el producto escalar y la distancia dicen lo mismo, y comparar se vuelve más simple. Por eso los buscadores normalizan sus embeddings. Dentro del modelo ocurre algo parecido: antes de la atención y del MLP, la normalización de capa reescala cada vector para que los números no se disparen.',
+  },
   warmup: normalizarWarmup,
   exercises: [
     {

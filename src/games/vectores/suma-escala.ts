@@ -23,6 +23,10 @@ export const sumaEscala: Project = {
   id: 'suma-escala',
   name: 'Suma y escala',
   sub: 'Combinar flechas',
+  bigPicture: {
+    parts: ['embedding'],
+    text: 'Los vectores de una red se suman y se multiplican por números todo el tiempo: cada bloque del modelo suma su resultado al vector que le entró. Lo que aquí haces con flechas, sumar y estirar, es la operación básica con la que se construye cualquier otra, y también la que permite mezclar significados.',
+  },
   warmup: sumaEscalaWarmup,
   exercises: [
     {

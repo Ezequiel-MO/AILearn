@@ -17,6 +17,10 @@ export const matrizVector: Project = {
   id: 'matriz-vector',
   name: 'Matriz por vector',
   sub: 'Combinar las columnas',
+  bigPicture: {
+    parts: ['linear', 'attention'],
+    text: 'Multiplicar una matriz por un vector es combinar sus columnas con los números del vector como pesos. Es la cuenta que hace cada capa lineal, y también la que calcula $Q$, $K$ y $V$ en la atención a partir de cada embedding. Aquí la haces a mano con dos números; la red la hace con cientos a la vez.',
+  },
   warmup: matrizVectorWarmup,
   exercises: [
     {

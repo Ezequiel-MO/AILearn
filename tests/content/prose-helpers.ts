@@ -424,3 +424,30 @@ export const defineProseTests = (label: string, questions: readonly Question[]):
     }
   });
 };
+
+/**
+ * Las reglas de prosa que valen para un texto suelto (sin pregunta): `$` emparejados y fórmulas que pasan
+ * KaTeX estricto, sin punto decimal en prosa ni coma decimal sin `{,}` en fórmula, pares con decimales
+ * separados por «; » y nada «que ya conoces». Lo usa `big-picture.test.ts` (los textos de «dónde encaja»
+ * y las fichas de la red). Devuelve la lista de problemas; vacía si cumple.
+ */
+export const plainTextProblems = (label: string, text: string): string[] => {
+  if (text.trim() === '') return [`${label}: texto vacío`];
+  const { math, display, rest } = splitMath(text);
+  const out: string[] = [];
+  if (rest.includes('$')) out.push(`${label}: hay un \`$\` sin pareja: ${text}`);
+  math.forEach((m, i) => {
+    try {
+      katex.renderToString(m, { throwOnError: true, strict: 'error', displayMode: display[i]! });
+    } catch (e) {
+      out.push(`${label}: KaTeX rechaza «${m}»: ${(e as Error).message}`);
+    }
+  });
+  if (/\d\.\d/.test(rest)) out.push(`${label}: punto decimal en prosa: ${text}`);
+  for (const m of math) if (/\d,\d/.test(m)) out.push(`${label}: coma decimal sin {,} en «${m}»`);
+  for (const piece of [...math, rest])
+    for (const i of decimalPairs(piece)) out.push(`${label}: el par (${i}) lleva «;»`);
+  if (/que ya conoces|como ya (sabes|viste)/i.test(text))
+    out.push(`${label}: remite a algo que el jugador ya conoce`);
+  return out;
+};

@@ -33,6 +33,10 @@ export const svd: Project = {
   id: 'svd',
   name: 'SVD',
   sub: 'Girar, estirar, girar',
+  bigPicture: {
+    parts: ['compress', 'linear'],
+    text: 'Toda matriz se puede ver como un giro, un estirado y otro giro: es la SVD. Con ella se ve cuántas direcciones importan de verdad en una matriz de pesos y cuáles aportan poco. Aquí lo ves con transformaciones de dos dimensiones; la misma descomposición sirve para aproximar matrices grandes con pocas direcciones.',
+  },
   warmup: svdWarmup,
   exercises: [
     {

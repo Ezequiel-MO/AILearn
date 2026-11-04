@@ -24,6 +24,10 @@ export const normaDistancia: Project = {
   id: 'norma-distancia',
   name: 'Norma y distancia',
   sub: 'Cuánto mide y cuánto separa',
+  bigPicture: {
+    parts: ['embedding', 'search'],
+    text: 'Dos embeddings cercanos suelen tener significados parecidos, y la distancia es la forma más directa de medir esa cercanía. Un sistema de búsqueda que elige el vector más próximo a la pregunta usa justo la distancia que aquí calculas con dos números. Con $768$ números la cuenta es la misma, solo más larga.',
+  },
   warmup: normaDistanciaWarmup,
   exercises: [
     {

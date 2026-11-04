@@ -24,6 +24,10 @@ export const analogias: Project = {
   id: 'analogias',
   name: 'Analogías',
   sub: 'Aritmética con significados',
+  bigPicture: {
+    parts: ['embedding', 'inspect'],
+    text: 'Los embeddings guardan relaciones como direcciones: la que va de un país a su capital se parece a la de otro país a la suya. Sumar y restar vectores permite buscar esas relaciones. No es magia ni siempre acierta, pero enseña que el significado, en una red, se reparte en direcciones del espacio y no en casillas sueltas.',
+  },
   warmup: analogiasWarmup,
   exercises: [
     {

@@ -8,6 +8,10 @@ export const columnas: Project = {
   id: 'columnas',
   name: 'Columnas',
   sub: 'Adónde van î y ĵ',
+  bigPicture: {
+    parts: ['linear'],
+    text: 'Cada capa lineal de una red guarda una matriz de pesos $W$ y la aplica a todos los vectores que le llegan. Leer sus columnas como «adónde va cada eje» es leer qué hace la capa. En el GPT-2 pequeño, la primera capa del MLP de cada bloque es una matriz de $3072\\times 768$; aquí la ves en $2\\times 2$, donde cabe en un dibujo.',
+  },
   warmup: columnasWarmup,
   exercises: [
     {

@@ -22,6 +22,10 @@ export const componentes: Project = {
   id: 'componentes',
   name: 'Componentes',
   sub: 'Un vector es una flecha y es una lista',
+  bigPicture: {
+    parts: ['embedding', 'tokens'],
+    text: 'Un modelo de lenguaje cambia cada token por un vector: una lista de números, $768$ en el GPT-2 pequeño. Esa lista es lo único que la red ve de una palabra. Aquí practicas con dos componentes, donde el vector es también una flecha que se dibuja; en $768$ componentes no se dibuja, pero se lee igual.',
+  },
   warmup: componentesWarmup,
   exercises: [
     {

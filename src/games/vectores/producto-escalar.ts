@@ -23,6 +23,10 @@ export const productoEscalar: Project = {
   id: 'producto-escalar',
   name: 'Producto escalar',
   sub: 'Cuánto van en la misma dirección',
+  bigPicture: {
+    parts: ['attention', 'embedding'],
+    text: 'La atención decide cuánto mira un token a otro con un producto escalar, $q\\cdot k$, entre dos vectores suyos. Es la misma cuenta que haces aquí: multiplicar componente a componente y sumar. Un resultado grande dice que los dos vectores apuntan hacia el mismo lado; uno cercano a $0$, que casi no tienen nada que ver.',
+  },
   warmup: productoEscalarWarmup,
   exercises: [
     {

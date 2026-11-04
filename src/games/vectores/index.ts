@@ -20,6 +20,10 @@ import { vecinos } from './vecinos';
 export const vectores: Game = {
   id: 'vectores',
   title: 'Vectores y embeddings',
+  bigPicture: {
+    parts: ['embedding', 'search', 'attention'],
+    text: 'Este juego construye lo que hay antes y alrededor de la red: el vector que representa cada token y las medidas con que se comparan. Primero la flecha, después el ángulo que da el parecido, el paso a cientos de dimensiones y la búsqueda de un RAG. Es el primer juego porque todo lo que sigue, matrices y gradientes, opera sobre estos vectores.',
+  },
   launch,
   orbits: [
     {

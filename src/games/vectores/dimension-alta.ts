@@ -23,6 +23,10 @@ export const dimensionAlta: Project = {
   id: 'dimension-alta',
   name: 'Dimensión alta',
   sub: 'Donde casi todo es perpendicular',
+  bigPicture: {
+    parts: ['embedding', 'inspect'],
+    text: 'Los embeddings tienen cientos de dimensiones, $768$ en el GPT-2 pequeño, y ahí la geometría se comporta de otra forma: casi todo es casi perpendicular. Por eso un coseno alto en esas dimensiones significa mucho, y por eso un dibujo en dos dimensiones nunca cuenta toda la historia. Aquí ves por qué con experimentos pequeños.',
+  },
   warmup: dimensionAltaWarmup,
   exercises: [
     {

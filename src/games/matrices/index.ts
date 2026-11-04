@@ -20,6 +20,10 @@ import { svd } from './svd';
 export const matrices: Game = {
   id: 'matrices',
   title: 'Matrices y transformaciones',
+  bigPicture: {
+    parts: ['linear', 'attention', 'compress'],
+    text: 'Este juego construye la pieza que más pesa en una red: la capa lineal, una matriz que transforma todos los vectores que le llegan. Empieza por ver qué hace una matriz, sigue con cuándo pierde información y con sus direcciones propias, y acaba en la atención y en la compresión con rango bajo. Va tras los vectores porque una matriz solo es una máquina de transformar vectores.',
+  },
   launch,
   orbits: [
     {

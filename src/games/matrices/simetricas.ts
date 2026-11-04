@@ -42,6 +42,10 @@ export const simetricas: Project = {
   id: 'simetricas',
   name: 'Matrices simétricas',
   sub: 'Ejes perpendiculares y covarianza',
+  bigPicture: {
+    parts: ['inspect', 'compress'],
+    text: 'La covarianza de un conjunto de vectores es una matriz simétrica, y sus autovectores son los ejes en los que los datos más varían. Son perpendiculares, lo que los hace cómodos de usar. Aquí los ves en un plano; la misma matriz con embeddings de $768$ números es la que se usa para explorarlos y comprimirlos.',
+  },
   warmup: simetricasWarmup,
   exercises: [
     {

@@ -25,6 +25,10 @@ export const inversa: Project = {
   id: 'inversa',
   name: 'Inversa',
   sub: 'Deshacer la transformación',
+  bigPicture: {
+    parts: ['linear'],
+    text: 'Deshacer una transformación es aplicar su matriz inversa, y solo se puede si la transformación no aplasta nada. Es una pregunta útil sobre una capa: ¿se puede recuperar la entrada a partir de la salida? Aquí calculas la inversa en dos dimensiones y compruebas cuándo no existe, que es cuando la matriz pierde una dirección.',
+  },
   warmup: inversaWarmup,
   exercises: [
     {

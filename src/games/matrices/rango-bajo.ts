@@ -40,6 +40,10 @@ export const rangoBajo: Project = {
   id: 'rango-bajo',
   name: 'Rango bajo y LoRA',
   sub: 'Comprimir y afinar',
+  bigPicture: {
+    parts: ['compress', 'linear'],
+    text: 'LoRA afina un modelo sin tocar sus pesos originales: aprende solo un cambio de rango bajo, $\\Delta W=BA$, con una fracción pequeña de los parámetros. Es la idea del rango y de la SVD puesta a trabajar. Aquí aproximas una matriz con pocas direcciones y cuentas cuánto ahorras y cuánto pierdes.',
+  },
   warmup: rangoBajoWarmup,
   exercises: [
     {

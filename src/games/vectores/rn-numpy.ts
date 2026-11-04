@@ -24,6 +24,10 @@ export const rnNumpy: Project = {
   id: 'rn-numpy',
   name: 'ℝⁿ en NumPy',
   sub: 'Muchos vectores a la vez',
+  bigPicture: {
+    parts: ['embedding', 'linear'],
+    text: 'La tabla de embeddings de un modelo es una matriz con una fila por token: en el GPT-2 pequeño, $50\\,257$ filas de $768$ números. Nadie recorre esas filas una a una; NumPy, como la red, opera con todas a la vez. Aprender a escribir una cuenta sobre muchos vectores a la vez es aprender a pensar como se calcula una red.',
+  },
   warmup: rnNumpyWarmup,
   exercises: [
     {

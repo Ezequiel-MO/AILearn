@@ -32,6 +32,10 @@ export const pca: Project = {
   id: 'pca',
   name: 'PCA',
   sub: 'Ver en dos dimensiones',
+  bigPicture: {
+    parts: ['inspect', 'embedding'],
+    text: 'Para mirar embeddings de cientos de dimensiones, el PCA los proyecta sobre las dos direcciones en las que más varían, y en el dibujo se ve qué se agrupa con qué. Es una forma habitual de explorar lo que aprende una red. Aquí lo haces con pocos puntos, para entender qué conserva el dibujo y qué se pierde.',
+  },
   warmup: pcaWarmup,
   exercises: [
     {

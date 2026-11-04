@@ -20,6 +20,10 @@ export const determinante: Project = {
   id: 'determinante',
   name: 'Determinante',
   sub: 'El área con signo',
+  bigPicture: {
+    parts: ['linear'],
+    text: 'El determinante de una matriz dice cuánto escala las áreas la transformación que representa, y si vale $0$, la aplasta en una línea y pierde información. Una capa lineal que aplasta direcciones pierde parte de lo que le llega. Aquí lo ves como área con signo, lo que ayuda a entender cuándo una capa conserva información y cuándo no.',
+  },
   warmup: determinanteWarmup,
   exercises: [
     {

@@ -22,6 +22,10 @@ export const proyeccion: Project = {
   id: 'proyeccion',
   name: 'Proyección',
   sub: 'La sombra de una flecha',
+  bigPicture: {
+    parts: ['linear', 'inspect'],
+    text: 'Proyectar un vector es quedarse con la parte que va en una dirección. Cada fila de una capa lineal hace algo parecido: mide cuánto del vector de entrada va en su dirección. Al dibujar embeddings en un plano, también se proyectan sobre dos direcciones elegidas. La sombra de una flecha que calculas aquí es esa operación en pequeño.',
+  },
   warmup: proyeccionWarmup,
   exercises: [
     {

@@ -29,6 +29,10 @@ export const atencion: Project = {
   id: 'atencion',
   name: 'Atención como matriz',
   sub: 'Quién mira a quién',
+  bigPicture: {
+    parts: ['attention', 'linear'],
+    text: 'La atención de un bloque cabe en una matriz: sus filas dicen cuánto mira cada token a los demás, y la salida es esa matriz por los valores $V$. Con softmax, cada fila suma $1$. Aquí construyes esa matriz con pocos tokens y ves en la cuenta quién mira a quién, que es lo mismo que ocurre con textos de miles de ellos.',
+  },
   warmup: atencionWarmup,
   exercises: [
     {

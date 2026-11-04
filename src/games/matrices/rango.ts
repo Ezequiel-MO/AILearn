@@ -31,6 +31,10 @@ export const rango: Project = {
   id: 'rango',
   name: 'Rango',
   sub: 'Cuántas direcciones sobreviven',
+  bigPicture: {
+    parts: ['linear', 'compress'],
+    text: 'El rango cuenta cuántas direcciones independientes sobreviven a una matriz. Una matriz de pesos de rango bajo hace menos de lo que su tamaño promete, y eso es lo que permite comprimirla. Aquí lo ves con planos que se aplastan en una línea; la idea de que una matriz grande pueda guardarse con pocos números sale de ahí.',
+  },
   warmup: rangoWarmup,
   exercises: [
     {

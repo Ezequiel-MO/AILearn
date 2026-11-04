@@ -25,6 +25,10 @@ export const autovectores: Project = {
   id: 'autovectores',
   name: 'Autovectores',
   sub: 'Las flechas que no giran',
+  bigPicture: {
+    parts: ['linear', 'inspect'],
+    text: 'Cada matriz tiene unas direcciones especiales, sus autovectores, que solo estira sin girarlas. Mirar una matriz por esas direcciones es entender qué hace en lo esencial. Es el primer paso para ver dentro de una capa lineal: en vez de una tabla de números, un par de ejes y cuánto estira cada uno.',
+  },
   warmup: autovectoresWarmup,
   exercises: [
     {
