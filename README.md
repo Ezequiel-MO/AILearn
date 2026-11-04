@@ -2,9 +2,11 @@
 
 Juegos para aprender ingeniería de IA con la matemática como columna vertebral. Cada juego enseña un bloque de matemáticas y lo aplica a un tema de IA. Los niveles tienen un despegue de entrada, órbitas con proyectos de tres ejercicios que se validan con nota 80 y un examen por órbita, con XP y nivel decimal.
 
-Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings», y el despegue, la órbita 0 («La máquina»: Columnas, Matriz por vector, Componer), la órbita 1 («El área»: Determinante, Inversa, Rango), la órbita 2 («Direcciones propias»: Autovectores, Matrices simétricas, PCA) y la órbita 3 («Descomponer y aproximar»: SVD, Rango bajo y LoRA, Atención como matriz) del juego 2, «Matrices y transformaciones». Todo el texto visible está en castellano.
+Esta entrega contiene el motor de la trayectoria, el despegue, la órbita 0 («La flecha»), la órbita 1 («El ángulo»), la órbita 2 («Muchas dimensiones») y la órbita 3 («Búsqueda», con embeddings reales) del juego 1, «Vectores y embeddings», y el despegue, la órbita 0 («La máquina»: Columnas, Matriz por vector, Componer), la órbita 1 («El área»: Determinante, Inversa, Rango), la órbita 2 («Direcciones propias»: Autovectores, Matrices simétricas, PCA) y la órbita 3 («Descomponer y aproximar»: SVD, Rango bajo y LoRA, Atención como matriz) del juego 2, «Matrices y transformaciones», y el despegue y la órbita 0 («La pendiente»: Derivada como pendiente, Reglas de derivación, Mínimos) del juego 3, «Derivadas y gradiente». Todo el texto visible está en castellano.
 
-Con la órbita 3, el juego 2 tiene construidas todas las órbitas que prevé `src/games/roadmap.ts`.
+Con la órbita 3, el juego 2 tiene construidas todas las órbitas que prevé `src/games/roadmap.ts`. El juego 3 estrena el plano de curvas (preguntas `curva` y figuras `graph`): funciones de una variable con su tangente, sus secantes, su derivada y, en una pérdida, el ajuste de los datos.
+
+Cada juego y cada proyecto dice dónde encaja en una red neuronal (`bigPicture`). Se ve como una tarjeta, «Dónde encaja en la red», con el dibujo de un modelo de lenguaje pequeño y sus piezas resaltadas, en el panel del proyecto, en el mapa del juego y en el despegue. La página `#/red`, «La red por dentro», enseña la red entera y, por pieza, dónde se practica.
 
 El diseño está en `docs/superpowers/specs/2026-10-13-motor-y-juego-1-vectores-design.md`. La ruta completa (los nueve juegos previstos, con sus órbitas y proyectos) vive en `src/games/roadmap.ts` y se ve en `#/ruta`, enlazada desde el inicio; lo que no está construido sale como «Próximamente».
 
@@ -41,7 +43,7 @@ Las pruebas de código cargan Pyodide en Node y guardan su caché de paquetes en
 
 ```
 src/
-  engine/     Reglas de la trayectoria (nota, validación, puertas, examen, XP, nivel). TypeScript puro.
+  engine/     Reglas de la trayectoria (nota, validación, puertas, examen, XP, nivel), métricas del plano de vectores y del de curvas (`curves.ts`). TypeScript puro.
   content/    Esquema del contenido (Zod), validación, generadores, corrección y sorteo del examen.
   python/     Worker de Pyodide, su interfaz, el arnés que ejecuta código y comprobaciones, y el módulo `embeddings` (embeddings reales precalculados).
   storage/    Interfaz de progreso y su implementación sobre localStorage, con migración.
@@ -49,6 +51,8 @@ src/
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
     vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, embeddings de juguete.
     matrices/ Juego 2: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen y `plane.ts` (plano con î y ĵ como columnas).
+    gradiente/ Juego 3: Despegue, proyectos de la Órbita 0 y su banco de examen.
+    network.ts Fichas de las piezas de la red que dibuja «La red por dentro» (`#/red`).
 tests/
   content/    Pruebas que recorren el registro de juegos y ayudantes compartidos.
   deps/       Imports declarados en package.json y versión única de KaTeX.
@@ -70,9 +74,10 @@ Dónde viven las cosas:
 
 Las preguntas, los proyectos y los juegos son objetos serializables validados con el esquema de `src/content/schema.ts`: nunca contienen funciones. Se escriben en ficheros TypeScript para tener tipos al editarlos.
 
-- Un proyecto tiene `id`, `name`, `sub`, 3 ejercicios y 3 hojas. Los ejercicios son, en este orden, `manipular`, `calcular` y `programar`; cada uno tiene 5 preguntas. Las hojas son preguntas `revision` («Caza el error»).
+- Un proyecto tiene `id`, `name`, `sub`, 3 ejercicios, 3 hojas, `warmup` y `bigPicture`. Los ejercicios son, en este orden, `manipular`, `calcular` y `programar`; cada uno tiene 5 preguntas. Las hojas son preguntas `revision` («Caza el error»).
+- `bigPicture` dice dónde encaja el proyecto en una red neuronal: `parts`, de 1 a 4 piezas de `NETWORK_PARTS` (`src/content/schema.ts`), de la más directa a la menos, y `text`, de 2 a 4 frases (de 120 a 480 caracteres). La ficha de cada pieza vive en `src/games/network.ts`. `tests/content/big-picture.test.ts` lo exige en todo juego y proyecto registrado.
 - Una órbita tiene `name`, `projects` y `examBank` (el banco del que se sortean las 6 preguntas del examen).
-- Un juego tiene `id`, `title`, `launch` (lista de preguntas) y `orbits`.
+- Un juego tiene `id`, `title`, `bigPicture`, `launch` (lista de preguntas) y `orbits`.
 - Toda pregunta tiene `id` estable, `prompt` (Markdown, fórmulas entre `$...$` y `$$...$$`), `hints`, `explain` (primer fallo) y `solution` (segundo fallo).
 
 Tipos de pregunta y qué ejercicio los admite:
@@ -80,9 +85,10 @@ Tipos de pregunta y qué ejercicio los admite:
 | Tipo        | Ejercicio | Campos propios                                                                               |
 | ----------- | --------- | -------------------------------------------------------------------------------------------- |
 | `manipular` | manipular | `plane` (vectores, `range`, `snap`, lecturas) y `goals` (métrica, vectores, `target`, `tol`) |
-| `numero`    | calcular  | `answer`, `tol`, `plane` opcional                                                            |
-| `vector`    | calcular  | `answer` (lista), `tol`, `plane` opcional                                                    |
-| `opcion`    | calcular  | `options`, `correct` (índice), `plane` opcional                                              |
+| `curva`     | manipular | `graph` (plano de curvas) y `goals` (métrica, puntos, `target`, `tol`)                       |
+| `numero`    | calcular  | `answer`, `tol`, `plane` o `graph` opcional                                                  |
+| `vector`    | calcular  | `answer` (lista), `tol`, `plane` o `graph` opcional                                          |
+| `opcion`    | calcular  | `options`, `correct` (índice), `plane` o `graph` opcional                                    |
 | `codigo`    | programar | `starter`, `checks`, `reference`, `requirements`                                             |
 | `revision`  | hojas     | `format` (`codigo` o `texto`), `lines`, `faultyLine` (índice, o `null` si está bien)         |
 
@@ -95,10 +101,17 @@ Matrices en el plano y en las respuestas:
 - Lecturas de `readouts` por cada id de `transform.apply` (exigen `transform` con al menos un `apply`): `image` ($A\vec v$), `img_angle`, `rayleigh` y `stretch`. La opción `circleImage: true` del plano (exige `circle` y `transform`) dibuja la imagen por $A$ de la circunferencia `circle`: una elipse.
 - Un `vector` con `shape: [filas, columnas]` pide una matriz: `answer` va fila a fila.
 
+El plano de curvas (`graph`, juego 3; esquema en `src/content/schema.ts`, métricas en `src/engine/curves.ts`, dibujo en `src/ui/CurvePlane.tsx`, ejemplos en `#/dev/curvas`):
+
+- Una ventana `x`, `y` con escala propia en cada eje, `snap` (el paso de la rejilla al arrastrar), una `curve` opcional y `points`. La curva es `poly` (`coefs`, del término independiente al de mayor grado) o `mse` (la pérdida media de ŷ = w·x sobre los pares de `data`; la variable del plano es w). Un punto va sobre la curva (`onCurve: true`, sin `y`: su altura es siempre f(x) y se arrastra en horizontal) o libre (con `y`). Como mucho 2 puntos móviles.
+- Lecturas de `readouts`: `coords`, `slope` (la tangente en cada punto de la curva), `secant` (entre los dos puntos de `pair`, sobre la curva) y `line` (la recta por los dos puntos libres de `pair`, con su triángulo de avance y subida). `secant` y `line` no van juntas. Solo dibujan: `tangent`, `derivative` (f′ discontinua), `step` (el paso de descenso de x a x − rate·f′(x)) y `fit` (con `mse`: un panel con los datos, la recta ŷ = w·x y los cuadrados de los errores).
+- Métricas de meta: `x`; `y` (punto libre); `fx` y `slope` (un punto sobre la curva); `secant` (dos sobre la curva); `line_slope` y `line_icpt` (dos libres). La meta tiene que alcanzarse en la rejilla y no cumplirse al empezar.
+- En `numero`, `vector` y `opcion`, `graph` es una figura estática, que no lleva la lectura que da la respuesta (sin `slope` si se pide la pendiente).
+
 ### Añadir una pregunta
 
 1. Escríbela en el fichero de su proyecto (`src/games/vectores/<proyecto>.ts`) con el tipo que admita su ejercicio. Id con el patrón del proyecto: `<proyecto>.ex0N.<n>` para ejercicios y `<proyecto>.hoja.<n>` para hojas; `despegue.<n>` en el despegue.
-2. `manipular`: la meta debe ser alcanzable desde el plano y no cumplirse en la posición inicial. Como mucho 2 vectores móviles (la comprobación de alcanzabilidad recorre todas las colocaciones de la rejilla).
+2. `manipular` y `curva`: la meta debe ser alcanzable desde el plano y no cumplirse en la posición inicial. Como mucho 2 vectores o puntos móviles (la comprobación de alcanzabilidad recorre todas las colocaciones de la rejilla).
    - Lleva `purpose`, el sentido del ejercicio (petición de Oliver, 2026-10-28). `why` («Para qué sirve») y `aim` («Qué vas a conseguir») se ven siempre, antes del enunciado; `takeaway` («Lo que te llevas»), al cerrar la pregunta, también si se acierta a la primera (la `explain` solo sale tras un fallo). `why` dice dónde aparece eso en un sistema de IA real y qué decisión ayuda a tomar, sin inventar datos; `aim`, qué construye el jugador en el plano y qué le deja ver, sin la posición que resuelve; `takeaway`, la conclusión y su consecuencia en el sistema real. De 60 a 700 caracteres cada uno y distintos dentro del proyecto. `tests/content/purpose.test.ts` lo exige en todo despegue y proyecto salvo los de su lista `PENDING`, que solo encoge. Modelo: `src/games/vectores/fallos-rag.ts`.
 3. Las preguntas del ejercicio «Calcular» (`numero`, `vector`, `opcion`) también llevan `purpose` (petición de Oliver, 2026-10-28: las explicaciones no decían dónde se usa lo que se calcula). Se ven igual que en `manipular`. `why` da el contexto: en qué sistema de IA real aparece esa cuenta, con un caso de uso concreto, y qué decisión ayuda a tomar; `aim`, qué vas a calcular o decidir y qué te deja ver, sin el resultado; `takeaway`, qué significa el resultado en ese sistema y qué se hace con él. Mismos límites (de 60 a 700 caracteres, sin repetir textos dentro del proyecto, también con los de su «Manipular») y misma lista `PENDING` en `tests/content/purpose.test.ts`. Los despegues, las hojas y los bancos de examen no lo llevan. Modelo: el «Calcular» de `src/games/vectores/fallos-rag.ts`.
 4. `codigo`: `reference` es una solución que pasa `checks`; `starter` no los pasa. `checks` llama a `check(condición, "mensaje")`, y cada mensaje debe orientar al jugador. Se comprueban resultados (variables, funciones, figuras), nunca el texto del código. `requirements` (de 1 a 6 frases) dice, antes de entregar, qué miran las comprobaciones: nombre, tipo y forma de cada variable, con qué otros datos se prueba una función, el orden, la tolerancia. Nunca da el valor esperado, el código de la solución ni el eje (`axis`) que decide la pregunta.
@@ -132,7 +145,7 @@ Los ejercicios y las hojas tienen un número fijo de preguntas: añadir una más
 
 - Todo el juego cumple el esquema.
 - Los ids son únicos en todo el despegue, los proyectos (preguntas y hojas) y el banco.
-- La meta de cada `manipular` (también en el banco) es alcanzable desde su plano, y la posición inicial no la cumple ya.
+- La meta de cada `manipular` y de cada `curva` (también en el banco) es alcanzable desde su plano, y la posición inicial no la cumple ya.
 - El banco de cada órbita permite al menos tres exámenes distintos (semillas 1, 2 y 3).
 - Cada entrada generada nombra un generador que existe y se resuelve con las semillas 1 a 10; su respuesta se corrige como correcta.
 - La respuesta declarada de cada pregunta se corrige como correcta, escrita con dos decimales y coma.

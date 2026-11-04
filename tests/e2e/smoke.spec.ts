@@ -536,3 +536,41 @@ test('12. calentamiento de Columnas: el ejemplo se ejecuta y el reto se comprueb
     await expect(card.getByText(/¡Conseguido!/)).toBeVisible({ timeout: PYTHON_LOAD_MS });
   });
 });
+
+test('13. «La red por dentro»: la ficha del gradiente enlaza los proyectos de la Órbita 0 del juego 3', async ({
+  page,
+}) => {
+  await page.goto('/#/red?pieza=gradient');
+  await expect(page.getByRole('heading', { level: 1, name: 'La red por dentro' })).toBeVisible();
+  const sheet = page.locator('#red-sheet');
+  await expect(sheet.getByRole('heading', { level: 2, name: 'Gradiente' })).toBeVisible();
+  // contract: brief-orbita-0.md, `bigPicture` de A (`gradient`, `loss`) y de B (`gradient`)
+  await expect(sheet.getByRole('link', { name: 'Derivada como pendiente' })).toBeVisible();
+  await expect(sheet.getByRole('link', { name: 'Reglas de derivación' })).toBeVisible();
+  // contract: src/games/network.ts, la ruta del gradiente empieza por «La pendiente», ya construida
+  await expect(sheet.getByRole('link', { name: 'Órbita «La pendiente»' })).toBeVisible();
+
+  // Elegir otra pieza en el dibujo cambia la ficha.
+  await page.getByRole('button', { name: 'Pérdida' }).click();
+  await expect(sheet.getByRole('heading', { level: 2, name: 'Pérdida' })).toBeVisible();
+  // contract: brief-orbita-0.md, `bigPicture` de C (`loss`, `update`)
+  await expect(sheet.getByRole('link', { name: 'Mínimos' })).toBeVisible();
+});
+
+test('14. despegue del juego 3, pregunta 1: se mueve un punto del plano de curvas con el teclado', async ({
+  page,
+}) => {
+  await page.goto('/#/j/gradiente');
+  await page.getByRole('link', { name: 'Jugar el despegue' }).click();
+  // contract: src/games/gradiente/despegue.ts, 8 preguntas
+  await expect(progress(page)).toHaveText('1 de 8');
+
+  const point = page.getByRole('button', { name: /^Punto B/ });
+  await point.focus();
+  // contract: despegue.1, A = (0, 1) fija y B = (1, 2) libre con rejilla 1: B en (1, 3) da pendiente 2
+  await page.keyboard.press('ArrowUp');
+  await expect(point).toHaveAccessibleName(/\(1, 3\)/);
+
+  await submitButton(page).click();
+  await expect(page.locator('.runner__feedback')).toContainText('¡Correcto!');
+});
