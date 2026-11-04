@@ -66,6 +66,7 @@ const answerOf = (q: Question): unknown => {
     case 'revision':
       return q.faultyLine;
     case 'manipular':
+    case 'curva':
       return q.goals;
     case 'codigo':
       return q.reference;

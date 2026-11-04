@@ -6,6 +6,7 @@ import {
   projectSchema,
   type Orbit,
   type CodigoQ,
+  type CurvaQ,
   type Game,
   type GeneradaQ,
   type ManipularQ,
@@ -75,10 +76,64 @@ export const checkReachable = (q: ManipularQ): string[] => {
   return search(0) ? [] : [`${q.id}: ninguna colocación de la rejilla cumple todas las metas`];
 };
 
-export const checkStartNotSolved = (q: ManipularQ): string[] =>
-  grade(q, { type: 'manipular', vectors: {} })
+/** Múltiplos de `snap` dentro de [lo, hi]. */
+const gridBetween = (lo: number, hi: number, snap: number): number[] => {
+  const first = Math.ceil(lo / snap - 1e-9);
+  const last = Math.floor(hi / snap + 1e-9);
+  return Array.from({ length: Math.max(0, last - first + 1) }, (_, i) =>
+    Number(((first + i) * snap).toFixed(10)),
+  );
+};
+
+/**
+ * Como `checkReachable`, en el plano de curvas: un punto sobre la curva recorre las x de la rejilla
+ * (su altura es f(x)); un punto libre, todas las parejas (x, y) de la rejilla.
+ */
+export const checkReachableCurva = (q: CurvaQ): string[] => {
+  const movable = q.graph.points.filter((p) => p.movable);
+  if (movable.length > MAX_MOVABLE) {
+    return [
+      `${q.id}: demasiados puntos móviles para comprobar (${movable.length}, el máximo es ${MAX_MOVABLE})`,
+    ];
+  }
+  const xs = gridBetween(q.graph.x[0], q.graph.x[1], q.graph.snap);
+  const ys = gridBetween(q.graph.y[0], q.graph.y[1], q.graph.snap);
+  const options = movable.map((p): [number, number][] =>
+    p.onCurve ? xs.map((x) => [x, 0]) : xs.flatMap((x) => ys.map((y): [number, number] => [x, y])),
+  );
+  const placements = options.reduce((n, o) => n * o.length, 1);
+  if (placements > MAX_PLACEMENTS) {
+    return [
+      `${q.id}: la rejilla es demasiado grande para comprobarla (${placements} colocaciones, el máximo es ${MAX_PLACEMENTS})`,
+    ];
+  }
+  const points: Record<string, [number, number]> = {};
+  const search = (i: number): boolean => {
+    if (i === movable.length) return grade(q, { type: 'curva', points });
+    for (const at of options[i]!) {
+      points[movable[i]!.id] = at;
+      if (search(i + 1)) return true;
+    }
+    return false;
+  };
+  return search(0) ? [] : [`${q.id}: ninguna colocación de la rejilla cumple todas las metas`];
+};
+
+export const checkStartNotSolved = (q: ManipularQ | CurvaQ): string[] =>
+  (
+    q.type === 'manipular'
+      ? grade(q, { type: 'manipular', vectors: {} })
+      : grade(q, { type: 'curva', points: {} })
+  )
     ? [`${q.id}: la posición inicial ya cumple todas las metas`]
     : [];
+
+/** Alcanzable y no resuelta al empezar: lo que se exige a toda `manipular` y toda `curva`. */
+const checkPlayable = (q: Question | GeneradaQ): string[] => {
+  if (q.type === 'manipular') return [...checkReachable(q), ...checkStartNotSolved(q)];
+  if (q.type === 'curva') return [...checkReachableCurva(q), ...checkStartNotSolved(q)];
+  return [];
+};
 
 export const checkExamBank = (orbit: Orbit): string[] => {
   const exams: ExamQuestion[][] = [];
@@ -106,11 +161,7 @@ export const checkProject = (project: Project): string[] => {
       (i) => `Proyecto ${project.id}: ${i.path.join('.')}: ${i.message}`,
     );
   }
-  return parsed.data.exercises
-    .flatMap((e) => e.questions)
-    .flatMap((q) =>
-      q.type === 'manipular' ? [...checkReachable(q), ...checkStartNotSolved(q)] : [],
-    );
+  return parsed.data.exercises.flatMap((e) => e.questions).flatMap(checkPlayable);
 };
 
 /** Todas las preguntas de código, incluidas las de despegue y las de los bancos de examen. */
@@ -151,7 +202,8 @@ const answerProblems = (q: Exclude<Question, CodigoQ>): string[] => {
         ? []
         : [`${q.id}: la línea defectuosa declarada no se corrige como correcta`];
     case 'manipular':
-      return []; // sin respuesta declarada: lo vigilan checkReachable y checkStartNotSolved
+    case 'curva':
+      return []; // sin respuesta declarada: lo vigilan checkReachable(Curva) y checkStartNotSolved
   }
 };
 
@@ -168,9 +220,7 @@ export const gameProblems = (game: Game): string[] => {
   const problems: string[] = [...checkIds(game)];
   const all = everyQuestion(game);
 
-  for (const q of all) {
-    if (q.type === 'manipular') problems.push(...checkReachable(q), ...checkStartNotSolved(q));
-  }
+  for (const q of all) problems.push(...checkPlayable(q));
   for (const orbit of game.orbits) problems.push(...checkExamBank(orbit));
 
   const entries = all.filter((q): q is GeneradaQ => q.type === 'generada');

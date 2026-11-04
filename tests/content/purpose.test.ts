@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { ManipularQ, NumeroQ, OpcionQ, Question, VectorQ } from '../../src/content/schema';
+import type {
+  CurvaQ,
+  ManipularQ,
+  NumeroQ,
+  OpcionQ,
+  Question,
+  VectorQ,
+} from '../../src/content/schema';
 import { games } from '../../src/games';
 
 /**
@@ -30,8 +37,9 @@ const MAX_CHARS = 700;
 
 type CalcQ = NumeroQ | VectorQ | OpcionQ;
 
-const manipulars = (qs: readonly Question[]): ManipularQ[] =>
-  qs.filter((q): q is ManipularQ => q.type === 'manipular');
+/** Las del ejercicio «Manipular»: en el plano de vectores (`manipular`) o en el de curvas (`curva`). */
+const manipulars = (qs: readonly Question[]): (ManipularQ | CurvaQ)[] =>
+  qs.filter((q): q is ManipularQ | CurvaQ => q.type === 'manipular' || q.type === 'curva');
 
 const calcs = (qs: readonly Question[]): CalcQ[] =>
   qs.filter((q): q is CalcQ => q.type === 'numero' || q.type === 'vector' || q.type === 'opcion');

@@ -1,5 +1,6 @@
+import { curveAt, measureCurve } from '../engine/curves';
 import { measure, type Vec } from '../engine/vectors';
-import type { CodigoQ, ManipularQ, Question } from './schema';
+import type { CodigoQ, CurvaQ, GraphSpec, ManipularQ, Question } from './schema';
 
 export type ParsedNumber = { ok: true; value: number } | { ok: false };
 
@@ -17,6 +18,7 @@ export const parseNumber = (text: string): ParsedNumber => {
 
 export type Answer =
   | { type: 'manipular'; vectors: Record<string, [number, number]> }
+  | { type: 'curva'; points: Record<string, [number, number]> }
   | { type: 'numero'; value: number }
   | { type: 'vector'; value: number[] }
   | { type: 'opcion'; index: number }
@@ -34,11 +36,38 @@ const gradeManipular = (q: ManipularQ, a: Extract<Answer, { type: 'manipular' }>
   return q.goals.every((g) => within(measure(g.metric, g.of, vectors), g.target, g.tol));
 };
 
+/**
+ * Posiciones [x, y] de los puntos de un plano de curvas: las iniciales, con `moved` encima. Un punto
+ * `onCurve` está siempre en (x, f(x)): de lo que llegue solo cuenta su x.
+ */
+export const graphPositions = (
+  graph: GraphSpec,
+  moved: Record<string, readonly number[]> = {},
+): Record<string, [number, number]> => {
+  const out: Record<string, [number, number]> = {};
+  for (const p of graph.points) {
+    const at = Object.hasOwn(moved, p.id) ? moved[p.id] : undefined;
+    const x = at ? at[0] : p.x;
+    const y = p.onCurve && graph.curve ? curveAt(graph.curve, x) : at ? at[1] : (p.y ?? 0);
+    out[p.id] = [x, y];
+  }
+  return out;
+};
+
+const gradeCurva = (q: CurvaQ, a: Extract<Answer, { type: 'curva' }>): boolean => {
+  const points = graphPositions(q.graph, a.points);
+  return q.goals.every((g) =>
+    within(measureCurve(g.metric, g.of, points, q.graph.curve), g.target, g.tol),
+  );
+};
+
 /** Las preguntas de código no pasan por aquí: las corrige Python. */
 export const grade = (q: Exclude<Question, CodigoQ>, a: Answer): boolean => {
   switch (q.type) {
     case 'manipular':
       return a.type === 'manipular' && gradeManipular(q, a);
+    case 'curva':
+      return a.type === 'curva' && gradeCurva(q, a);
     case 'numero':
       return a.type === 'numero' && within(a.value, q.answer, q.tol);
     case 'vector':
