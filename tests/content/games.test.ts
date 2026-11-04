@@ -18,9 +18,10 @@ describe('juego vectores: recuentos de la Órbita 0', () => {
   // contract: Órbita 1 (2026-10-15): estos recuentos son de la Órbita 0, no del juego entero
   const projects = vectores?.orbits[0]?.projects ?? [];
 
-  it('hay dos juegos', () => {
-    // contract: juego 2 (2026-10-17): «Matrices y transformaciones» entra en el registro tras «Vectores y embeddings»
-    expect(games).toHaveLength(2);
+  it('hay tres juegos', () => {
+    // contract: juego 2 (2026-10-17): «Matrices y transformaciones» entra en el registro tras «Vectores y embeddings»;
+    // juego 3 (2026-11-04): «Derivadas y gradiente» entra el tercero, con su despegue (sus órbitas llegan en otros encargos)
+    expect(games).toHaveLength(3);
   });
 
   it('la Órbita 0 tiene tres proyectos', () => {
