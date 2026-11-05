@@ -12,9 +12,9 @@ export const examen0ReglasDerivacion: BankEntry[] = [
       id: 'examen-0.derivada-de-la-perdida',
       type: 'numero',
       prompt:
-        "La figura es la pérdida $L(w)=w^4-2w^2+3w$ y P está en $w=2$. Mira la tangente y calcula con las reglas de derivación la pendiente $L'(2)$.",
+        "La figura es la pérdida $L(w)=w^4-2w^2+3w+5$ y P está en $w=2$. Mira la tangente y calcula con las reglas de derivación la pendiente $L'(2)$.",
       hints: [
-        'Deriva cada término con la regla de la potencia: $w^4$ pasa a $4w^3$ y $-2w^2$ pasa a $-4w$.',
+        'Deriva cada término con la regla de la potencia: $w^4$ pasa a $4w^3$ y $-2w^2$ pasa a $-4w$. La constante $5$ desaparece.',
         "Con $L'(w)=4w^3-4w+3$, sustituye $w=2$.",
       ],
       explain:
@@ -25,9 +25,9 @@ export const examen0ReglasDerivacion: BankEntry[] = [
       tol: 0,
       graph: {
         x: [-2, 2.5],
-        y: [-6, 36],
+        y: [0, 40],
         snap: 0.5,
-        curve: { kind: 'poly', coefs: [0, 3, -2, 0, 1] },
+        curve: { kind: 'poly', coefs: [5, 3, -2, 0, 1] },
         points: [{ id: 'p', label: 'P', x: 2, movable: false, onCurve: true }],
         readouts: ['coords'],
         labels: { x: 'w', y: 'pérdida' },

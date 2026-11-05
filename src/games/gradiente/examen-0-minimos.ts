@@ -31,7 +31,7 @@ export const examen0Minimos: BankEntry[] = [
       id: 'examen-0.minimos-parabola',
       type: 'numero',
       prompt:
-        'La pérdida de un modelo es $L(w)=5w^{2}-12w+7$. Una parábola $a\\,w^{2}+b\\,w+c$ con $a>0$ tiene su mínimo donde la pendiente vale $0$. ¿En qué $w$ está el mínimo? Con dos decimales.',
+        'La pérdida de un modelo es $L(w)=5w^{2}-12w+9$. Una parábola $a\\,w^{2}+b\\,w+c$ con $a>0$ tiene su mínimo donde la pendiente vale $0$. ¿En qué $w$ está el mínimo? Con dos decimales.',
       hints: [
         'La pendiente es $L^{\\prime}(w)=10w-12$. Iguálala a $0$.',
         'Con la fórmula $-\\dfrac{b}{2a}$ sale lo mismo: cuidado con el signo de $b$.',
@@ -39,7 +39,7 @@ export const examen0Minimos: BankEntry[] = [
       explain:
         'La pendiente de la parábola es $2a\\,w+b$ y se anula en $-b/(2a)$. Con $a>0$ la parábola abre hacia arriba, así que ahí está el mínimo y no la cima.',
       solution:
-        '$L^{\\prime}(w)=10w-12=0$ da $w=\\dfrac{12}{10}=1{,}2$. Con ese $w$ la pérdida vale $-0{,}2$: a los dos lados sube. Si te sale $-1{,}2$, has olvidado el signo de $b$.',
+        '$L^{\\prime}(w)=10w-12=0$ da $w=\\dfrac{12}{10}=1{,}2$. Con ese $w$ la pérdida vale $1{,}8$: a los dos lados sube. Si te sale $-1{,}2$, has olvidado el signo de $b$.',
       answer: 1.2,
       tol: 0.005,
     },

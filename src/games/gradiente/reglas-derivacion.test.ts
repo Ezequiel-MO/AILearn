@@ -298,9 +298,10 @@ describe('banco de examen 0 del proyecto reglas-derivacion', () => {
 
   it('respuestas del banco', () => {
     const [num, vec] = examen0ReglasDerivacion.map((e) => e.question);
-    // contract: L(w) = w⁴ − 2w² + 3w, L′(w) = 4w³ − 4w + 3, L′(2) = 32 − 8 + 3 = 27
+    // contract: L(w) = w⁴ − 2w² + 3w + 5, L′(w) = 4w³ − 4w + 3, L′(2) = 32 − 8 + 3 = 27 (el + 5, del
+    // hallazgo 5 de la revisión, 2026-11-05: una pérdida no es negativa; no cambia la derivada)
     expect(num!.type === 'numero' ? num!.answer : null).toBe(27);
-    expect(curveSlope({ kind: 'poly', coefs: [0, 3, -2, 0, 1] }, 2)).toBeCloseTo(27, 9);
+    expect(curveSlope({ kind: 'poly', coefs: [5, 3, -2, 0, 1] }, 2)).toBeCloseTo(27, 9);
     // contract: f = 5 − 4x + 3x³: f′ = −4 + 0x + 9x² (np.polyder([3, 0, -4, 5])[::-1])
     expect(vec!.type === 'vector' ? vec!.answer : null).toEqual([-4, 0, 9]);
   });

@@ -294,9 +294,11 @@ describe('banco de examen: 3 entradas fijas de minimos', () => {
 
   it('las respuestas numéricas se recalculan', () => {
     const [a, b] = bankQuestions as NumeroQ[];
-    // contract: NumPy: (1·2 + 3·7)/(1 + 9) = 2,3; mínimo de 5w² − 12w + 7: 12/10 = 1,2, valor −0,2
+    // contract: NumPy: (1·2 + 3·7)/(1 + 9) = 2,3; mínimo de 5w² − 12w + 9: 12/10 = 1,2, valor 1,8
+    // (el + 9, del hallazgo 5 de la revisión, 2026-11-05: con + 7 la pérdida mínima era negativa)
     expect(23 / 10).toBeCloseTo(a!.answer, 9);
     expect(12 / 10).toBeCloseTo(b!.answer, 9);
-    expect(5 * 1.2 ** 2 - 12 * 1.2 + 7).toBeCloseTo(-0.2, 9);
+    expect(5 * 1.2 ** 2 - 12 * 1.2 + 9).toBeCloseTo(1.8, 9);
+    expect(b!.prompt).toContain('5w^{2}-12w+9');
   });
 });

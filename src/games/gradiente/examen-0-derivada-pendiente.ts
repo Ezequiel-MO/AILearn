@@ -85,8 +85,8 @@ export const examen0DerivadaPendiente: BankEntry[] = [
           py(
             'g = lambda t: t ** 2',
             'h = 0.1',
-            'print(g(1 + h) - g(1 - h))              # 0.4 (más o menos): el cambio entre los dos lados',
-            'print((g(1 + h) - g(1 - h)) / (2 * h))  # 2.0: ese cambio entre 2h, la derivada de g en 1',
+            'print(g(1 + h) - g(1 - h))              # 0.40000000000000013: el cambio entre los dos lados (las últimas cifras son ruido de redondeo)',
+            'print((g(1 + h) - g(1 - h)) / (2 * h))  # 2.0000000000000004: ese cambio entre 2h, la derivada de g en 1',
           ) +
           '\n\nEl paso `h` se escribe dentro de la función: no es un parámetro.',
         'El esqueleto, con huecos `___` donde decides tú:\n\n' +

@@ -732,7 +732,9 @@ def atencion(Q, K, V):
             'Las piezas, con una tabla de 3 por 3:\n\n' +
               py(
                 'm = np.triu(np.ones((3, 3), dtype=bool), k=1)',
-                'print(m)                                # True por encima de la diagonal, y la diagonal False',
+                'print(m)                                # [[False  True  True]',
+                '                                        #  [False False  True]',
+                '                                        #  [False False False]]: True por encima de la diagonal, y la diagonal False',
                 't = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]])',
                 'print(np.where(m, -np.inf, t)[0])       # [  1. -inf -inf]: lo de la máscara pasa a -inf',
                 'print(np.exp(-np.inf))                  # 0.0: un softmax no da peso a -inf',

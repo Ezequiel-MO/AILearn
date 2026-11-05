@@ -659,9 +659,9 @@ check((not _gv) or abs(float(grad) - _g) < 1e-9 or abs(float(grad) - float(np.me
               py(
                 'a = np.array([1, 2])',
                 'b = np.array([4, 5])',
-                'print([np.mean(2 * a * (w * a - b)) for w in [0, 1]])   # [-28.0, -9.0]: una derivada por peso',
-                'print(np.abs(np.array([1.0, 3.0]) - np.array([1.5, 2.0])))   # [0.5 1. ]: distancias',
-                'print(np.max([0.5, 1.0]))                                 # 1.0: la mayor',
+                'print(np.array([np.mean(2 * a * (w * a - b)) for w in [0, 1]]))   # [-14.  -9.]: una derivada por peso',
+                'print(np.abs(np.array([1.0, 3.0]) - np.array([1.5, 2.0])))           # [0.5 1. ]: distancias',
+                'print(np.max([0.5, 1.0]))                                         # 1.0: la mayor',
               ),
             'El esqueleto, con huecos `___` donde decides tú:\n\n' +
               py(
@@ -673,7 +673,7 @@ check((not _gv) or abs(float(grad) - _g) < 1e-9 or abs(float(grad) - float(np.me
           explain:
             'Una derivada se comprueba contra la numérica: si la fórmula está bien, las dos coinciden salvo errores de redondeo. Es lo que se hace con el gradiente de una red antes de fiarse de él.',
           solution:
-            'Las derivadas valen $-17{,}33$; $-8$; $1{,}33$; $10{,}67$ y $20$, para los pesos $0$ a $4$. La mayor diferencia con las numéricas es del orden de $10^{-11}$: la fórmula es correcta.',
+            'Las derivadas valen $-17{,}33$; $-8$; $1{,}33$; $10{,}67$ y $20$, para los pesos $0$ a $4$. La mayor diferencia con las numéricas es del orden de $10^{-12}$: la fórmula es correcta.',
           requirements: [
             '`exactas` es un array de NumPy con 5 números, uno por cada peso de `ws` y en su mismo orden.',
             '`error_max` es un solo número: la mayor distancia entre `exactas` y `numericas`, sin signo.',
@@ -717,6 +717,10 @@ error_max = None
 _y = np.array([3, 4, 5])
 _ws = np.array([0, 1, 2, 3, 4])
 _ex = np.array([np.mean(2 * _x * (_w * _x - _y)) for _w in _ws])
+# la derivada numérica, rehecha aquí con las mismas cuentas del starter: sale idéntica, bit a bit
+def _perdida(_v):
+    return np.mean((_v * _x - _y) ** 2)
+_num = np.array([(_perdida(_v + 1e-3) - _perdida(_v - 1e-3)) / (2 * 1e-3) for _v in _ws])
 try:
     _ea = np.asarray(exactas, dtype=float)
 except Exception:
@@ -724,11 +728,18 @@ except Exception:
 _ev = _ea is not None and _ea.shape == (5,) and bool(np.all(np.isfinite(_ea)))
 _eok = _ev and bool(np.allclose(_ea, _ex))
 _m = isinstance(error_max, (int, float, np.integer, np.floating)) and not isinstance(error_max, (bool, np.bool_))
+# las distancias son errores de redondeo (de 1e-13 a 3e-12): error_max se compara con la mayor en proporción a ella
+_d = (_ea - _num) if _eok else None
+_near = lambda _a, _b: abs(float(_a) - float(_b)) <= 1e-6 * abs(float(_b))
+_mok = _m and _eok and _near(error_max, np.max(np.abs(_d)))
 check(_ev, "\`exactas\` tiene que ser un array de NumPy con 5 números: una derivada por cada peso de \`ws\`.")
 check((not _ev) or _eok or not bool(np.allclose(_ea, -_ex)), "\`exactas\` tiene el signo cambiado: la derivada de \`(w * x - y) ** 2\` es \`2 * x * (w * x - y)\`, y no al revés.")
 check((not _ev) or _eok or bool(np.allclose(_ea, -_ex)), "\`exactas\` no es la media de \`2 * x * (w * x - y)\` para cada peso: cada dato aporta su \`x\` y la media se hace sobre los datos.")
 check(_m, "\`error_max\` tiene que ser un solo número: la mayor distancia entre \`exactas\` y \`numericas\`.")
 check((not _m) or (not _eok) or abs(float(error_max)) < 1e-6, "\`error_max\` tiene que salir casi 0: la fórmula y la derivada medida coinciden. Calcula \`np.max(np.abs(exactas - numericas))\`.")
+check((not _m) or (not _eok) or abs(float(error_max)) >= 1e-6 or _mok or not _near(error_max, np.max(_d)), "\`error_max\` conserva el signo de las diferencias: una distancia va sin signo. Aplica \`np.abs\` antes de \`np.max\`.")
+check((not _m) or (not _eok) or abs(float(error_max)) >= 1e-6 or _mok or not (_near(error_max, np.min(np.abs(_d))) or _near(error_max, np.mean(np.abs(_d)))), "\`error_max\` es la menor de las distancias, o su media: tiene que ser la mayor, con \`np.max\`.")
+check((not _m) or (not _eok) or abs(float(error_max)) >= 1e-6 or _mok, "\`error_max\` no es la mayor de las distancias \`|exactas - numericas|\`: calcula \`np.max(np.abs(exactas - numericas))\` con las dos listas.")
 `,
           reference:
             'import numpy as np\n\nx = np.array([1, 2, 3])\ny = np.array([3, 4, 5])\nws = np.array([0, 1, 2, 3, 4])\n\ndef perdida(v):\n    return np.mean((v * x - y) ** 2)\n\nh = 1e-3\nnumericas = np.array([(perdida(v + h) - perdida(v - h)) / (2 * h) for v in ws])\n\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = np.max(np.abs(exactas - numericas))\n',

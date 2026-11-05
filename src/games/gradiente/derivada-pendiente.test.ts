@@ -83,13 +83,14 @@ describe('ex00: las cinco curva', () => {
         ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
         : [],
     );
-    // contract: brief-orbita-0.md, A, ex00: secante a 0,1 de la tangente (2) por la derecha y por la izquierda (con x de Q en 2..3), slope 0, slope 3 y, en la cúbica, slope 0 y fx = ±2 en dos puntos
+    // contract: brief-orbita-0.md, A, ex00: secante a 0,1 de la tangente (2) por la derecha y por la izquierda (con x de Q en 2..3), slope 0, slope 3 y, en la cúbica, slope 0 y su altura en dos puntos
+    // (hallazgo 5 de la revisión, 2026-11-05: la cúbica sube 3 para que la pérdida no sea negativa, alturas 5 y 1)
     expect(shape).toEqual([
       ['secant(p,q)=2±0.1'],
       ['secant(p,q)=2±0.1', 'x(q)=2.5±0.5'],
       ['slope(p)=0±0.01'],
       ['slope(p)=3±0.01'],
-      ['slope(a)=0±0.01', 'fx(a)=2±0.05', 'slope(b)=0±0.01', 'fx(b)=-2±0.05'],
+      ['slope(a)=0±0.01', 'fx(a)=5±0.05', 'slope(b)=0±0.01', 'fx(b)=1±0.05'],
     ]);
   });
 
@@ -131,9 +132,10 @@ describe('ex00: las cinco curva', () => {
     expect(curveSlope(loss, 2)).toBe(0);
     expect(curveSlope(loss, 3.5)).toBe(3);
     const cubic = curva(4).graph.curve!;
-    // contract: f(x) = x³ − 3x (NumPy): pendiente 0 en −1 y en 1, con alturas 2 y −2
+    // contract: f(x) = x³ − 3x + 3 (NumPy): pendiente 0 en −1 y en 1, con alturas 5 y 1 (hallazgo 5 de
+    // la revisión, 2026-11-05: una pérdida no es negativa)
     expect([curveSlope(cubic, -1), curveSlope(cubic, 1)]).toEqual([0, 0]);
-    expect([curveAt(cubic, -1), curveAt(cubic, 1)]).toEqual([2, -2]);
+    expect([curveAt(cubic, -1), curveAt(cubic, 1)]).toEqual([5, 1]);
     // contract: A en la cima y B en el fondo cumple las cuatro metas; intercambiarlos, no
     const q = curva(4);
     expect(grade(q, { type: 'curva', points: { a: [-1, 0], b: [1, 0] } })).toBe(true);

@@ -482,7 +482,8 @@ check((not _w) or np.allclose(w, [3, -2]), "\`w\` tiene que valer (3, -2), el mi
                 '    return x + y   # return devuelve el valor y termina la función',
                 '',
                 'print(suma(np.array([1, 2]), np.array([10, 20])))   # [11 22]',
-                'print(np.column_stack([np.array([5, 6]), np.array([7, 8])]))   # [5 6] es la primera columna',
+                'print(np.column_stack([np.array([5, 6]), np.array([7, 8])]))   # [[5 7]',
+                '                                                               #  [6 8]]: [5 6] es la primera columna',
               ) +
               '\n\nLo que va dentro de la función lleva 4 espacios de sangría: así sabe Python que es parte de ella.',
             'El esqueleto, con huecos `___` donde decides tú:\n\n' +

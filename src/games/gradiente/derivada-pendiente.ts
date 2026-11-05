@@ -164,7 +164,7 @@ export const derivadaPendiente: Project = {
           explain:
             'Pendiente $0$ no basta para saber dónde se está: la cima y el fondo tienen tangente horizontal. Hay que mirar también la altura, o cómo cambia la pendiente a cada lado.',
           solution:
-            'A en $w=-1$ (altura $2$, la cima) y B en $w=1$ (altura $-2$, el fondo). Las dos tangentes son horizontales, pero a un lado de la cima la curva sube y al otro baja, al revés que en el fondo.',
+            'A en $w=-1$ (altura $5$, la cima) y B en $w=1$ (altura $1$, el fondo). Las dos tangentes son horizontales, pero a un lado de la cima la curva sube y al otro baja, al revés que en el fondo.',
           purpose: {
             why: 'La pérdida de una red de verdad tiene muchos valles y colinas. El descenso se detiene en cualquier sitio de pendiente cero, sea el fondo más bajo o solo uno cualquiera.',
             aim: 'Buscas los dos puntos de pendiente cero de una curva y los distingues por su altura.',
@@ -173,9 +173,9 @@ export const derivadaPendiente: Project = {
           },
           graph: {
             x: [-2, 2],
-            y: [-3, 3],
+            y: [0, 6],
             snap: 0.1,
-            curve: { kind: 'poly', coefs: [0, -3, 0, 1] },
+            curve: { kind: 'poly', coefs: [3, -3, 0, 1] },
             points: [
               { id: 'a', label: 'A', x: 0.5, movable: true, onCurve: true },
               { id: 'b', label: 'B', x: -0.5, movable: true, onCurve: true },
@@ -185,9 +185,9 @@ export const derivadaPendiente: Project = {
           },
           goals: [
             { metric: 'slope', of: ['a'], target: 0, tol: 0.01 },
-            { metric: 'fx', of: ['a'], target: 2, tol: 0.05 },
+            { metric: 'fx', of: ['a'], target: 5, tol: 0.05 },
             { metric: 'slope', of: ['b'], target: 0, tol: 0.01 },
-            { metric: 'fx', of: ['b'], target: -2, tol: 0.05 },
+            { metric: 'fx', of: ['b'], target: 1, tol: 0.05 },
           ],
         },
       ],
@@ -452,7 +452,7 @@ check((not _num) or _ok or _sign or _nodiv, "\`pendiente_secante\` no da la subi
               py(
                 'g = lambda t: t ** 2',
                 'print(g(2 + 0.1))          # 4.41: la función un poco más a la derecha',
-                'print(g(2 + 0.1) - g(2))   # 0.41: cuánto cambia (con algún decimal de ruido)',
+                'print(g(2 + 0.1) - g(2))   # 0.41000000000000014: cuánto cambia (las últimas cifras son ruido de redondeo)',
                 'print(0.41 / 0.1)          # 4.1: ese cambio entre h, cerca de la derivada 4',
               ) +
               '\n\nEl `h` es el paso: lo que te dan, no una cifra que debas escribir tú.',
@@ -729,7 +729,7 @@ check((not _cb) or (not _n) or (not _e) or bool(coincide) == bool(np.isclose(flo
               py(
                 'g = lambda t: t ** 2',
                 'p = 1.0',
-                'print((g(p + 0.1) - g(p - 0.1)) / 0.2)   # 2.0: la pendiente en 1',
+                'print((g(p + 0.1) - g(p - 0.1)) / 0.2)   # 2.0000000000000004: la pendiente en 1 (la última cifra es ruido de redondeo)',
                 'print(g(p) - 2.0 * p)                    # -1.0: la altura al llegar al eje: g(p) menos m * p',
               ) +
               '\n\nLa tangente es la recta $y=m\\,x+b$, y pasa por el punto de la curva.',

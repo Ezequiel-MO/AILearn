@@ -286,6 +286,31 @@ rejects('reglas-derivacion.ex02.5', [
     append: '\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = 5\n',
     message: /casi 0/,
   },
+  // contract: hallazgo 2 de la revisión de la Órbita 0 (2026-11-05): las diferencias son de 1e-13 a
+  // 3e-12, así que cualquier número casi cero aprobaba
+  {
+    name: 'error_max a 0, sin comparar',
+    append: '\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = 0\n',
+    message: /no es la mayor de las distancias/,
+  },
+  {
+    name: 'error_max con signo (sin np.abs)',
+    append:
+      '\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = np.max(exactas - numericas)\n',
+    message: /conserva el signo/,
+  },
+  {
+    name: 'error_max es la menor distancia',
+    append:
+      '\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = np.min(np.abs(exactas - numericas))\n',
+    message: /la menor de las distancias/,
+  },
+  {
+    name: 'error_max es la media de las distancias',
+    append:
+      '\nexactas = np.array([np.mean(2 * x * (w * x - y)) for w in ws])\nerror_max = np.mean(np.abs(exactas - numericas))\n',
+    message: /o su media/,
+  },
 ]);
 
 // ---------- banco: derivada_en ----------
