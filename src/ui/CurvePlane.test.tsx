@@ -2,7 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { GraphSpec } from '../content/schema';
+import { gradiente } from '../games/gradiente';
 import { CurvePlane, niceStep } from './CurvePlane';
+import { boxesOverlap, dotBox, placePointLabel, placeStepLabel } from './labelPlacement';
+import type { Box } from './labelPlacement';
 
 // f(x) = x²
 const parabola = (over: Partial<GraphSpec> = {}): GraphSpec => ({
@@ -260,5 +263,93 @@ describe('niceStep', () => {
     expect(niceStep(12)).toBe(2);
     expect(niceStep(1)).toBe(0.2);
     expect(niceStep(40)).toBe(5);
+  });
+});
+
+const boxOf = (el: Element): Box => {
+  const v = el.getAttribute('data-box')?.split(',').map(Number);
+  if (!v || v.length !== 4) throw new Error('rótulo sin caja');
+  return { x0: v[0], y0: v[1], x1: v[2], y1: v[3] };
+};
+const apart = (a: Box, b: Box): boolean => !boxesOverlap(a, b, 0);
+
+const findGraph = (id: string): GraphSpec => {
+  const walk = (node: unknown): GraphSpec | null => {
+    if (Array.isArray(node)) {
+      for (const n of node) {
+        const r = walk(n);
+        if (r) return r;
+      }
+    } else if (node && typeof node === 'object') {
+      const o = node as Record<string, unknown>;
+      if (o.id === id && o.graph) return o.graph as GraphSpec;
+      for (const v of Object.values(o)) {
+        const r = walk(v);
+        if (r) return r;
+      }
+    }
+    return null;
+  };
+  const g = walk(gradiente);
+  if (!g) throw new Error(`no hay pregunta ${id}`);
+  return g;
+};
+
+describe('labelPlacement', () => {
+  const area: Box = { x0: 0, y0: 0, x1: 480, y1: 340 };
+
+  // contract: brief del hallazgo 7: dos puntos coincidentes dejan rótulos que no se pisan, el de la izquierda a la izquierda
+  it('dos puntos en el mismo sitio: cajas separadas y la izquierda a la izquierda', () => {
+    const c: [number, number] = [200, 150];
+    const obstacles = [dotBox(c)];
+    const p = placePointLabel('P', 17, c, area, obstacles, 'left');
+    const q = placePointLabel('Q', 17, c, area, [...obstacles, p.box], 'right');
+    expect(apart(p.box, q.box)).toBe(true);
+    expect(p.box.x1).toBeLessThanOrEqual(c[0]);
+    expect(q.box.x0).toBeGreaterThanOrEqual(c[0]);
+    expect(apart(p.box, dotBox(c, 11))).toBe(true);
+  });
+
+  // contract: brief del hallazgo 7: el rótulo del paso esquiva la caja del rótulo de un punto
+  it('el rótulo del paso esquiva el rótulo del punto', () => {
+    const from: [number, number] = [200, 150];
+    const to: [number, number] = [150, 160];
+    const pt = placePointLabel('w', 17, from, area, [dotBox(from), dotBox(to)], 'right');
+    const s = placeStepLabel('un paso', 16, from, to, area, [dotBox(from), dotBox(to), pt.box]);
+    expect(apart(s.box, pt.box)).toBe(true);
+    expect(apart(s.box, dotBox(from))).toBe(true);
+    expect(apart(s.box, dotBox(to))).toBe(true);
+  });
+
+  // contract: brief del hallazgo 7: el rótulo cabe en el área del plano aunque el punto esté en el borde
+  it('en el borde derecho el rótulo no se sale', () => {
+    const p = placePointLabel('P', 17, [470, 20], area, [dotBox([470, 20])]);
+    expect(p.box.x1).toBeLessThanOrEqual(area.x1);
+    expect(p.box.y0).toBeGreaterThanOrEqual(area.y0);
+  });
+});
+
+describe('CurvePlane: rótulos que no se pisan', () => {
+  // contract: derivada-pendiente.ts ex00.1: meta secante = 2 ± 0,1, que se cumple con Q en w = 3,1 (secante 2,1)
+  it('ex00.1 con Q en la meta: P y Q no se pisan', () => {
+    const spec = findGraph('derivada-pendiente.ex00.1');
+    const { container } = render(
+      <CurvePlane spec={spec} positions={{ p: [3, 1], q: [3.1, 1.21] }} onMove={() => {}} />,
+    );
+    const labels = [...container.querySelectorAll('.curve__point-label')];
+    expect(labels).toHaveLength(2);
+    expect(apart(boxOf(labels[0]), boxOf(labels[1]))).toBe(true);
+  });
+
+  // contract: minimos.ts ex00.2: paso de descenso (rate 0,04) desde el punto «w»; «un paso» no pisa su rótulo
+  it('Mínimos ex00.2: «un paso» no pisa el rótulo del punto', () => {
+    const spec = findGraph('minimos.ex00.2');
+    const { container } = render(
+      <CurvePlane spec={spec} positions={{ p: [0.5, 0] }} onMove={() => {}} />,
+    );
+    const point = container.querySelector('.curve__point-label');
+    const step = container.querySelector('.curve__name--step');
+    if (!point || !step) throw new Error('faltan rótulos');
+    expect(apart(boxOf(point), boxOf(step))).toBe(true);
   });
 });

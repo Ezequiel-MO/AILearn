@@ -4,6 +4,8 @@ import type { GraphSpec } from '../content/schema';
 import { curveAt, curveSlope } from '../engine/curves';
 import type { Curve } from '../engine/curves';
 import { fmt, fmtPair } from './format';
+import { dotBox, placePointLabel, placeStepLabel } from './labelPlacement';
+import type { Box, Placed, Side } from './labelPlacement';
 import { t } from './strings';
 
 // Geometría del plano en unidades de vista (el SVG se escala con el ancho disponible).
@@ -64,6 +66,9 @@ const STEP_KEYS: Record<string, Pt> = {
 
 const px = (n: number): number => Math.max(-PIXEL_LIMIT, Math.min(PIXEL_LIMIT, n));
 const r1 = (n: number): string => n.toFixed(1);
+const POINT_LABEL_SIZE = 17;
+const NAME_SIZE = 16;
+const boxAttr = (b: Box): string => [b.x0, b.y0, b.x1, b.y1].map(r1).join(',');
 
 /** Una ventana del plano: del mundo (x, y) a la vista. */
 interface Frame {
@@ -431,17 +436,57 @@ export function CurvePlane({
       ? renderFit(curve, current[spec.fit.of][0], [frame.x0, frame.x1], `${uid}fit`)
       : null;
 
-  const dragHandles = spec.points.map((p) => {
+  // --- Rótulos: cada punto busca un sitio que no pise a otros ni a los puntos ---
+  const plotArea: Box = { x0: PAD_L, y0: PAD_T, x1: W - PAD_R, y1: H - PAD_B };
+  const centers: Record<string, Pt> = {};
+  for (const p of spec.points) centers[p.id] = [sx(current[p.id][0]), px(sy(current[p.id][1]))];
+  const dots: Box[] = spec.points.map((p) => dotBox(centers[p.id]));
+  if (step) dots.push(dotBox(step.to));
+  const placedLabels: Record<string, Placed> = {};
+  const labelBoxes: Box[] = [];
+  const NEAR = 60;
+  for (const p of [...spec.points].sort((a, b) => centers[a.id][0] - centers[b.id][0])) {
+    const c = centers[p.id];
+    // si hay otro punto cerca y a su derecha, este rótulo prefiere la izquierda
+    const side: Side = spec.points.some(
+      (q) =>
+        q.id !== p.id &&
+        Math.hypot(centers[q.id][0] - c[0], centers[q.id][1] - c[1]) < NEAR &&
+        (centers[q.id][0] > c[0] ||
+          (centers[q.id][0] === c[0] && spec.points.indexOf(q) > spec.points.indexOf(p))),
+    )
+      ? 'left'
+      : 'right';
+    const placed = placePointLabel(
+      p.label,
+      POINT_LABEL_SIZE,
+      c,
+      plotArea,
+      [...dots, ...labelBoxes],
+      side,
+    );
+    placedLabels[p.id] = placed;
+    labelBoxes.push(placed.box);
+  }
+  const stepLabel = step
+    ? placeStepLabel(t.curve.stepName, NAME_SIZE, step.from, step.to, plotArea, [
+        ...dots,
+        ...labelBoxes,
+      ])
+    : null;
+
+  const makeHandle = (p: GraphSpec['points'][number]) => {
     const [x, y] = current[p.id];
-    const cx = sx(x);
-    const cy = px(sy(y));
+    const [cx, cy] = centers[p.id];
+    const pl = placedLabels[p.id];
     const label = (
       <text
         key={`l${p.id}`}
         className="curve__point-label"
-        x={cx > W - PAD_R - 40 ? cx - 14 : cx + 14}
-        y={cy < PAD_T + 24 ? cy + 22 : cy - 14}
-        textAnchor={cx > W - PAD_R - 40 ? 'end' : 'start'}
+        x={r1(pl.x)}
+        y={r1(pl.y)}
+        textAnchor={pl.textAnchor}
+        data-box={boxAttr(pl.box)}
       >
         {p.label}
       </text>
@@ -479,7 +524,12 @@ export function CurvePlane({
         </g>
       </g>
     );
-  });
+  };
+  // los fijos se dibujan los últimos: un tirador encima no los tapa
+  const dragHandles = [
+    ...spec.points.filter((p) => interactive && p.movable).map(makeHandle),
+    ...spec.points.filter((p) => !(interactive && p.movable)).map(makeHandle),
+  ];
 
   const clipId = `${uid}main`;
   return (
@@ -592,16 +642,13 @@ export function CurvePlane({
                   {isLoss ? t.curve.slopeCurveName : t.curve.derivativeName}
                 </text>
               )}
-              {step && (
+              {step && stepLabel && (
                 <text
                   className="curve__name curve__name--step"
-                  x={(step.from[0] + step.to[0]) / 2}
-                  y={
-                    Math.min(step.from[1], step.to[1]) - 14 < PAD_T + 14
-                      ? PAD_T + 14
-                      : Math.min(step.from[1], step.to[1]) - 14
-                  }
-                  textAnchor="middle"
+                  x={r1(stepLabel.x)}
+                  y={r1(stepLabel.y)}
+                  textAnchor={stepLabel.textAnchor}
+                  data-box={boxAttr(stepLabel.box)}
                 >
                   {t.curve.stepName}
                 </text>

@@ -2050,6 +2050,13 @@ a {
   fill: var(--curve-point);
 }
 
+/* Un punto fijo va encima de los tiradores: se ve aunque uno lo cubra, y no les quita el toque. */
+.curve__point-dot--fixed {
+  stroke: var(--plane-area);
+  stroke-width: 2;
+  pointer-events: none;
+}
+
 .curve__handle {
   cursor: grab;
   outline: none;
