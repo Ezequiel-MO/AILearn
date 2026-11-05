@@ -1333,11 +1333,20 @@ const derivadaPolinomio: Generator = {
     const deriv = [c, 2 * b, 3 * a];
     const answer = evalPoly(deriv, x0);
     const fx0 = evalPoly(coefs, x0);
-    const evalTerms = [
-      `${tex(3 * a)}\\cdot ${paren(x0)}^2`,
-      2 * b !== 0 ? `${tex(2 * b)}\\cdot ${paren(x0)}` : '',
-      c !== 0 ? tex(c) : '',
-    ].filter((t) => t !== '');
+    // cada término con su signo (el primero lleva el suyo si es negativo; los demás, «+» o «-» delante)
+    const evalTerms: [number, string][] = [
+      [3 * a, `\\cdot ${paren(x0)}^2`],
+      [2 * b, `\\cdot ${paren(x0)}`],
+      [c, ''],
+    ];
+    const evalChain = evalTerms
+      .filter(([k]) => k !== 0)
+      .map(([k, rest], i) => {
+        const body = `${tex(Math.abs(k))}${rest}`;
+        if (i === 0) return k < 0 ? `-${body}` : body;
+        return `${k < 0 ? '-' : '+'}${body}`;
+      })
+      .join('');
     const graph: GraphSpec = {
       x: [-3, 3],
       y: yWindow((x) => evalPoly(coefs, x), -3, 3),
@@ -1357,7 +1366,7 @@ const derivadaPolinomio: Generator = {
           ],
           explain:
             "La derivada de $a\\,x^n$ es $n\\,a\\,x^{n-1}$ y la de una constante es $0$. Después se evalúa $f'$ en el punto. Los fallos habituales son evaluar $f$ en vez de $f'$ o dejar la constante sin borrar.",
-          solution: `$f'(x)=${polyTex(deriv)}$. En $x=${tex(x0)}$: $f'(${tex(x0)})=${evalTerms.join('+')}=${tex(answer)}$. Si evaluaras $f$ en vez de $f'$ saldría $${tex(fx0)}$, que es la altura de P, no su pendiente.`,
+          solution: `$f'(x)=${polyTex(deriv)}$. En $x=${tex(x0)}$: $f'(${tex(x0)})=${evalChain}=${tex(answer)}$. Si evaluaras $f$ en vez de $f'$ saldría $${tex(fx0)}$, que es la altura de P, no su pendiente.`,
         },
         answer,
         0,
@@ -1382,10 +1391,11 @@ const minimoPerdida: Generator = {
       const data: [number, number][] = xs.map((x, i) => [x, ys[i]!]);
       const loss = (w: number): number =>
         data.reduce((t, [x, y]) => t + (w * x - y) ** 2, 0) / data.length;
-      const [lo, hi] = yWindow(loss, 0, 10);
+      // una pérdida cuadrática no es negativa: la ventana arranca en 0 y el valle llena la figura
+      const [, hi] = yWindow(loss, 0, 10);
       const graph: GraphSpec = {
         x: [0, 10],
-        y: [lo, Math.min(hi, Math.ceil(loss(0) * 1.5) + 1)],
+        y: [0, Math.min(hi, Math.ceil(loss(0) * 1.5) + 1)],
         snap: 1,
         curve: { kind: 'mse', data },
         points: [],
@@ -1396,7 +1406,7 @@ const minimoPerdida: Generator = {
         ...numeroQ(
           id,
           {
-            prompt: `Un modelo $\\hat{y}=w\\,x$ se ajusta a los datos $(x,y)$: ${data.map((p) => `$${tuple(p)}$`).join(', ')}. La pérdida es el error cuadrático $\\sum (w\\,x_i-y_i)^2$ (su curva, en la figura). ¿Qué $w$ la hace mínima? Si sale un decimal, escríbelo con coma.`,
+            prompt: `Un modelo $\\hat{y}=w\\,x$ se ajusta a los datos $(x,y)$: ${data.map((p) => `$${tuple(p)}$`).join(', ')}. La pérdida es el error cuadrático medio $\\dfrac{1}{3}\\sum (w\\,x_i-y_i)^2$ (su curva, en la figura). ¿Qué $w$ la hace mínima? Si sale un decimal, escríbelo con coma.`,
             hints: [
               'El mínimo de la pérdida está donde su pendiente es $0$. Para este modelo sale $w=\\dfrac{\\sum x_i y_i}{\\sum x_i^2}$.',
               'Calcula por separado $\\sum x_i y_i$ (cada $x$ por su $y$) y $\\sum x_i^2$ (cada $x$ al cuadrado), y divide.',

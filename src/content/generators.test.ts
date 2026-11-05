@@ -1008,6 +1008,23 @@ defineProseTests(
 
 const G3 = ['pendiente-secante', 'derivada-polinomio', 'minimo-perdida'];
 
+/** Evalúa a mano una cadena «k\cdot (x)^2-k\cdot (x)+k» con signos explícitos, sin eval. */
+const evalChainTerms = (chain: string, x: number): number => {
+  let total = 0;
+  let pos = 0;
+  while (pos < chain.length) {
+    const m = /^([+-]?)(\d+)(?:\\cdot (?:\((-?\d+)\)|(\d+)))?(\^2)?/.exec(chain.slice(pos));
+    if (!m) throw new Error(`término ilegible en «${chain}» (posición ${pos})`);
+    const k = Number(m[2]) * (m[1] === '-' ? -1 : 1);
+    const base = m[3] !== undefined ? Number(m[3]) : m[4] !== undefined ? Number(m[4]) : undefined;
+    if (base === undefined) total += k;
+    else total += k * (m[5] ? base ** 2 : base);
+    if (base !== undefined && base !== x) throw new Error(`la base ${base} no es x₀=${x}`);
+    pos += m[0].length;
+  }
+  return total;
+};
+
 describe('oráculo de la Órbita 0 del juego 3: pendiente-secante, derivada-polinomio y minimo-perdida (200 semillas)', () => {
   const numero = (id: string, seed: number) => {
     const q = resolve(call(id), seed);
@@ -1046,7 +1063,38 @@ describe('oráculo de la Órbita 0 del juego 3: pendiente-secante, derivada-poli
       expect(q.answer).toBeCloseTo(curveSlope(curve!, points[0]!.x), 9); // contract: f′(x₀) es la pendiente de la tangente (engine/curves)
       expect(q.graph!.tangent).toBeUndefined(); // contract: brief, sin la lectura que da la respuesta
       expect(q.graph!.readouts).toEqual([]); // contract: brief, sin la lectura que da la respuesta
-      expect(q.solution).toContain(`${q.answer}`.replace('.', '{,}')); // contract: brief, la solución muestra la cuenta
+      // contract: la solución escribe «f'(x₀)=términos=valor»: x₀ es el del punto, el valor es la respuesta y los términos suman la respuesta
+      const m = /f'\((-?\d+)\)=([^=$]+)=(-?\d+)\$/.exec(q.solution);
+      expect(m, `semilla ${seed}: ${q.solution}`).not.toBeNull();
+      expect(Number(m![1]), `semilla ${seed}`).toBe(points[0]!.x);
+      expect(Number(m![3]), `semilla ${seed}`).toBe(q.answer);
+      expect(evalChainTerms(m![2]!, points[0]!.x), `semilla ${seed}: ${m![2]}`).toBe(q.answer);
+    }
+  });
+
+  it('minimo-perdida: la ventana arranca en 0, contiene el valle y no lo aplasta; el enunciado nombra la media', () => {
+    for (const seed of SEEDS) {
+      const q = numero('minimo-perdida', seed);
+      const g = q.graph!;
+      const curve = g.curve!;
+      const loss0 = curveAt(curve, 0);
+      const best = curveAt(curve, mseBest(curve as never));
+      expect(g.y[0], `semilla ${seed}`).toBe(0); // contract: una pérdida cuadrática no es negativa (hallazgo 4)
+      expect(g.y[1] >= loss0 && g.y[1] >= best, `semilla ${seed}`).toBe(true); // contract: la figura debe mostrar loss(0) y el mínimo
+      expect(g.y[1] - g.y[0], `semilla ${seed}`).toBeLessThanOrEqual(1.5 * loss0 + 2); // contract: hallazgo 4, el valle no queda aplastado
+      expect(q.prompt, `semilla ${seed}`).toContain('error cuadrático medio'); // contract: la curva mse es la media (engine/curves, curveAt)
+      expect(q.prompt).toContain('\\dfrac{1}{3}'); // contract: tres datos, la media lleva 1/3
+    }
+  });
+
+  it('ningún generador escribe signos dobles («+-», «+ -», «+−», «- -») en su texto', () => {
+    for (const id of IDS) {
+      const params: GeneradaQ['params'] = id === 'norma' ? { dim: 3 } : {};
+      for (const seed of SEEDS) {
+        const q = resolve(call(id, params), seed);
+        const text = [q.prompt, ...(q.hints ?? []), q.explain ?? '', q.solution ?? ''].join('\n');
+        expect(text, `${id} semilla ${seed}`).not.toMatch(/\+\s?[-−]|-\s-/); // contract: hallazgo 3, un término negativo lleva su propio signo, sin «+» delante
+      }
     }
   });
 
