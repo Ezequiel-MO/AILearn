@@ -6,6 +6,8 @@ Estado al cerrar el montaje: `npm test` 8066 de 8066, `npm run build` y `npm run
 
 ## Importantes (convendría arreglarlos antes de publicar)
 
+**Arreglados los siete el 2026-11-05**, cada uno con su prueba: 3, 4 y 6 en af649b0; 7 en 00a89e5 (`src/ui/labelPlacement.ts`); 1, 2 y 5 en 80ea424. El 1 añade a `defineHintTests` la comprobación de que un `print` comentado con un valor imprime ese valor, y destapó cinco comentarios más (ya corregidos). El 5 añade `tests/content/loss.test.ts`. También queda arreglada, de paso, la salida `np.float64(…)` de `reglas-derivacion.ts:662` (menores). Los menores siguen pendientes.
+
 1. **Una pista da un resultado falso.** `src/games/gradiente/reglas-derivacion.ts:662` comenta `# [-28.0, -9.0]` y en Pyodide sale `[-14.0, -9.0]`: −28 es la suma, no la media, que es justo la confusión que enseña la pregunta. Además, `defineHintTests` (`tests/content/python-helpers.ts`) solo comprueba que los ejemplos no den error, no que impriman lo que dicen sus comentarios.
 2. **El `check` de `error_max` aprueba cualquier número casi cero.** En `reglas-derivacion.ts:731` pasan `error_max = 0`, el mínimo, el máximo con signo y la media, porque las diferencias reales son de 1e-13 a 3e-12.
 3. **«+−» en la solución del generador `derivada-polinomio`.** En `src/content/generators.ts:1338-1339` y `:1360` los términos se juntan con `join('+')` sin `paren`, y sale `3·2^2+-6·2=0` en 194 de 300 sorteos. La línea 293 del mismo fichero ya usa `paren`.
