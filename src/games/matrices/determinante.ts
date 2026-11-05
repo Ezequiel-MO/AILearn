@@ -180,8 +180,8 @@ export const determinante: Project = {
           id: 'determinante.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Hay sistemas que deben escoger elementos **variados**: las recomendaciones de una tienda, o las frases de un resumen. Un método, los procesos puntuales determinantales, los puntúa con un determinante hecho con los vectores de los elementos: es grande si apuntan a sitios distintos y vale $0$ si dos son paralelos, es decir, repetidos. El área del paralelogramo es esa idea en el plano.',
-            aim: 'Vas a hallar el área que forman dos vectores usando el determinante y a quitarle el signo. Verás que el área mide cuánto se diferencian los dos, y que el orden en que los pongas no la cambia.',
+            why: 'Cuando una tienda te recomienda cinco productos, no le sirve enseñarte cinco fundas de móvil casi iguales: busca **variedad**. Para medirla, cada producto se describe con un vector, y dos productos parecidos tienen vectores que apuntan casi hacia el mismo sitio. Un método que se usa para esto, los procesos puntuales determinantales, toma los vectores de la lista como lados de un paralelogramo y mide su área con un determinante (con más de dos vectores, mide un volumen). Si dos productos se parecen, el paralelogramo queda casi plano y el área se acerca a $0$; si son distintos, se abre y el área crece. Aquí lo haces con dos vectores en el plano.',
+            aim: 'Vas a calcular el área del paralelogramo que forman $\\vec{u}$ y $\\vec{v}$: los pones como columnas de una matriz, calculas su determinante y le quitas el signo, porque un área no puede ser negativa. Verás que ese signo solo dice en qué orden pusiste los dos vectores: si los cambias de orden, el determinante cambia de signo, pero el paralelogramo es el mismo y el área también.',
             takeaway:
               'Con un área de $10$, los dos vectores aportan direcciones distintas; si fueran paralelos el área sería $0$ y uno sobraría. Un seleccionador de elementos variados prefiere los conjuntos de área grande, porque cada elemento añade algo que los demás no tienen.',
           },
