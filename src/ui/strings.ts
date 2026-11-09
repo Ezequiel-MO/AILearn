@@ -29,6 +29,8 @@ export const t = {
     noAngle: 'sin ángulo',
     noProjection: 'sin proyección',
     handleLabel: (name: string, position: string) => `Asa del vector ${name}, en ${position}`,
+    // repite la animación de un plano fijo con transformación: la rejilla va de la identidad a la matriz
+    replay: 'Ver la transformación',
     // transformación lineal: A tiene por columnas los dos vectores de la base
     matrixName: 'A',
     detName: 'det A',
@@ -342,5 +344,51 @@ export const t = {
     soon: 'Próximamente',
     link: 'La red por dentro',
     linkMap: 'Ver la red por dentro',
+  },
+
+  // --- Recompensas y efectos: racha, estrellas, barra de nivel, sonido y logros ---
+  fx: {
+    // racha de aciertos a la primera dentro de una tanda (se enseña desde 2)
+    streak: (n: number) => `Racha ×${n}`,
+    streakTitle: 'Preguntas seguidas acertadas a la primera',
+    // estrellas de una tanda de ejercicio
+    stars: (n: number, max: number) => `${n} de ${max} estrellas`,
+    starsHelp: '3 de 5 a la primera dan una estrella; 4, dos; las 5, tres.',
+    // barra de nivel de la cabecera y del inicio
+    levelBar: (toNext: number, next: number) => `Faltan ${toNext} XP para el nivel ${next}`,
+    levelUp: (n: number) => `¡Nivel ${n}!`,
+    levelUpText: 'Sigue así: cada proyecto validado, hoja y examen suma XP.',
+    xpFloat: (n: number) => `+${n} XP`,
+    // en el mapa, lo siguiente que conviene jugar
+    nextStep: 'Siguiente paso',
+    // botón de sonido (en la cabecera)
+    sound: 'Sonido',
+    soundOn: 'Sonido activado',
+    soundOff: 'Sonido desactivado',
+    // logros
+    achievementsHeading: 'Logros',
+    achievementsCount: (got: number, total: number) => `${got} de ${total} conseguidos`,
+    achievementsShort: (got: number, total: number) => `Logros: ${got} de ${total}`,
+    achievementNew: (title: string) => `Logro: ${title}`,
+    achievementLocked: 'Aún no',
+    achievements: {
+      launch: { title: 'Despegue', text: 'Completa el despegue del juego.' },
+      perfectRun: { title: 'Pleno', text: 'Acierta las 5 preguntas de un ejercicio a la primera.' },
+      firstProject: { title: 'Validado', text: 'Valida tu primer proyecto (nota 80).' },
+      firstSheet: { title: 'Cazador de errores', text: 'Resuelve una hoja «Caza el error».' },
+      level2: { title: 'Nivel 2', text: 'Llega a 300 XP en este juego.' },
+      perfectProject: {
+        title: 'Proyecto perfecto',
+        text: 'Saca un 100 en un proyecto: sus 15 preguntas a la primera.',
+      },
+      allSheets: { title: 'Ojo de lince', text: 'Resuelve las tres hojas de un proyecto.' },
+      firstExam: { title: 'Examen aprobado', text: 'Aprueba el examen de una órbita.' },
+      fullOrbit: {
+        title: 'Órbita completa',
+        text: 'Valida todos los proyectos de una órbita y aprueba su examen.',
+      },
+      level5: { title: 'Nivel 5', text: 'Llega a 750 XP en este juego.' },
+      allOrbits: { title: 'Juego completo', text: 'Aprueba los exámenes de todas las órbitas.' },
+    },
   },
 } as const;

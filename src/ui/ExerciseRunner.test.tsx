@@ -491,6 +491,30 @@ describe('ExerciseRunner: indicadores', () => {
     setup(five(), { mode: 'hoja' });
     expect(screen.queryByText(/A la primera/)).not.toBeInTheDocument();
   });
+
+  it('la racha aparece desde 2 aciertos a la primera seguidos y un fallo la corta', async () => {
+    const { user } = setup(five());
+    await answer(user, '5');
+    // contract: brief «juego más visual»: con 1 acierto no hay racha que enseñar
+    expect(screen.queryByText(/Racha/)).not.toBeInTheDocument();
+    await user.click(nextButton());
+    await answer(user, '5');
+    // contract: brief «juego más visual»: la racha sube al acertar, sin esperar a «Siguiente»
+    expect(screen.getByText('Racha ×2')).toBeInTheDocument();
+    await user.click(nextButton());
+    await answer(user, '4');
+    // contract: la racha es la de «a la primera» (engine/session.streak): el fallo la corta
+    expect(screen.queryByText(/Racha/)).not.toBeInTheDocument();
+  });
+
+  it('en examen no hay racha: no se dice si una entrega está bien', async () => {
+    const { user } = setup(five(), { mode: 'examen' });
+    await answer(user, '5');
+    await user.click(nextButton());
+    await answer(user, '5');
+    // contract: spec, el examen no enseña la corrección de cada pregunta
+    expect(screen.queryByText(/Racha/)).not.toBeInTheDocument();
+  });
 });
 
 describe('ExerciseRunner: color del panel (review-12 I4)', () => {

@@ -5,6 +5,7 @@ import {
   resumeSession,
   startSession,
   step,
+  streak,
   type SessionEvent,
   type SessionState,
 } from './session';
@@ -305,5 +306,33 @@ describe('resumeSession', () => {
   ])('devuelve null con %s', (_name, saved) => {
     // contract: lo guardado que no es de esta tanda o está dañado no se retoma: se empieza de nuevo
     expect(resumeSession('proyecto', ids(5), saved)).toBeNull();
+  });
+});
+
+describe('streak', () => {
+  it('cuenta los aciertos a la primera seguidos, también el de la pregunta recién cerrada', () => {
+    const s = startSession('proyecto', ids(5));
+    // contract: brief «juego más visual»: la racha sube al acertar, sin esperar a «Siguiente»
+    expect(streak(s)).toBe(0);
+    expect(streak(run(s, ok))).toBe(1);
+    expect(streak(run(s, ok, next))).toBe(1);
+    expect(streak(run(s, ok, next, ok))).toBe(2);
+    expect(streak(run(s, ok, next, ok, next, ok, next))).toBe(3);
+  });
+
+  it('un fallo, una pista o la segunda entrega la cortan', () => {
+    const s = startSession('proyecto', ids(5));
+    // contract: misma regla que «a la primera» (progression.firstTry)
+    expect(streak(run(s, ok, next, bad))).toBe(0); // explained: ya no puede ser a la primera
+    expect(streak(run(s, ok, next, hint))).toBe(0); // pista pedida, aún sin entregar
+    expect(streak(run(s, ok, next, bad, ok))).toBe(0); // acertada al segundo intento
+    expect(streak(run(s, ok, next, hint, ok))).toBe(0); // con pista
+    expect(streak(run(s, ok, next, bad, bad, next, ok))).toBe(1); // vuelve a empezar
+  });
+
+  it('al terminar la tanda cuenta la cola de resultados', () => {
+    const s = startSession('despegue', ids(2));
+    // contract: con done, step no cambia el estado y la racha sale de los resultados guardados
+    expect(streak(run(s, ok, next, ok, next))).toBe(2);
   });
 });

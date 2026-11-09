@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { pointsOfLevel } from '../engine/rewards';
 import { Account } from './Account';
+import { LevelBar, SoundToggle } from './Rewards';
 import { t } from './strings';
 
 /**
@@ -31,7 +33,13 @@ export function Layout({
           </Link>
         )}
         <h1 className="layout__title">{title}</h1>
-        {level !== undefined && <span className="layout__level">{t.layout.level(level)}</span>}
+        {level !== undefined && (
+          <span className="layout__levelbox">
+            <span className="layout__level">{t.layout.level(level)}</span>
+            <LevelBar points={pointsOfLevel(level)} />
+          </span>
+        )}
+        <SoundToggle />
       </header>
       <div className="layout__warnings" role="status">
         {warning ? <p className="layout__warning">{warning}</p> : null}

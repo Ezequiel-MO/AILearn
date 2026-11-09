@@ -66,7 +66,7 @@ Dónde viven las cosas:
 
 - Reglas de puntuación y desbloqueo: solo en `src/engine`. `src/engine` no importa nada de fuera de `src/engine` (lo impone ESLint).
 - Textos fijos de la interfaz: `src/ui/strings.ts`, un grupo `t.<área>` por área.
-- Almacenamiento: solo `src/storage` toca `localStorage`. Clave de progreso `ailearn:v1:local:<juego>`; los borradores de código van en `ailearn:v1:local:<juego>:borradores` y las tandas a medias (un ejercicio o el despegue sin terminar) en `ailearn:v1:local:<juego>:tandas`.
+- Almacenamiento: solo `src/storage` toca `localStorage`. Clave de progreso `ailearn:v1:local:<juego>`; los borradores de código van en `ailearn:v1:local:<juego>:borradores` y las tandas a medias (un ejercicio o el despegue sin terminar) en `ailearn:v1:local:<juego>:tandas`. Los ajustes del jugador (hoy, si suena el juego) van en `ailearn:v1:ajustes` (`src/storage/prefs.ts`), comunes a todos los juegos y sin subir a la nube.
 - Constantes de las reglas: `src/engine/types.ts`.
 - Rutas (con `HashRouter`): `src/App.tsx`.
 
@@ -138,6 +138,20 @@ Los ejercicios y las hojas tienen un número fijo de preguntas: añadir una más
 3. El id del juego da la clave de progreso (`ailearn:v1:local:<id>`) y la ruta (`#/j/<id>`).
 4. Si hace falta una métrica nueva del plano, se añade en `src/engine/vectors.ts` y en `METRICS` de `src/content/schema.ts`; las reglas del motor no se tocan.
 5. Como en un proyecto nuevo, cablea sus pruebas de prosa y de código.
+
+## Recompensas y efectos
+
+El juego celebra lo que se consigue y enseña el avance con dibujos. Nada de esto se guarda aparte ni cambia la nota o el XP: todo sale del resumen que ya existe, con reglas en `src/engine/rewards.ts` y en `streak` de `src/engine/session.ts`.
+
+- **Racha**: preguntas seguidas acertadas a la primera dentro de una tanda («Racha ×3» en la cabecera del ejecutor, desde 2). Un fallo o una pista la cortan. En examen no hay racha ni efectos que digan si una entrega está bien.
+- **Al entregar**: acierto con confeti desde el botón y un sonido que sube con la racha; fallo con una sacudida suave del botón y un tono grave; en examen, un clic neutro.
+- **Estrellas** de una tanda de ejercicio: 3 de 5 a la primera dan una, 4 (la nota de validar) dos, las 5 tres. Se ven en el resultado, con el XP ganado.
+- **Nivel**: barra de avance hacia el siguiente nivel en la cabecera, en el mapa y en el inicio. Al subir de nivel, fanfarria, confeti y aviso.
+- **Logros** (11 por juego, de «Despegue» a «Juego completo»): se calculan del resumen (`achievements`), se listan en Estadísticas y avisan al conseguirse. Solo avisa un cambio hecho en esta sesión (`useSummaryChanges` de `src/ui/useProgress.ts`): lo que llega de la nube al entrar con Google no celebra nada.
+- **Mapa ilustrado**: cada órbita es un planeta con una luna por proyecto; cada proyecto lleva su icono de estado y una barra de nota con la raya del 80; «Siguiente paso» señala lo que conviene jugar (`nextStep`). El estado sigue escrito en texto: los dibujos son adorno, ocultos al lector de pantalla.
+- **Plano animado** (al estilo de 3Blue1Brown y de Mafs): una figura fija con `transform` deforma la rejilla desde la identidad hasta la matriz al aparecer, y el botón «Ver la transformación» lo repite; una figura fija sin transformación hace crecer sus vectores desde el origen. Las lecturas enseñan siempre los valores finales. Un plano interactivo no se anima (`src/ui/usePlaneIntro.ts`).
+
+Los efectos viven en `src/ui/fx/` sin librerías: el confeti, el texto que sube y los avisos son piezas de DOM con animación CSS, al estilo de canvas-confetti, y los sonidos se sintetizan con WebAudio, al estilo de ZzFX, sin ficheros ni red. Con `prefers-reduced-motion` no hay confeti, sacudidas ni animación del plano; los avisos y el sonido siguen. El botón de la cabecera apaga el sonido. En las pruebas con jsdom (sin `matchMedia`) no se pinta ningún efecto ni el botón de sonido, y el plano sale ya en su estado final.
 
 ## Qué garantizan las pruebas de contenido
 

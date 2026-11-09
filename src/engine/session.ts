@@ -95,6 +95,20 @@ export const step = (s: SessionState, e: SessionEvent): SessionState => {
 };
 
 /**
+ * Racha: preguntas seguidas acertadas a la primera al final de la tanda, contando la de ahora si ya está
+ * cerrada (acertada o con la solución a la vista). Un fallo o una pista la cortan en el acto: esa pregunta
+ * ya no puede salir a la primera.
+ */
+export const streak = (s: SessionState): number => {
+  const closing = step(s, { type: 'next' });
+  if (closing === s && !s.done && (s.submissions > 0 || s.hinted)) return 0;
+  const { results } = closing;
+  let n = 0;
+  for (let i = results.length - 1; i >= 0 && results[i]?.firstTry === true; i--) n++;
+  return n;
+};
+
+/**
  * Lo que se guarda de una tanda a medias para retomarla al volver: sus preguntas y los eventos que la
  * trajeron hasta aquí. Se guardan los eventos, no el estado, para que al retomarla los repita `step` y
  * las reglas sean las de siempre (también la segunda oportunidad y las pistas ya pedidas).

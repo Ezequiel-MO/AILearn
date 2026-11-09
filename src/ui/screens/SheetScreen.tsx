@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Game, Project } from '../../content/schema';
 import { toShape } from '../../content/schema';
@@ -6,7 +6,9 @@ import { orbitOpen, level, sheetsOpen, xp } from '../../engine/progression';
 import type { QuestionResult } from '../../engine/session';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
+import { useCelebrations } from '../fx/useCelebrations';
 import { Layout } from '../Layout';
+import { RewardBanner } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
@@ -46,21 +48,26 @@ function SheetPlay({
   const override = useOpenOverride();
   const [run, setRun] = useState(0);
   const [solved, setSolved] = useState<boolean | null>(null);
+  const [xpBefore, setXpBefore] = useState(0);
   useFocusTitle(run);
+  useCelebrations(game);
+  const shape = useMemo(() => toShape(game), [game]);
 
   const question = project.sheets[sheet]!;
   const onResult = useCallback((r: QuestionResult) => record(r, 'hoja'), [record]);
   const onDone = useCallback(
     (s: RunSummary) => {
       const correct = s.results[0]?.correct === true;
+      // El resumen de este render es el de antes de resolver: el XP ganado es la diferencia.
+      setXpBefore(xp(shape, summary));
       if (correct) solveSheet(question.id);
       setSolved(correct);
     },
-    [solveSheet, question.id],
+    [solveSheet, question.id, shape, summary],
   );
 
-  const shape = toShape(game);
-  const currentLevel = level(xp(shape, summary));
+  const xpNow = xp(shape, summary);
+  const currentLevel = level(xpNow);
   // Las hojas piden la órbita abierta y el proyecto validado: se combinan las dos funciones del motor.
   if (!override && !(orbitOpen(shape, summary, orbit) && sheetsOpen(summary, project.id))) {
     return <Gate kind="closed" gameId={game.id} level={currentLevel} warning={warning} />;
@@ -89,6 +96,7 @@ function SheetPlay({
           <h2 id="play-result-title" className="play__result-title">
             {t.play.resultHeading}
           </h2>
+          <RewardBanner gained={xpNow - xpBefore} good={solved} />
           <p>{solved ? t.play.sheetSolved : t.play.sheetFailed}</p>
           <div className="play__actions">
             <Link className="play__action" to={projectPath(game.id, project.id)}>

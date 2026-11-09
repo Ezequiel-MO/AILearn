@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Game } from '../../content/schema';
 import { toShape } from '../../content/schema';
@@ -7,7 +7,9 @@ import type { QuestionResult, SavedRun } from '../../engine/session';
 import { BigPicture } from '../BigPicture';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
+import { useCelebrations } from '../fx/useCelebrations';
 import { Layout } from '../Layout';
+import { RewardBanner } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
@@ -28,8 +30,11 @@ function LaunchPlay({ game }: { game: Game }) {
   const { summary, warning, record, completeLaunch, getDraft, saveDraft, getRun, saveRun } =
     useProgress(game.id);
   const [run, setRun] = useState(0);
-  const [result, setResult] = useState<RunSummary | null>(null);
+  const [result, setResult] = useState<(RunSummary & { xpBefore: number }) | null>(null);
   useFocusTitle(run);
+  useCelebrations(game);
+  const shape = useMemo(() => toShape(game), [game]);
+  const xpNow = xp(shape, summary);
 
   // El despegue a medias se retoma donde se dejó.
   const loadRun = useCallback(() => getRun(LAUNCH_RUN), [getRun]);
@@ -37,17 +42,18 @@ function LaunchPlay({ game }: { game: Game }) {
   const onResult = useCallback((r: QuestionResult) => record(r, 'despegue'), [record]);
   const onDone = useCallback(
     (s: RunSummary) => {
+      // El resumen de este render es el de antes de completar: el XP ganado es la diferencia.
+      setResult({ ...s, xpBefore: xp(shape, summary) });
       completeLaunch();
-      setResult(s);
     },
-    [completeLaunch],
+    [completeLaunch, shape, summary],
   );
 
   return (
     <Layout
       title={t.play.launchTitle}
       back={mapPath(game.id)}
-      level={level(xp(toShape(game), summary))}
+      level={level(xpNow)}
       warning={warning}
     >
       {game.bigPicture && <BigPicture bigPicture={game.bigPicture} />}
@@ -69,6 +75,7 @@ function LaunchPlay({ game }: { game: Game }) {
           <h2 id="play-result-title" className="play__result-title">
             {t.play.resultHeading}
           </h2>
+          <RewardBanner gained={xpNow - result.xpBefore} good />
           <p>{t.play.launchDone(result.correct, result.results.length, result.firsts)}</p>
           <div className="play__actions">
             <Link className="play__action" to={mapPath(game.id)}>

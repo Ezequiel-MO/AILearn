@@ -6,12 +6,15 @@ import {
   resumeSession,
   startSession,
   step,
+  streak,
   type Mode,
   type QuestionResult,
   type SavedRun,
   type SessionEvent,
   type SessionState,
 } from '../engine/session';
+import { burst, centerOf, shake } from './fx/effects';
+import { sounds } from './fx/sound';
 import { Md } from './Md';
 import { SUBMIT_COOLDOWN_MS } from './questions/parts';
 import { QuestionView } from './questions/QuestionView';
@@ -75,10 +78,40 @@ export function ExerciseRunner({
     callbacks.current = { onResult, onDone, onRun };
   });
 
+  // Lo que se oye y se ve al entregar. En examen, un clic neutro: la entrega no dice si está bien.
+  const submitFx = (next: SessionState) => {
+    if (mode === 'examen') {
+      sounds.tick();
+      return;
+    }
+    // Sale del control que entregó (el botón pulsado) o, si el foco está en otra parte, del panel.
+    const active = document.activeElement;
+    const from =
+      active instanceof HTMLElement &&
+      active !== document.body &&
+      sectionRef.current?.contains(active)
+        ? active
+        : feedbackRef.current;
+    if (next.phase === 'solved') {
+      const run = streak(next);
+      const heat = Math.min(run, 6);
+      sounds.correct(run);
+      burst(centerOf(from), {
+        count: 16 + heat * 6,
+        power: 0.9 + heat * 0.15,
+        spread: 80 + heat * 10,
+      });
+    } else {
+      sounds.wrong();
+      if (from instanceof HTMLButtonElement) shake(from);
+    }
+  };
+
   const dispatch = (event: SessionEvent) => {
     const prev = current.current;
     const next = step(prev, event);
     if (next === prev) return;
+    if (event.type === 'submit') submitFx(next);
     current.current = next;
     events.current = [...events.current, event];
     setState(next);
@@ -108,6 +141,7 @@ export function ExerciseRunner({
   const lastResult = closing.results[closing.results.length - 1];
   const firstTry = locked && lastResult?.firstTry === true;
   const exam = mode === 'examen';
+  const run = streak(state);
   // «Lo que te llevas» (manipular y Calcular): al cerrar la pregunta, acertada o con la solución a la vista.
   const takeaway = question && 'purpose' in question ? question.purpose?.takeaway : undefined;
   // Color de la barra del panel: acierto, fallo (con segunda oportunidad o definitivo); en examen, neutro.
@@ -213,6 +247,11 @@ export function ExerciseRunner({
         </p>
         {mode === 'proyecto' ? (
           <p className="runner__firsts num">{t.runner.firsts(firsts(state))}</p>
+        ) : null}
+        {!exam && run >= 2 ? (
+          <p className="runner__streak num" key={run} title={t.fx.streakTitle}>
+            {t.fx.streak(run)}
+          </p>
         ) : null}
       </header>
       <div className="runner__body" key={question.id}>

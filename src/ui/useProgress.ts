@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, useSyncExternalStore } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import {
   completeLaunch as applyCompleteLaunch,
   handInExam as applyHandInExam,
@@ -51,7 +51,12 @@ interface Hub {
   subscribe(listener: () => void): () => void;
   getSnapshot(): Snapshot;
   actions: Actions;
+  /** Avisa de cada cambio del resumen hecho en esta sesión (no de lo que trae la nube). */
+  onLocalSummary(listener: SummaryListener): () => void;
 }
+
+/** Recibe el resumen de antes y el de después de un cambio hecho en esta sesión. */
+export type SummaryListener = (before: Summary, after: Summary) => void;
 
 const hubs = new WeakMap<ProgressStore, Map<string, Hub>>();
 
@@ -71,6 +76,7 @@ const hubFor = (store: ProgressStore, gameId: string): Hub => {
 
 const createHub = (store: ProgressStore, gameId: string): Hub => {
   const listeners = new Set<() => void>();
+  const summaryListeners = new Set<SummaryListener>();
   // Siempre se carga antes de cualquier guardado: la primera lectura es esta.
   const first = store.load(gameId);
   let snapshot: Snapshot = {
@@ -123,6 +129,9 @@ const createHub = (store: ProgressStore, gameId: string): Hub => {
     }
     store.save(gameId, next);
     if (publish(next.summary, store.warning(), next.attempts)) notify();
+    if (JSON.stringify(base.summary) !== JSON.stringify(next.summary)) {
+      summaryListeners.forEach((listener) => listener(base.summary, next.summary));
+    }
   };
 
   const withSummary =
@@ -193,6 +202,12 @@ const createHub = (store: ProgressStore, gameId: string): Hub => {
     },
     getSnapshot: () => snapshot,
     actions,
+    onLocalSummary: (listener) => {
+      summaryListeners.add(listener);
+      return () => {
+        summaryListeners.delete(listener);
+      };
+    },
   };
 };
 
@@ -209,4 +224,21 @@ export function useProgress(gameId: string): Progress {
     () => ({ summary, warning, attempts, ...hub.actions }),
     [summary, warning, attempts, hub],
   );
+}
+
+/**
+ * Llama a `listener` con el resumen de antes y el de después cada vez que esta sesión cambia el progreso
+ * del juego (entregar un ejercicio, aprobar un examen, resolver una hoja, completar el despegue). Lo que
+ * llega de la nube no avisa: entrar con Google no es conseguir nada. Sin juego, no escucha.
+ */
+export function useSummaryChanges(gameId: string | undefined, listener: SummaryListener): void {
+  const store = useContext(StoreContext);
+  const latest = useRef(listener);
+  useEffect(() => {
+    latest.current = listener;
+  });
+  useEffect(() => {
+    if (gameId === undefined) return;
+    return hubFor(store, gameId).onLocalSummary((before, after) => latest.current(before, after));
+  }, [store, gameId]);
 }

@@ -5,6 +5,8 @@ import { toShape } from '../../content/schema';
 import { level, xp } from '../../engine/progression';
 import { GamesContext } from '../GamesContext';
 import { Layout } from '../Layout';
+import { GameGlyph } from '../MapGlyphs';
+import { LevelBar } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { mapPath, networkPath, roadmapPath, useFocusTitle } from './lookup';
@@ -40,9 +42,13 @@ function HubCard({ game }: { game: Game }) {
   const points = xp(shape, summary);
   return (
     <li className="hub__card" aria-labelledby={titleId}>
-      <Link id={titleId} className="hub__game" to={mapPath(game.id)}>
-        {game.title}
-      </Link>
+      <GameGlyph gameId={game.id} />
+      <span className="hub__main">
+        <Link id={titleId} className="hub__game" to={mapPath(game.id)}>
+          {game.title}
+        </Link>
+        <LevelBar points={points} />
+      </span>
       <span className="hub__figures">
         <span>{t.layout.level(level(points))}</span>
         <span className="num">{t.hub.xp(points)}</span>

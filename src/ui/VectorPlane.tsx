@@ -6,7 +6,9 @@ import type { Vec } from '../engine/vectors';
 import { fmt, fmtPair } from './format';
 import { CENTER, HANDLE_RADIUS, HANDLE_RING_RADIUS, MARGIN, VIEW, placeLabels } from './labels';
 import type { Point } from './labels';
+import { motionAllowed } from './fx/motion';
 import { t } from './strings';
+import { usePlaneIntro } from './usePlaneIntro';
 
 const HEAD_LENGTH = 12;
 const HEAD_HALF_WIDTH = 5;
@@ -112,9 +114,29 @@ export function VectorPlane({
 
   const posOf = (id: string, fallback: Point): Point =>
     Object.hasOwn(positions, id) ? positions[id] : fallback;
+  // `real` son las posiciones de verdad (lecturas y textos); `current` lo que se dibuja, que en la
+  // entrada animada de una figura estática va de la identidad (o del origen) a `real`
+  const real: Record<string, Point> = {};
+  for (const v of vectors) real[v.id] = posOf(v.id, [v.x, v.y]);
+  const asVecs: Record<string, Vec> = real;
+  const animated = onMove === undefined;
+  const { progress, restart } = usePlaneIntro(animated, transform !== undefined);
   const current: Record<string, Point> = {};
-  for (const v of vectors) current[v.id] = posOf(v.id, [v.x, v.y]);
-  const asVecs: Record<string, Vec> = current;
+  for (const v of vectors) {
+    const to = real[v.id];
+    let from: Point | null = null;
+    if (progress < 1 && animated) {
+      if (transform) {
+        if (v.id === transform.columns[0]) from = [1, 0];
+        else if (v.id === transform.columns[1]) from = [0, 1];
+      } else {
+        from = [0, 0];
+      }
+    }
+    current[v.id] = from
+      ? [from[0] + (to[0] - from[0]) * progress, from[1] + (to[1] - from[1]) * progress]
+      : to;
+  }
   const nameOf = (id: string): string => vectors.find((v) => v.id === id)?.label ?? id;
 
   const interactive = onMove !== undefined;
@@ -192,7 +214,10 @@ export function VectorPlane({
   const sumArrow = sumTip ? arrow(sumTip) : null;
 
   // --- Ángulo y proyección del par: se calculan con el motor; la interfaz solo las coloca ---
-  const angleDeg = pair ? measure('angle', [pair[0], pair[1]], asVecs) : NaN;
+  const angleDeg = pair
+    ? measure('angle', [pair[0], pair[1]], current as Record<string, Vec>)
+    : NaN;
+  const readAngle = pair ? measure('angle', [pair[0], pair[1]], asVecs) : NaN;
   const wantsArc = readouts.includes('angle') || readouts.includes('cos');
   let arcPath: string | null = null;
   // 0° no tiene arco que ver; a 180° es media circunferencia (el lado del sweep es indiferente)
@@ -228,6 +253,9 @@ export function VectorPlane({
   const colI: Point | null = transform ? current[transform.columns[0]] : null;
   const colJ: Point | null = transform ? current[transform.columns[1]] : null;
   const detA = colI && colJ ? det2(colI, colJ) : NaN;
+  const realI: Point | null = transform ? real[transform.columns[0]] : null;
+  const realJ: Point | null = transform ? real[transform.columns[1]] : null;
+  const realDet = realI && realJ ? det2(realI, realJ) : NaN;
   const flipped = detA < -EPS;
   const imageTip = (p: Point): Point => [sx(p[0]), sy(p[1])];
   const imageLines: { key: string; axis: boolean; a: Point; b: Point }[] = [];
@@ -309,9 +337,9 @@ export function VectorPlane({
         });
       }
     } else if (kind === 'matrix') {
-      if (colI && colJ) {
+      if (realI && realJ) {
         // A por filas: la fila 1 es (î.x, ĵ.x) y la fila 2 es (î.y, ĵ.y)
-        const cells = [colI[0], colJ[0], colI[1], colJ[1]];
+        const cells = [realI[0], realJ[0], realI[1], realJ[1]];
         rows.push({
           key: 'matrix',
           name: t.plane.matrixName,
@@ -324,7 +352,7 @@ export function VectorPlane({
         });
       }
     } else if (kind === 'det') {
-      rows.push({ key: 'det', name: t.plane.detName, value: fmt(detA) });
+      rows.push({ key: 'det', name: t.plane.detName, value: fmt(realDet) });
     } else if (
       kind === 'image' ||
       kind === 'img_angle' ||
@@ -391,7 +419,7 @@ export function VectorPlane({
         rows.push({
           key: 'angle',
           name: t.plane.angleName(nameOf(a), nameOf(b)),
-          value: Number.isNaN(angleDeg) ? t.plane.noAngle : `${fmt(angleDeg)}°`,
+          value: Number.isNaN(readAngle) ? t.plane.noAngle : `${fmt(readAngle)}°`,
         });
       } else if (kind === 'projection') {
         const value = measure('proj', [a, b], asVecs);
@@ -674,7 +702,7 @@ export function VectorPlane({
                     tabIndex={0}
                     aria-label={t.plane.handleLabel(
                       v.label,
-                      pointText(current[v.id][0], current[v.id][1]),
+                      pointText(real[v.id][0], real[v.id][1]),
                     )}
                     onPointerDown={(e) => onPointerDown(v.id, e)}
                     onPointerMove={(e) => onPointerMove(v.id, e)}
@@ -690,6 +718,12 @@ export function VectorPlane({
               })}
         </svg>
       </div>
+
+      {animated && transform && motionAllowed() && (
+        <button type="button" className="question__button plane__replay" onClick={restart}>
+          {t.plane.replay}
+        </button>
+      )}
 
       {rows.length > 0 && (
         <div className="plane__readouts" role="group" aria-label={t.plane.readouts}>

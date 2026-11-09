@@ -8,7 +8,9 @@ import type { QuestionResult } from '../../engine/session';
 import { EXAM_PASS, EXAM_SIZE } from '../../engine/types';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
 import { useGame } from '../GamesContext';
+import { useCelebrations } from '../fx/useCelebrations';
 import { Layout } from '../Layout';
+import { RewardBanner } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
@@ -55,6 +57,7 @@ function ExamRun({ game, orbit }: { game: Game; orbit: number }) {
   const [seed, setSeed] = useState(() => nextSeed(0));
   const [result, setResult] = useState<ExamResult | null>(null);
   useFocusTitle(seed);
+  useCelebrations(game);
 
   const shape = useMemo(() => toShape(game), [game]);
   const exam = useMemo(() => drawExam(def, seed), [def, seed]);
@@ -110,6 +113,7 @@ function ExamRun({ game, orbit }: { game: Game; orbit: number }) {
           <h2 id="exam-result-title" className="play__result-title">
             {t.exam.resultHeading}
           </h2>
+          <RewardBanner gained={xpNow - result.xpBefore} good={result.passed} />
           <p>{t.exam.score(result.correct, EXAM_SIZE)}</p>
           {result.passed ? (
             <>

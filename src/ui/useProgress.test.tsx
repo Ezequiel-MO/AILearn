@@ -5,7 +5,7 @@ import type { QuestionResult } from '../engine/session';
 import { emptySummary } from '../engine/types';
 import { WARNINGS, createLocalStore } from '../storage/local';
 import type { ProgressDoc, ProgressStore } from '../storage/types';
-import { StoreContext, useProgress, type Progress } from './useProgress';
+import { StoreContext, useProgress, useSummaryChanges, type Progress } from './useProgress';
 
 // Envuelve el constructor real para contar cuántas instancias del almacén se crean.
 const stores = vi.hoisted(() => ({ defaultCreated: 0 }));
@@ -785,5 +785,54 @@ describe('useProgress: attempts (solo lectura)', () => {
     // @ts-expect-error el campo q de un intento es de solo lectura
     const rename = () => (p.attempts[0].q = 'x');
     expect([push, write, rename]).toHaveLength(3); // contract: rereview-13a M3, solo se declaran; no se ejecutan (no se muta nada)
+  });
+});
+
+describe('useSummaryChanges', () => {
+  it('avisa con el resumen de antes y el de después de cada cambio local del resumen', () => {
+    const store = createLocalStore(new FakeStorage());
+    const listener = vi.fn();
+    const { result: hook } = renderHook(
+      () => {
+        useSummaryChanges(GAME, listener);
+        return useProgress(GAME);
+      },
+      { wrapper: wrapperFor(store) },
+    );
+    act(() => hook.current.record(result(1), 'proyecto'));
+    // contract: brief «juego más visual»: grabar un intento no cambia el resumen: no celebra nada
+    expect(listener).not.toHaveBeenCalled();
+    act(() => hook.current.completeLaunch());
+    // contract: las celebraciones comparan el resumen de antes y el de después
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenLastCalledWith(emptySummary(), { ...emptySummary(), launch: true });
+    act(() => hook.current.completeLaunch());
+    // contract: repetir lo ya conseguido no cambia el resumen: no vuelve a avisar
+    expect(listener).toHaveBeenCalledTimes(1);
+  });
+
+  it('lo que trae otro dispositivo no avisa', () => {
+    let external: ((gameId: string) => void) | undefined;
+    const storage = new FakeStorage();
+    const base = createLocalStore(storage);
+    const store: ProgressStore = {
+      ...base,
+      onExternalChange: (listener) => {
+        external = listener;
+        return () => {};
+      },
+    };
+    const listener = vi.fn();
+    renderHook(() => useSummaryChanges(GAME, listener), { wrapper: wrapperFor(store) });
+    // el hub nace al primer uso: se le da uno para que se suscriba a los cambios de fuera
+    renderHook(() => useProgress(GAME), { wrapper: wrapperFor(store) });
+    createLocalStore(storage).save(GAME, {
+      schema: 1,
+      summary: { ...emptySummary(), launch: true },
+      attempts: [],
+    });
+    act(() => external?.(GAME));
+    // contract: entrar con Google y fusionar la nube no es conseguir nada (useProgress.useSummaryChanges)
+    expect(listener).not.toHaveBeenCalled();
   });
 });

@@ -3,8 +3,10 @@ import { useParams } from 'react-router';
 import type { Game } from '../../content/schema';
 import { toShape } from '../../content/schema';
 import { firstTry, level, xp } from '../../engine/progression';
+import { achievements } from '../../engine/rewards';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
+import { AchievementList } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
@@ -119,6 +121,7 @@ function StatsView({ game }: { game: Game }) {
           </div>
         </>
       )}
+      <AchievementList earned={achievements(shape, summary)} />
     </Layout>
   );
 }

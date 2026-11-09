@@ -642,3 +642,47 @@ describe('Estadísticas', () => {
     await waitFor(() => expect(h1()).toHaveTextContent('Juego de prueba'));
   });
 });
+
+describe('Mapa: siguiente paso y logros', () => {
+  const next = 'Siguiente paso';
+
+  it('sin progreso, el siguiente paso es el despegue', async () => {
+    await setup(`/j/${GAME}`);
+    // contract: engine/rewards.nextStep, primero el despegue
+    expect(within(region('Despegue')).getByText(next)).toBeInTheDocument();
+    expect(screen.getAllByText(next)).toHaveLength(1);
+    // contract: brief «juego más visual»: cuenta de logros en la barra del mapa (11 en total)
+    expect(screen.getByText('Logros: 0 de 11')).toBeInTheDocument();
+  });
+
+  it('con el despegue, el primer proyecto sin validar; con él validado, el examen', async () => {
+    const { store } = newStore();
+    seed(store, { launch: true });
+    await setup(`/j/${GAME}`, store);
+    const zero = region('Órbita cero');
+    // contract: engine/rewards.nextStep, primer proyecto abierto sin validar
+    expect(within(zero).getByRole('listitem', { name: 'Proyecto P' })).toHaveTextContent(next);
+    expect(within(region('Despegue')).queryByText(next)).toBeNull();
+    expect(screen.getByText('Logros: 1 de 11')).toBeInTheDocument();
+  });
+
+  it('con la órbita validada, el siguiente paso es su examen', async () => {
+    const { store } = newStore();
+    seed(store, { launch: true, firsts: validated('p') });
+    await setup(`/j/${GAME}`, store);
+    const exam = within(region('Órbita cero')).getByRole('group', { name: 'Examen' });
+    // contract: engine/rewards.nextStep, con todos los proyectos validados toca el examen
+    expect(within(exam).getByText(next)).toBeInTheDocument();
+    expect(screen.getAllByText(next)).toHaveLength(1);
+  });
+
+  it('las estadísticas enseñan los logros conseguidos y los que faltan', async () => {
+    const { store } = newStore();
+    seed(store, { launch: true, firsts: validated('p') });
+    await setup(`/j/${GAME}/estadisticas`, store);
+    const list = screen.getByRole('region', { name: 'Logros' });
+    // contract: launch, perfectRun, firstProject y perfectProject (nota 100) de los 11
+    expect(within(list).getByText('4 de 11 conseguidos')).toBeInTheDocument();
+    expect(within(list).getAllByText('Aún no')).toHaveLength(7);
+  });
+});

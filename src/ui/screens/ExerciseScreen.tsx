@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import type { Game, Project } from '../../content/schema';
 import { toShape } from '../../content/schema';
@@ -10,12 +10,15 @@ import {
   projectMark,
   xp,
 } from '../../engine/progression';
+import { stars } from '../../engine/rewards';
 import { resumeSession, type QuestionResult, type SavedRun } from '../../engine/session';
 import { QUESTIONS_PER_EXERCISE, VALID } from '../../engine/types';
 import { ExerciseReview } from '../ExerciseReview';
 import { ExerciseRunner, type RunSummary } from '../ExerciseRunner';
+import { useCelebrations } from '../fx/useCelebrations';
 import { useGame } from '../GamesContext';
 import { Layout } from '../Layout';
+import { RewardBanner } from '../Rewards';
 import { t } from '../strings';
 import { useProgress } from '../useProgress';
 import { Gate } from './Gate';
@@ -63,7 +66,7 @@ function ExercisePlay({
     useProgress(game.id);
   const override = useOpenOverride();
   const [run, setRun] = useState(0);
-  const [result, setResult] = useState<RunSummary | null>(null);
+  const [result, setResult] = useState<(RunSummary & { xpBefore: number }) | null>(null);
   const questions = project.exercises[ex]!.questions;
   // La tanda a medias de este ejercicio, para seguir donde se dejó (la misma clave que su marca).
   const runId = `${project.id}/${ex}`;
@@ -83,16 +86,19 @@ function ExercisePlay({
   const loadRun = useCallback(() => getRun(runId), [getRun, runId]);
   const onRun = useCallback((r: SavedRun | null) => saveRun(runId, r), [saveRun, runId]);
   const onResult = useCallback((r: QuestionResult) => record(r, 'proyecto'), [record]);
+  const shape = useMemo(() => toShape(game), [game]);
   const onDone = useCallback(
     (s: RunSummary) => {
+      // El resumen de este render es el de antes de entregar: el XP ganado es la diferencia que dé el motor.
+      setResult({ ...s, xpBefore: xp(shape, summary) });
       handInExercise(project.id, ex, s.firsts);
-      setResult(s);
     },
-    [handInExercise, project.id, ex],
+    [handInExercise, project.id, ex, shape, summary],
   );
+  useCelebrations(game);
 
-  const shape = toShape(game);
-  const currentLevel = level(xp(shape, summary));
+  const xpNow = xp(shape, summary);
+  const currentLevel = level(xpNow);
   if (!override && !orbitOpen(shape, summary, orbit)) {
     return <Gate kind="closed" gameId={game.id} level={currentLevel} warning={warning} />;
   }
@@ -142,6 +148,11 @@ function ExercisePlay({
           <h2 id="play-result-title" className="play__result-title">
             {t.play.resultHeading}
           </h2>
+          <RewardBanner
+            stars={stars(result.firsts)}
+            gained={xpNow - result.xpBefore}
+            good={stars(result.firsts) >= 2 || xpNow > result.xpBefore}
+          />
           <p>{t.play.exerciseResult(result.firsts, QUESTIONS_PER_EXERCISE)}</p>
           <p>{t.play.exerciseBest(best, QUESTIONS_PER_EXERCISE)}</p>
           <p>{t.play.projectMark(mark)}</p>
