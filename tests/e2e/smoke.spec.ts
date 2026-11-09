@@ -78,6 +78,9 @@ async function openWith(page: Page, hash: string, seeded?: Doc): Promise<void> {
     );
   }
   await page.goto(`/#${hash}`);
+  // `goto` a un hash de la misma página puede volver antes de que Chrome asiente la navegación: entonces
+  // `reload` recarga «/» y la prueba cae en el inicio. Se espera a ver el hash (carrera vista el 2026-11-09).
+  await page.waitForURL((url) => url.hash === `#${hash}`);
   await page.reload();
 }
 
