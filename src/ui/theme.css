@@ -608,9 +608,15 @@ a {
   text-align: right;
 }
 
-.plane__replay {
+.plane__replay,
+.curve__replay {
   margin-top: var(--space-2);
   justify-self: start;
+}
+
+.curve__replay {
+  align-self: flex-start;
+  margin-top: 0;
 }
 
 /* === Preguntas === */

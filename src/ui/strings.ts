@@ -64,6 +64,8 @@ export const t = {
     lineIntercept: 'corta el eje y en',
     noSlope: 'sin pendiente',
     handleLabel: (name: string, position: string) => `Punto ${name}, en ${position}`,
+    // repite la entrada animada de una figura fija: la curva se traza y los puntos bajan por ella
+    replay: 'Ver cómo se dibuja',
   },
 
   // --- Preguntas (tarea 10) ---

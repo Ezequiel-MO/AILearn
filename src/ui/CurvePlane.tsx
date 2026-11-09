@@ -6,6 +6,8 @@ import type { Curve } from '../engine/curves';
 import { fmt, fmtPair } from './format';
 import { dotBox, placePointLabel, placeStepLabel } from './labelPlacement';
 import type { Box, Placed, Side } from './labelPlacement';
+import { easeInOutCubic, motionAllowed } from './fx/motion';
+import { useIntro } from './fx/useIntro';
 import { t } from './strings';
 
 // Geometría del plano en unidades de vista (el SVG se escala con el ancho disponible).
@@ -26,6 +28,13 @@ const HANDLE_HIT_RADIUS = 26;
 /** Largo de la tangente en pantalla (semilargo, unidades de vista): un segmento, no una recta infinita. */
 const TANGENT_HALF = 56;
 const HEAD = 11;
+// Entrada animada de una figura estática: la curva se traza (0 a 0,45), los puntos bajan por ella hasta su
+// sitio (0,35 a 0,85) y el paso de descenso recorre la curva (0,8 a 1). Avance lineal; cada fase se suaviza.
+const INTRO_MS = 2400;
+const INTRO_DELAY = 250;
+const linear = (t: number): number => t;
+const phase = (t: number, from: number, to: number): number =>
+  t <= from ? 0 : t >= to ? 1 : (t - from) / (to - from);
 /** Recorta los píxeles de una curva que se va al infinito para no pasar números enormes al SVG. */
 const PIXEL_LIMIT = 4000;
 
@@ -270,13 +279,34 @@ export function CurvePlane({
   const frame = makeFrame(spec.x[0], spec.x[1], spec.y[0], spec.y[1]);
   const { sx, sy } = frame;
 
-  // Posición de cada punto: uno sobre la curva siempre está en (x, f(x)).
-  const current: Record<string, Pt> = {};
+  // Posición de cada punto: uno sobre la curva siempre está en (x, f(x)). `real` da las lecturas;
+  // `current` es lo que se dibuja, que en la entrada animada de una figura estática recorre la curva.
+  const real: Record<string, Pt> = {};
   for (const p of spec.points) {
     const at = Object.hasOwn(positions, p.id) ? positions[p.id] : undefined;
     const x = at ? at[0] : p.x;
     const y = p.onCurve && curve ? curveAt(curve, x) : at ? at[1] : (p.y ?? 0);
-    current[p.id] = [x, y];
+    real[p.id] = [x, y];
+  }
+  const { progress, restart } = useIntro(!interactive, INTRO_MS, {
+    delay: INTRO_DELAY,
+    ease: linear,
+  });
+  const intro = progress < 1;
+  const traced = phase(progress, 0, 0.45);
+  const slid = easeInOutCubic(phase(progress, 0.35, 0.85));
+  const stepped = easeInOutCubic(phase(progress, 0.8, 1));
+  // los puntos sobre la curva salen de cerca del borde izquierdo de la ventana
+  const startX = frame.x0 + 0.06 * (frame.x1 - frame.x0);
+  const current: Record<string, Pt> = {};
+  for (const p of spec.points) {
+    const to = real[p.id];
+    if (intro && p.onCurve && curve) {
+      const x = startX + (to[0] - startX) * slid;
+      current[p.id] = [x, curveAt(curve, x)];
+    } else {
+      current[p.id] = to;
+    }
   }
   const onCurvePoints = spec.points.filter((p) => p.onCurve && curve);
   const nameOf = (id: string): string => spec.points.find((p) => p.id === id)?.label ?? id;
@@ -375,8 +405,10 @@ export function CurvePlane({
   let step: { from: Pt; to: Pt; head: string; lo: Pt } | null = null;
   if (spec.step && curve) {
     const at = current[spec.step.of];
-    if (at) {
-      const nx = at[0] - spec.step.rate * curveSlope(curve, at[0]);
+    if (at && (!intro || stepped > 0)) {
+      const full = at[0] - spec.step.rate * curveSlope(curve, at[0]);
+      // en la entrada, la punta del paso baja por la curva desde el punto hasta su destino
+      const nx = intro ? at[0] + (full - at[0]) * stepped : full;
       const ny = curveAt(curve, nx);
       if (Number.isFinite(nx) && Number.isFinite(ny)) {
         const from: Pt = [sx(at[0]), px(sy(at[1]))];
@@ -390,7 +422,7 @@ export function CurvePlane({
   const rows: Row[] = [];
   if (readouts.includes('coords')) {
     for (const p of spec.points) {
-      const [x, y] = current[p.id];
+      const [x, y] = real[p.id];
       if (isLoss && p.onCurve) {
         const suffix = onCurvePoints.length > 1 ? ` (${p.label})` : '';
         rows.push({ key: `c${p.id}x`, name: `${xName}${suffix}`, value: fmt(x) });
@@ -402,12 +434,12 @@ export function CurvePlane({
   }
   if (readouts.includes('slope') && curve) {
     for (const p of onCurvePoints) {
-      const m = curveSlope(curve, current[p.id][0]);
+      const m = curveSlope(curve, real[p.id][0]);
       rows.push({ key: `s${p.id}`, name: t.curve.slopeAt(p.label), value: fmt(m) });
     }
   }
   if (wantsSecant && pair) {
-    const [p, q] = [current[pair[0]], current[pair[1]]];
+    const [p, q] = [real[pair[0]], real[pair[1]]];
     const m = q[0] === p[0] ? NaN : (q[1] - p[1]) / (q[0] - p[0]);
     rows.push({
       key: 'secant',
@@ -416,7 +448,7 @@ export function CurvePlane({
     });
   }
   if (wantsLine && pair) {
-    const [p, q] = [current[pair[0]], current[pair[1]]];
+    const [p, q] = [real[pair[0]], real[pair[1]]];
     const m = q[0] === p[0] ? NaN : (q[1] - p[1]) / (q[0] - p[0]);
     rows.push({
       key: 'lslope',
@@ -433,7 +465,13 @@ export function CurvePlane({
   // --- Panel de ajuste (pérdida mse): datos, recta ŷ = w·x y el cuadrado de cada error ---
   const fitPanel =
     spec.fit && curve?.kind === 'mse' && current[spec.fit.of]
-      ? renderFit(curve, current[spec.fit.of][0], [frame.x0, frame.x1], `${uid}fit`)
+      ? renderFit(
+          curve,
+          current[spec.fit.of][0],
+          [frame.x0, frame.x1],
+          `${uid}fit`,
+          real[spec.fit.of][0],
+        )
       : null;
 
   // --- Rótulos: cada punto busca un sitio que no pise a otros ni a los puntos ---
@@ -554,9 +592,19 @@ export function CurvePlane({
               xStep={xStep}
               yStep={yStep}
             />
+            {intro && (
+              <defs>
+                <clipPath id={`${uid}trace`}>
+                  <rect x={PAD_L} y={0} width={AREA_W * traced} height={H} />
+                </clipPath>
+              </defs>
+            )}
             <g clipPath={`url(#${clipId})`}>
-              {derivPath && <path className="curve__derivative" d={derivPath} />}
-              {curvePath && <path className="curve__curve" d={curvePath} />}
+              {/* en la entrada, la curva y su derivada se trazan de izquierda a derecha */}
+              <g clipPath={intro ? `url(#${uid}trace)` : undefined}>
+                {derivPath && <path className="curve__derivative" d={derivPath} />}
+                {curvePath && <path className="curve__curve" d={curvePath} />}
+              </g>
               {secant && (
                 <line
                   className="curve__secant"
@@ -617,7 +665,11 @@ export function CurvePlane({
                 </g>
               )}
             </g>
-            <g className="curve__names" aria-hidden="true">
+            <g
+              className="curve__names"
+              aria-hidden="true"
+              opacity={intro ? r1(Math.max(traced * 2 - 1, 0)) : undefined}
+            >
               {curve && !isLoss && curveSpot && (
                 <text
                   className="curve__name curve__name--curve"
@@ -677,10 +729,17 @@ export function CurvePlane({
             </g>
             {dragHandles}
           </svg>
-          {step && spec.step ? <p className="curve__note">{t.curve.stepNote}</p> : null}
+          {/* en la entrada la nota ya está aunque el paso aún no: nada salta de sitio al aparecer */}
+          {spec.step && (step || intro) ? <p className="curve__note">{t.curve.stepNote}</p> : null}
         </figure>
         {fitPanel}
       </div>
+
+      {!interactive && curve && motionAllowed() && (
+        <button type="button" className="question__button curve__replay" onClick={restart}>
+          {t.curve.replay}
+        </button>
+      )}
 
       {rows.length > 0 && (
         <div className="curve__readouts" role="group" aria-label={t.curve.readouts}>
@@ -720,6 +779,8 @@ function renderFit(
   w: number,
   wWindow: [number, number],
   uid: string,
+  /** La w que dice el rótulo: la real, aunque la recta se esté moviendo en la entrada animada. */
+  captionW: number = w,
 ): ReactNode {
   const data = curve.data;
   const xs = data.map((d) => d[0]);
@@ -753,7 +814,7 @@ function renderFit(
 
   return (
     <figure className="curve__figure curve__figure--fit">
-      <figcaption className="curve__caption">{t.curve.fitCaption(fmt(w))}</figcaption>
+      <figcaption className="curve__caption">{t.curve.fitCaption(fmt(captionW))}</figcaption>
       <svg
         className="curve__svg"
         viewBox={`0 0 ${W} ${H}`}
