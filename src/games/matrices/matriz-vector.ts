@@ -1,22 +1,49 @@
-import type { PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { matrizVectorWarmup } from './matriz-vector.calentamiento';
-import { transformPlane } from './plane';
+import { ANIMALES, RESENAS, capaLab, type Cloud } from './datos';
 
-/** Un vector suelto del plano (el que se transforma con `apply`), móvil o fijo. */
-const vec = (x: number, y: number, movable: boolean): PlaneVector => ({
-  id: 'v',
-  label: 'v',
-  x,
-  y,
-  movable,
-});
+/** La neurona siguiente solo mira la primera salida de la capa: responde al grupo 1 si es positiva. */
+const MIRA_SALIDA_1 = { w: [1, 0] as [number, number], b: 0 };
 
-/** Primer proyecto de la Órbita 0 «La máquina»: multiplicar una matriz por un vector. */
+/** Cuántas palabras caen justo en su diana. */
+const EN_SU_DIANA = (target: number) =>
+  ({
+    metric: 'on_target',
+    op: 'gte',
+    target,
+    label: 'Palabras en su diana',
+    format: 'integer',
+  }) as const;
+
+/**
+ * Tres palabras del español con un embedding de juguete. Sus traducciones al inglés («cat», «dog»,
+ * «house») son los mismos puntos girados 45° y estirados por √2: la capa î = (1, 1), ĵ = (−1, 1).
+ */
+const IDIOMAS: Cloud = {
+  points: [
+    { id: 'gato', label: 'gato', x: 1.5, y: 1 },
+    { id: 'perro', label: 'perro', x: 2, y: 0.5 },
+    { id: 'casa', label: 'casa', x: -1, y: 2 },
+  ],
+  axes: ['rasgo 1', 'rasgo 2'],
+};
+
+/** Dónde caen «cat», «dog» y «house» en el espacio del inglés: las dianas de `IDIOMAS`. */
+const TRADUCCIONES: Record<string, [number, number]> = {
+  gato: [0.5, 2.5],
+  perro: [1.5, 2.5],
+  casa: [-3, 1],
+};
+
+/**
+ * Segundo proyecto de la Órbita 0: lo que la capa le hace a una palabra es mezclar sus columnas con
+ * los rasgos de la palabra como receta, y los ejemplos con diana son los que fijan la matriz.
+ */
 export const matrizVector: Project = {
   id: 'matriz-vector',
   name: 'Matriz por vector',
-  sub: 'Combinar las columnas',
+  sub: 'Lo que le pasa a una palabra',
   bigPicture: {
     parts: ['linear', 'attention'],
     text: 'Multiplicar una matriz por un vector es combinar sus columnas con los números del vector como pesos. Es la cuenta que hace cada capa lineal, y también la que calcula $Q$, $K$ y $V$ en la atención a partir de cada embedding. Aquí la haces a mano con dos números; la red la hace con cientos a la vez.',
@@ -28,161 +55,148 @@ export const matrizVector: Project = {
       questions: [
         {
           id: 'matriz-vector.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Antes de entrenar un modelo se suelen **normalizar** los rasgos: si uno se mide en euros y otro en número de habitaciones, se reescala cada uno con su propio factor para que ninguno domine las distancias. Eso es multiplicar por una matriz diagonal como esta. Y deshacerlo, para volver a las unidades de partida, es lo que haces aquí: buscar la entrada que da una salida.',
-            aim: 'Vas a buscar la entrada $\\vec{v}$ que esta matriz convierte en un punto dado, y a ver que, con una columna en cada eje, cada coordenada se resuelve por separado.',
+            why: 'Lo que una capa hace con una palabra es mezclar sus columnas: tantas veces la columna de un rasgo como valga ese rasgo en la palabra. Así sale cada vector de una capa lineal, también en un modelo de lenguaje.',
+            aim: 'Vas a mover una sola columna de la capa hasta que «genial» caiga en su diana, el sitio donde la espera la capa siguiente.',
             takeaway:
-              'Con una matriz diagonal, $A\\vec{v}$ multiplica cada coordenada por su número: $(a, b)$ pasa a $(2a,\\ 3b)$, y para deshacerlo basta dividir. Un escalado así cambia las longitudes y las distancias, y con ellas qué puntos quedan más cerca de cuáles.',
+              '«genial» sale en $2{,}5\\cdot\\hat{\\imath}+2\\cdot\\hat{\\jmath}$: esa es su receta. Por eso se mueve el doble que el tirador de $\\hat{\\jmath}$, y «bueno», con tono $1$, lo mismo que él. Cada palabra sigue a las columnas en la medida de sus rasgos.',
           },
           prompt:
-            'Una matriz $A$ transforma un vector $\\vec{v}=(a, b)$ **combinando sus columnas**: las coordenadas de $\\vec{v}$ dicen cuánto se toma de cada una, $A\\vec{v}=a\\cdot\\text{col}_1+b\\cdot\\text{col}_2$. Aquí las columnas son $\\hat{\\imath}$ y $\\hat{\\jmath}$, y la flecha discontinua es $A\\vec{v}$.\n\nLa matriz $\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$ estira el plano al doble en horizontal y al triple en vertical. Mueve la punta de $\\vec{v}$ hasta que la flecha discontinua llegue a $(4, -3)$.',
+            'Seis reseñas pasan por la capa. La capa siguiente espera «genial» en un sitio concreto: su diana. La columna de la intensidad, $\\hat{\\imath}$, está fija; solo se mueve la del tono, $\\hat{\\jmath}$.\n\nMueve $\\hat{\\jmath}$ hasta que «genial» caiga en su diana. Fíjate en cuánto se mueve cada palabra al mover el tirador.',
           hints: [
-            'Mira dónde acaba la punta de la flecha discontinua mientras arrastras $\\vec{v}$.',
-            'La primera columna es $(2, 0)$ y la segunda, $(0, 3)$. Para llegar a $4$ en horizontal solo sirve la primera; para llegar a $-3$ en vertical, la segunda.',
+            '«genial» tiene tono $2$: cada paso que das con el tirador de $\\hat{\\jmath}$, ella da dos en la misma dirección. «bueno», con tono $1$, da uno.',
+            'Mira cuánto le falta a «genial» para llegar a la diana y mueve $\\hat{\\jmath}$ la mitad de eso: un poco a la derecha y un poco hacia arriba.',
           ],
           explain:
-            'Como las columnas apuntan una en cada eje, cada coordenada de $\\vec{v}$ se multiplica solo por el número de su columna. Pregúntate cuántas veces hay que tomar cada columna para llegar al punto pedido.',
+            'La salida de una palabra es su intensidad por $\\hat{\\imath}$ más su tono por $\\hat{\\jmath}$. Con $\\hat{\\imath}$ quieta, lo único que cambia la posición de «genial» es $2\\cdot\\hat{\\jmath}$: mover el tirador una distancia mueve la palabra el doble.',
           solution:
-            'Hay que tomar la primera columna $2$ veces y la segunda, $-1$ vez: $2\\cdot(2, 0)+(-1)\\cdot(0, 3)=(4, -3)$. Entonces $\\vec{v}=(2, -1)$.',
-          plane: transformPlane({
-            i: [2, 0],
-            j: [0, 3],
-            extra: [vec(1, 1, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-            range: 4,
-          }),
-          goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: -3, tol: 0.01 },
-          ],
+            'Con $\\hat{\\jmath}$ en $(0{,}5;\\ 1{,}5)$, «genial» sale en $2{,}5\\cdot(1, 0)+2\\cdot(0{,}5;\\ 1{,}5)=(3{,}5;\\ 3)$, su diana. Es la única colocación: la columna tiene dos números y la diana fija dos. Las otras cinco palabras se han movido a la vez, cada una según su tono.',
+          lab: capaLab(RESENAS, { movable: 'j', targets: { genial: [3.5, 3] } }),
+          goals: [EN_SU_DIANA(1)],
+          solved: { jx: 0.5, jy: 1.5 },
         },
         {
           id: 'matriz-vector.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La salida de una capa lineal es justo esta cuenta: cada número de la entrada multiplica a su columna de la matriz de pesos, y se suman. Si la entrada tiene un $1$ y el resto ceros (un vector *one-hot*), la suma se queda con una sola columna: en el fondo, así saca un modelo el **embedding** de una palabra de su tabla, aunque en la práctica la columna se lee directamente, sin multiplicar.',
-            aim: 'Vas a buscar qué cantidad de cada columna hace falta para llegar a un punto, empezando por la coordenada que depende de una sola columna.',
+            why: 'Entrenar una capa es buscar la matriz que lleva cada ejemplo de entrenamiento adonde debe ir. Cada ejemplo es una entrada con la salida que se desea, y cada uno descarta muchas matrices.',
+            aim: 'Vas a mover las dos columnas hasta que «bueno» y «malo» caigan a la vez en su diana, y a ver cuántas capas lo consiguen.',
             takeaway:
-              '$A\\vec{v}$ es $a$ veces la primera columna más $b$ veces la segunda: con $\\vec{v}=(1, 2)$, $1\\cdot(1, 0)+2\\cdot(1, 1)=(3, 2)$. Las coordenadas de la entrada son los pesos de la mezcla, y las columnas, los ingredientes.',
+              'Con dos ejemplos de dos rasgos, la capa queda fijada: solo una matriz cumple los dos. Eso es «aprender una matriz»: los ejemplos deciden los pesos. Una capa real tiene muchos más pesos, y por eso pide muchos más ejemplos.',
           },
           prompt:
-            'Esta matriz **inclina** el plano: $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. Sus columnas son $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(1, 1)$, y $A\\vec{v}$ es la flecha discontinua.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 2)$. Las componentes de $\\vec{v}$ que muestra el panel son las cantidades que se toman de cada columna.',
+            'Ahora hay dos dianas, una para «bueno» y otra para «malo». Son dos ejemplos de entrenamiento: dicen dónde debe dejar la capa cada palabra. Las dos columnas se mueven.\n\nConsigue que las dos palabras caigan en su diana a la vez. Prueba primero a acertar con una sola y mira qué le pasa a la otra.',
           hints: [
-            'Fíjate en la altura: solo la segunda columna sube, porque la primera es horizontal.',
-            'La segunda coordenada de $A\\vec{v}$ es $b\\cdot 1$, así que ya sabes cuánto vale $b$. Con ella, busca $a$ para la primera coordenada.',
+            '«bueno» sale en $\\hat{\\imath}+\\hat{\\jmath}$ y «malo», en $\\hat{\\imath}-\\hat{\\jmath}$: comparten la intensidad y tienen el tono opuesto. Lo que las separa es $\\hat{\\jmath}$.',
+            'Lleva $\\hat{\\imath}$ al punto medio entre las dos dianas, y $\\hat{\\jmath}$, a lo que va de ese punto a la diana de «bueno».',
           ],
           explain:
-            'Cada columna aporta su parte: la primera, $(1, 0)$, solo mueve en horizontal, y la segunda, $(1, 1)$, mueve en horizontal y en vertical a la vez. Empieza por la coordenada que depende de una sola columna.',
+            'Cada diana pone dos condiciones, una por coordenada, y la capa tiene cuatro números. Con dos palabras de rasgos distintos hay cuatro condiciones para cuatro pesos: las cumple una sola matriz. Si aciertas con una palabra, la otra suele quedar lejos.',
           solution:
-            'La altura sale de la segunda columna: $b\\cdot 1=2$, así que $b=2$. Entonces $a\\cdot(1, 0)+2\\cdot(1, 1)=(a+2,\\ 2)$, y para que sea $(3, 2)$ hace falta $a=1$. Con $\\vec{v}=(1, 2)$: $1\\cdot(1, 0)+2\\cdot(1, 1)=(3, 2)$.',
-          plane: transformPlane({
-            i: [1, 0],
-            j: [1, 1],
-            extra: [vec(2, 1, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-          }),
-          goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 3, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 2, tol: 0.01 },
-          ],
+            'Con $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(2, 0)$: «bueno» sale en $(0, 1)+(2, 0)=(2, 1)$ y «malo», en $(0, 1)-(2, 0)=(-2, 1)$. No hay otra. La capa manda el tono, doblado, a la salida 1 y la intensidad a la salida 2: es lo que le han enseñado los dos ejemplos.',
+          lab: capaLab(RESENAS, { range: 5, targets: { bueno: [2, 1], malo: [-2, 1] } }),
+          goals: [EN_SU_DIANA(2)],
+          solved: { ix: 0, iy: 1, jx: 2, jy: 0 },
         },
         {
           id: 'matriz-vector.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Buscar qué entrada produce una salida dada es resolver un **sistema** de ecuaciones lineales, porque cada coordenada de la salida depende de las dos de la entrada. Es el cálculo que hay dentro de la regresión lineal por mínimos cuadrados, uno de los modelos más usados para predecir un número a partir de otros.',
-            aim: 'Vas a ajustar las dos coordenadas de $\\vec{v}$ a la vez, porque aquí cada columna mueve la flecha discontinua en las dos direcciones, y a ver que dos condiciones bastan para fijar una sola entrada.',
+            why: 'Un solo ejemplo deja muchas capas posibles: todas lo aciertan y cada una hace otra cosa con el resto. Por eso un modelo se entrena con muchos datos y se comprueba con datos que no ha visto.',
+            aim: 'Vas a llevar «bueno» a su diana con una capa que, además, le sirva a la neurona siguiente para clasificar las seis reseñas.',
             takeaway:
-              'Cuando las dos columnas apuntan en direcciones distintas, cada salida viene de una sola entrada: aquí, $\\vec{v}=(2, -1)$ es la única que llega a $(3, 3)$. Si una matriz se puede deshacer así, de la salida se recupera la entrada sin perder nada.',
+              'Muchas capas llevan «bueno» a su diana, pero no todas mandan el tono a la salida que mira la neurona. Acertar un ejemplo no es haber aprendido: lo que decide entre las capas posibles son los demás datos.',
           },
           prompt:
-            'Ahora las columnas ya no son sencillas: $A=\\begin{pmatrix}1&-1\\\\2&1\\end{pmatrix}$ tiene por columnas $A\\hat{\\imath}=(1, 2)$ y $A\\hat{\\jmath}=(-1, 1)$. Hace falta combinar las dos con las coordenadas de $\\vec{v}$.\n\nMueve la punta de $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, 3)$.',
+            '«bueno» tiene su diana, y detrás de la capa hay una neurona que solo mira la primera salida y dice «positiva» en la zona sombreada. Hay muchas capas que llevan «bueno» a la diana; casi ninguna le sirve a la neurona.\n\nLleva «bueno» a su diana y consigue, a la vez, que la neurona acierte con las seis reseñas.',
           hints: [
-            'Si $\\vec{v}=(a, b)$, entonces $A\\vec{v}=a\\cdot(1, 2)+b\\cdot(-1, 1)=(a-b,\\ 2a+b)$.',
-            'Prueba valores de $a$ y $b$ hasta que las dos coordenadas de la flecha discontinua valgan $3$. Si sumas las dos coordenadas de $A\\vec{v}$ sale un resultado que depende solo de $a$.',
+            'Lleva primero «bueno» a la diana moviendo solo $\\hat{\\jmath}$ y mira la zona sombreada: las negativas siguen dentro. ¿Qué rasgo llega a la primera salida?',
+            'Saca la intensidad de la salida 1 subiendo $\\hat{\\imath}$ por el eje vertical, y corrige $\\hat{\\jmath}$ para que «bueno», que sale en $\\hat{\\imath}+\\hat{\\jmath}$, vuelva a su diana.',
           ],
           explain:
-            'Aquí las dos columnas intervienen en las dos coordenadas del resultado, así que no se pueden ajustar por separado. Escribe qué vale cada coordenada de $A\\vec{v}$ en función de $a$ y $b$, y resuelve las dos condiciones a la vez.',
+            'La diana solo fija $\\hat{\\imath}+\\hat{\\jmath}$, la suma de las dos columnas, y esa suma se puede repartir de muchas maneras. La neurona pide algo más: que en la salida 1 pese el tono y no la intensidad. Las dos condiciones juntas dejan menos capas.',
           solution:
-            'Se necesita $a-b=3$ y $2a+b=3$. Sumándolas, $3a=6$, o sea $a=2$, y entonces $b=-1$. Con $\\vec{v}=(2, -1)$: $2\\cdot(1, 2)+(-1)\\cdot(-1, 1)=(2+1,\\ 4-1)=(3, 3)$.',
-          plane: transformPlane({
-            i: [1, 2],
-            j: [-1, 1],
-            extra: [vec(1, 1, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-            range: 4,
-          }),
+            'Una capa que vale: $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(1, 1)$. «bueno» sale en $(1, 2)$ y la salida 1 es el tono: la neurona acierta las seis. Con $\\hat{\\jmath}$ en $(0, 2)$ y $\\hat{\\imath}$ sin tocar, «bueno» también llega, pero la salida 1 es la intensidad y la neurona dice «positiva» a todo. También vale $\\hat{\\imath}$ en $(0;\\ 0{,}5)$ con $\\hat{\\jmath}$ en $(1;\\ 1{,}5)$.',
+          lab: capaLab(RESENAS, { range: 5, readout: MIRA_SALIDA_1, targets: { bueno: [1, 2] } }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 3, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 3, tol: 0.01 },
+            EN_SU_DIANA(1),
+            {
+              metric: 'acc',
+              op: 'gte',
+              target: 1,
+              label: 'Aciertos de la neurona siguiente',
+              format: 'percent',
+            },
           ],
+          solved: { ix: 0, iy: 1, jx: 1, jy: 1 },
         },
         {
           id: 'matriz-vector.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Entrenar una red es esto, con muchísimos más números que cuatro: la entrada está fija (un ejemplo de los datos), se sabe qué salida debería dar, y se ajustan los **pesos** de la matriz hasta acercarse a ella. Con un solo ejemplo sobran soluciones; por eso se entrena con muchos ejemplos, que juntos dejan muchas menos matrices posibles.',
-            aim: 'Vas a dejar quieta la entrada y mover la matriz, y a descubrir que muchas matrices distintas mandan el mismo vector al mismo sitio.',
+            why: 'Los embeddings de dos idiomas, entrenados por separado, tienen formas parecidas: «gato» y «perro» quedan cerca en los dos. En 2013, un equipo de Google mostró que una sola matriz lleva bastante bien un espacio al otro, y así tradujo palabras.',
+            aim: 'Vas a buscar la capa que lleva tres palabras del español a sus traducciones en un espacio de embeddings entrenado en inglés.',
             takeaway:
-              'Un solo par entrada-salida no decide la matriz: fijada una columna, la otra queda determinada, pero la primera es libre. Un modelo que se ajusta a muy pocos ejemplos puede acertarlos todos y aun así no haber aprendido la transformación que buscabas.',
+              'Una sola matriz lleva las tres palabras a su traducción: basta fijarla con dos, y la tercera cae sola. Si dos espacios tienen la misma forma, girada y estirada, una capa lineal traduce de uno a otro.',
           },
           prompt:
-            'Ahora al revés: el vector $\\vec{v}=(2, 1)$ está fijo y lo que se mueve es la matriz. Como $A\\vec{v}=2\\cdot\\text{col}_1+1\\cdot\\text{col}_2$, el resultado depende de adónde pongas $\\hat{\\imath}$ y $\\hat{\\jmath}$.\n\nArrastra las puntas de $\\hat{\\imath}$ y de $\\hat{\\jmath}$ hasta que $A\\vec{v}$ llegue a $(4, 3)$. Hay muchas matrices que lo consiguen: vale cualquiera.',
+            'Tres palabras del español con su embedding: «gato», «perro» y «casa». Cada diana es el embedding de su traducción en un modelo entrenado en inglés, «cat», «dog» y «house» (las dianas no llevan rótulo). La nube del inglés es la del español, girada y estirada.\n\nBusca la capa que lleva las tres palabras a la vez a su traducción.',
           hints: [
-            'Mira la lectura de la matriz y la flecha discontinua: es $2\\hat{\\imath}+\\hat{\\jmath}$.',
-            'Elige primero un sitio sencillo para $\\hat{\\imath}$ y calcula cuánto le falta a $2\\hat{\\imath}$ para llegar a $(4, 3)$: eso lo tiene que poner $\\hat{\\jmath}$.',
+            'La diana de «house» es la que está sola, a la izquierda; las de «cat» y «dog» quedan juntas, como «gato» y «perro». Mira cuánto ha girado la nube entera.',
+            'Ajusta primero «gato» y «casa» con las dos columnas; si la capa es la buena, «perro» llega sola. Las dos columnas giran lo mismo, hacia la izquierda.',
           ],
           explain:
-            'Un solo vector no basta para fijar la matriz: hay dos columnas que elegir y un solo punto de llegada, así que sobra libertad. Fija una columna y la otra queda determinada.',
+            'Dos palabras de rasgos distintos fijan las cuatro casillas de la capa. La tercera ya no deja libertad: o cae en su diana o no hay capa lineal que traduzca. Aquí cae, porque el espacio del inglés es el del español girado y estirado.',
           solution:
-            'Por ejemplo, con $A\\hat{\\imath}=(1, 1)$ hace falta $2\\cdot(1, 1)+A\\hat{\\jmath}=(4, 3)$, es decir, $A\\hat{\\jmath}=(2, 1)$. También sirven $A\\hat{\\imath}=(2, 1)$ con $A\\hat{\\jmath}=(0, 1)$, o $A\\hat{\\imath}=(0, 1)$ con $A\\hat{\\jmath}=(4, 1)$.',
-          plane: transformPlane({
-            movable: true,
-            extra: [vec(2, 1, false)],
-            apply: ['v'],
-            readouts: ['matrix'],
-            range: 4,
-          }),
+            'Con $\\hat{\\imath}$ en $(1, 1)$ y $\\hat{\\jmath}$ en $(-1, 1)$, la capa gira $45°$ y estira por $\\sqrt{2}$: «gato» va a $(0{,}5;\\ 2{,}5)$, «perro» a $(1{,}5;\\ 2{,}5)$ y «casa» a $(-3, 1)$. Las dos columnas miden lo mismo y forman ángulo recto: la nube no se deforma, solo gira y crece.',
+          lab: capaLab(IDIOMAS, { targets: TRADUCCIONES }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 3, tol: 0.01 },
+            {
+              metric: 'target_err',
+              op: 'lte',
+              target: 0,
+              label: 'Distancia de la palabra más lejana a su traducción',
+            },
           ],
+          solved: { ix: 1, iy: 1, jx: -1, jy: 1 },
         },
         {
           id: 'matriz-vector.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Cuando dos columnas de una matriz de pesos caen sobre la misma recta, la capa no distingue ciertas entradas: les da la misma salida, y lo que las diferenciaba se pierde para el resto de la red. Pasa también con los datos: dos rasgos **proporcionales**, como un precio en euros y el mismo precio en céntimos, no aportan nada el uno sobre el otro.',
-            aim: 'Vas a buscar una entrada no nula que la matriz convierta en el vector nulo, y a ver en la rejilla aplastada por qué existe.',
+            why: 'Una neurona que acierta por poco cambia de respuesta con cualquier ruido en la entrada. Al entrenar un clasificador se busca holgura, que cada ejemplo quede lejos de la frontera: es la idea de las máquinas de vectores soporte.',
+            aim: 'Vas a alejar las reseñas de la frontera todo lo que se pueda sin sacar a «malo» de su diana, y a descubrir hasta dónde se puede llegar.',
             takeaway:
-              'Si las columnas están sobre la misma recta, una puede cancelar a la otra: todos los $(t, t)$ van a $(0, 0)$ y el determinante es $0$. Dos entradas que se diferencian en uno de esos vectores dan la misma salida, y desde ella no hay forma de saber cuál era.',
+              'La diana de «malo» fija su distancia a la frontera en $1$, y más holgura la sacaría de ahí: lo máximo es $1$. Los ejemplos que la capa debe cumplir limitan lo que puede conseguir con todo lo demás.',
           },
           prompt:
-            'Esta matriz tiene las dos columnas sobre la misma recta: $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$, con $A\\hat{\\imath}=(2, 1)$ y $A\\hat{\\jmath}=(-2, -1)$. Mira cómo se aplasta la rejilla.\n\nEl vector nulo $(0, 0)$ siempre se queda en $(0, 0)$, así que no cuenta. Busca un vector **distinto del nulo** que esta matriz mande a $(0, 0)$. Para que no valga el nulo, pon su coordenada $x$ en $2$.',
+            'La neurona ya acierta las seis reseñas, pero «bueno» y «malo» quedan muy cerca de la frontera: cualquier ruido las cambiaría de lado. La holgura es la distancia a la frontera de la palabra más justa. Y «malo» tiene diana: un ejemplo que la capa debe cumplir.\n\nDa a la neurona la mayor holgura que puedas sin sacar a «malo» de su diana.',
           hints: [
-            'Con $\\vec{v}=(2, b)$, el resultado es $2\\cdot(2, 1)+b\\cdot(-2, -1)$. ¿Qué $b$ hace que las dos columnas se cancelen?',
-            'Las dos columnas son una la opuesta de la otra: para anularlas hay que tomar la misma cantidad de las dos.',
+            'Las palabras quedan cerca de la frontera porque el tono llega a la salida 1 con poco peso. ¿Qué columna dice cuánto pesa?',
+            'Alarga $\\hat{\\jmath}$ hacia la derecha y mira la diana: hay una longitud en la que «malo» cae justo en ella. Pasarse da más holgura, pero la saca.',
           ],
           explain:
-            'Como las dos columnas están sobre la misma recta, una puede cancelar a la otra: es la forma de que una combinación no nula dé el vector nulo. Eso significa que la matriz pierde información: varios vectores acaban en el mismo punto.',
+            'La salida 1 de «malo» es su intensidad por la primera coordenada de $\\hat{\\imath}$ más su tono, $-1$, por la de $\\hat{\\jmath}$. La diana fija esa salida en $-1$: «malo» queda a $1$ de la frontera, y la holgura, que es la de la palabra más justa, no puede pasar de ahí.',
           solution:
-            'Hay que tomar de las dos columnas la misma cantidad, porque $A\\hat{\\jmath}=-A\\hat{\\imath}$: con $\\vec{v}=(2, 2)$, $2\\cdot(2, 1)+2\\cdot(-2, -1)=(0, 0)$. Cualquier $(t, t)$ sirve, y todos acaban en el mismo punto que el vector nulo: la matriz aplasta el plano en una recta y no se puede deshacer.',
-          plane: transformPlane({
-            i: [2, 1],
-            j: [-2, -1],
-            extra: [vec(1, 2, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'det'],
+            'Con $\\hat{\\jmath}$ en $(1, 0)$ la salida 1 es el tono: «malo» llega a $(-1;\\ 1{,}5)$, su diana, y «bueno» y «malo» quedan a $1$ de la frontera. Con $\\hat{\\jmath}$ en $(2, 0)$ la holgura sube a $2$, pero «malo» sale de su diana. También vale $\\hat{\\imath}$ en $(0{,}5;\\ 1{,}5)$ con $\\hat{\\jmath}$ en $(1{,}5;\\ 0)$: la holgura sigue en $1$.',
+          lab: capaLab(RESENAS, {
+            range: 5,
+            i: [0, 1.5],
+            j: [0.5, 0],
+            readout: MIRA_SALIDA_1,
+            targets: { malo: [-1, 1.5] },
           }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['v'], target: 2, tol: 0.01 },
+            {
+              metric: 'margin',
+              op: 'gte',
+              target: 1,
+              label: 'Holgura de la palabra más justa',
+            },
+            EN_SU_DIANA(1),
           ],
+          solved: { jx: 1 },
         },
       ],
     },
@@ -193,115 +207,115 @@ export const matrizVector: Project = {
           id: 'matriz-vector.ex01.1',
           type: 'vector',
           purpose: {
-            why: 'En la atención de un transformer, cada vector de embedding de una palabra pasa por una matriz de pesos ($W_Q$, $W_K$, $W_V$). El resultado es una **combinación de columnas** de esa matriz, pesadas por los números del embedding. Saber hacerla a mano es saber qué aporta cada componente de la entrada.',
-            aim: 'Vas a calcular $A\\vec{v}$ sumando columnas escaladas y a ver que cada componente de $\\vec{v}$ decide cuánto pesa su columna en la salida.',
+            why: 'Al final de un clasificador, una capa da una puntuación por clase, el logit: pesos por rasgos más un sesgo. Gana la clase de mayor puntuación. Así decide un detector de sentimiento, y así elige un modelo de lenguaje su siguiente palabra entre miles.',
+            aim: 'Vas a calcular las dos puntuaciones que da una capa con sesgo para la reseña «triste», y a ver cuál de las dos clases gana.',
             takeaway:
-              'Con $\\vec{v}=(2, 1)$, la primera columna cuenta el doble que la segunda en el resultado $(5, 8)$. En una proyección real, una componente grande de la entrada hace pesar mucho la dirección de su columna, y una componente cero la anula.',
+              '«triste» da $-1$ a «positiva» y $2$ a «negativa»: gana «negativa». Cada puntuación es una fila de pesos por la palabra, más su sesgo. El sesgo mueve la puntuación de una clase lo mismo para todas las palabras.',
           },
           prompt:
-            'Calcula $A\\vec{v}$ **por columnas**, con $A=\\begin{pmatrix}3&-1\\\\2&4\\end{pmatrix}$ y $\\vec{v}=(2, 1)$: es $v_1\\cdot\\text{col}_1+v_2\\cdot\\text{col}_2$. Escribe el resultado: primero la $x$ y después la $y$.',
+            'Una capa puntúa cada reseña para dos clases: la salida 1 es «positiva» y la 2, «negativa».\n\n$$W=\\begin{pmatrix}0&1\\\\1&-1\\end{pmatrix},\\qquad \\vec{b}=(0{,}5;\\ -1)$$\n\n«triste» tiene intensidad $1{,}5$ y tono $-1{,}5$. Calcula $W\\vec{x}+\\vec{b}$, primero la puntuación de «positiva». En el laboratorio, la capa es $W$, sin el sesgo.',
           hints: [
-            'Las columnas de $A$ son $(3, 2)$ y $(-1, 4)$.',
-            'Multiplica la primera columna por $2$ y la segunda por $1$, y suma los dos vectores componente a componente.',
+            'Cada puntuación usa una fila de $W$: la de «positiva» solo mira el tono, y la de «negativa», la intensidad menos el tono.',
+            'En el laboratorio, «triste» cae en $W\\vec{x}$. Súmale a cada coordenada su sesgo.',
           ],
           explain:
-            'Las coordenadas de $\\vec{v}$ son los pesos de la combinación: la primera multiplica a la primera columna y la segunda, a la segunda. Después se suman los dos vectores.',
-          solution: '$2\\cdot(3, 2)+1\\cdot(-1, 4)=(6, 4)+(-1, 4)=(5, 8)$.',
-          answer: [5, 8],
+            'La fila 1 por la palabra da la puntuación de «positiva» antes del sesgo, y la fila 2, la de «negativa». El sesgo se suma después, uno por clase. Gana la mayor.',
+          solution:
+            'Fila 1: $0$ por la intensidad y $1$ por el tono dan $-1{,}5$, y con su sesgo, $-1{,}5+0{,}5=-1$. Fila 2: la intensidad menos el tono, $1{,}5+1{,}5=3$, y $3-1=2$. Sale $(-1, 2)$: gana «negativa». En el laboratorio «triste» cae en $(-1{,}5;\\ 3)$, que es $W\\vec{x}$ sin el sesgo.',
+          lab: capaLab(RESENAS, { range: 5, i: [0, 1], j: [1, -1], movable: 'none' }),
+          answer: [-1, 2],
           tol: 0,
         },
         {
           id: 'matriz-vector.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Cada número de salida de una capa densa es la respuesta de una **neurona**: el producto escalar de su fila de pesos con la entrada. Los pesos positivos suman, los negativos restan. Mirar una sola salida es lo que se hace al interpretar una red: ver a qué entradas responde una neurona y con qué fuerza.',
-            aim: 'Vas a calcular una única componente de $A\\vec{v}$, la primera, con su fila y sin tocar la segunda, y a ver que cada salida depende solo de una fila.',
+            why: 'Cada fila de la matriz de una capa es una neurona: sus pesos dicen cuánto le importa cada rasgo. Para saber qué hace una neurona con una palabra no hace falta calcular la capa entera: basta su fila.',
+            aim: 'Vas a calcular solo la segunda salida de una capa para «horrible», con la segunda fila de pesos, y a comprobarla después en el laboratorio.',
             takeaway:
-              'La primera neurona da $-3$: sus pesos negativos pesaron más que los positivos sobre esta entrada. Con una activación como ReLU, una salida negativa se convierte en cero y esa neurona queda apagada para este ejemplo.',
+              '«horrible» da $3{,}25$ en la segunda salida: $1{,}25$ por su intensidad y $2$ por su tono negativo. Esta neurona responde a las quejas intensas. Cada salida es el producto escalar de una fila con la palabra.',
           },
           prompt:
-            'También se puede calcular por **filas**: la componente $k$ de $A\\vec{v}$ es el producto escalar de la fila $k$ de $A$ con $\\vec{v}$. Con\n\n$$A=\\begin{pmatrix}2&-1&3\\\\1&4&0\\end{pmatrix},\\qquad \\vec{v}=(1, 2, -1)$$\n\n¿cuánto vale la primera componente de $A\\vec{v}$?',
+            'Una capa tiene estos pesos:\n\n$$A=\\begin{pmatrix}1&0{,}5\\\\0{,}5&-1\\end{pmatrix}$$\n\nLe llega «horrible», con intensidad $2{,}5$ y tono $-2$. ¿Cuánto vale su segunda salida? Después puedes construir la capa en el laboratorio: la segunda salida es la altura a la que cae la palabra.',
           hints: [
-            'La primera componente sale de la primera fila, $(2, -1, 3)$, y de $\\vec{v}$.',
-            'Multiplica las componentes de dos en dos, por posición, y suma los tres productos. Cuidado con los signos.',
+            'La segunda salida usa solo la segunda fila: $0{,}5$ por la intensidad y $-1$ por el tono.',
+            'Multiplica cada rasgo por su peso y suma. El tono es negativo y su peso también.',
           ],
           explain:
-            'Es el producto escalar de la primera fila con $\\vec{v}$: se multiplican las componentes de dos en dos y se suman. La segunda fila no interviene en esta componente.',
+            'La salida 2 es la fila 2 por la palabra. La primera fila no interviene: es otra neurona. Un peso negativo por un rasgo negativo suma.',
           solution:
-            '$2\\cdot 1+(-1)\\cdot 2+3\\cdot(-1)=2-2-3=-3$. La segunda componente saldría de la segunda fila: $1\\cdot 1+4\\cdot 2+0\\cdot(-1)=9$.',
-          answer: -3,
+            '$0{,}5\\cdot 2{,}5+(-1)\\cdot(-2)=1{,}25+2=3{,}25$. En el laboratorio, con $\\hat{\\imath}$ en $(1;\\ 0{,}5)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ -1)$, «horrible» cae en $(1{,}5;\\ 3{,}25)$: su altura es esa salida. La primera, $1{,}5$, sale de $1\\cdot 2{,}5+0{,}5\\cdot(-2)$.',
+          lab: capaLab(RESENAS),
+          answer: 3.25,
           tol: 0,
         },
         {
           id: 'matriz-vector.ex01.3',
-          type: 'numero',
+          type: 'vector',
           purpose: {
-            why: 'Al montar una red, el error más común es de formas: una capa que espera 2 números recibe 3, o al revés. Cada capa lineal tiene un número de entradas (sus columnas) y un número de salidas (sus filas), y conocerlo de antemano evita pelearse con el código.',
-            aim: 'Vas a decidir cuántos números devuelve una matriz de 3 filas y 2 columnas al multiplicarla por un vector de 2, mirando solo su forma y sin calcular nada.',
+            why: 'Un modelo no procesa las palabras de una en una: las apila en una matriz, una fila por palabra, y la multiplica entera por los pesos. Saber la forma de lo que sale evita los errores de formas, los más corrientes al montar un modelo.',
+            aim: 'Vas a deducir cuántas filas y cuántas columnas tiene la salida de una capa cuando le llega un lote de palabras a la vez.',
             takeaway:
-              'El resultado tiene 3 componentes: una por fila, o lo que es lo mismo, una por cada neurona de salida de la capa. Para diseñar una red se eligen estas formas capa a capa, de modo que las salidas de una encajen con las entradas de la siguiente.',
+              'Salen $32$ filas de $128$ números: una fila por palabra, con su salida de la capa. El lote no cambia la cuenta de cada palabra; la repite $32$ veces de una sola vez, que es lo que una GPU hace rápido.',
           },
           prompt:
-            'La **forma** de la matriz decide con qué vectores se puede multiplicar. La matriz $B$ tiene 3 filas y 2 columnas ($3\\times 2$), y se multiplica por un vector $\\vec{u}$ de 2 componentes. ¿Cuántas componentes tiene el resultado $B\\vec{u}$?',
+            'Un buscador convierte $32$ palabras en embeddings de $384$ números y las apila en una matriz $X$ de $32\\times 384$, una fila por palabra. Una capa de $384$ entradas y $128$ salidas las transforma todas de una vez con $XW^{\\top}$.\n\n¿Qué forma tiene el resultado? Escribe primero las filas y después las columnas.',
           hints: [
-            'Para multiplicar, las columnas de $B$ se emparejan con las componentes de $\\vec{u}$, y por eso son 2 y 2.',
-            'Cada componente del resultado sale de una fila de $B$.',
+            'Cada palabra sigue siendo una fila del resultado: la capa no junta palabras.',
+            'Cada fila del resultado es la salida de la capa para una palabra: tantos números como salidas tiene la capa.',
           ],
           explain:
-            'Las columnas de la matriz se gastan al emparejarse con las componentes del vector. Lo que queda es el número de filas, y cada fila da una componente del resultado.',
+            'En un producto de matrices, las filas salen de la primera y las columnas, de la segunda. $X$ tiene una fila por palabra y $W^{\\top}$, de $384\\times 128$, una columna por salida. Los $384$ se emparejan y desaparecen.',
           solution:
-            'El resultado tiene una componente por cada fila de $B$: **3**. Una matriz de $m\\times n$ toma vectores de $n$ componentes y devuelve vectores de $m$.',
-          answer: 3,
+            '$(32\\times 384)\\cdot(384\\times 128)=32\\times 128$: $32$ filas, una por palabra, y $128$ columnas, una por salida. Son $32\\cdot 128=4096$ números. Con $WX$ las formas no casarían: $W$ es de $128\\times 384$ y $X$, de $32\\times 384$.',
+          answer: [32, 128],
           tol: 0,
         },
         {
           id: 'matriz-vector.ex01.4',
-          type: 'vector',
+          type: 'opcion',
           purpose: {
-            why: 'Esta es la fórmula de la capa densa, la pieza que se repite en casi todas las redes: pesos $W$ que mezclan la entrada y un sesgo $\\vec{b}$ que desplaza el resultado. Sin sesgo, una entrada de ceros daría siempre ceros, y la capa no podría moverse de ahí.',
-            aim: 'Vas a calcular la salida de una capa de 3 entradas y 2 salidas, multiplicando primero y sumando el sesgo después, y a ver cómo 3 números se resumen en 2.',
+            why: 'Para entender qué ha aprendido una red se busca qué entradas activan más cada neurona. Con los modelos de lenguaje se hace a gran escala: se pasan muchos textos y se miran los que más encienden una neurona concreta.',
+            aim: 'Vas a predecir cuál de cuatro animales activa más una neurona, con sus pesos y los rasgos de cada uno, y a comprobarlo en el dibujo.',
             takeaway:
-              'La capa convierte la entrada de 3 números en la salida $(5, 1)$. El sesgo desplaza la salida sin depender de la entrada: así la capa puede dar un valor distinto de cero aunque lo que recibe sea cero. $W$ y $\\vec{b}$ son lo que el entrenamiento ajusta.',
+              '«perro» da $2\\cdot 1{,}5+2=5$, más que «oso» y «gato», que dan $4{,}5$. La neurona pesa el doble el tamaño, pero también suma la domesticidad: el más grande no es el que más la activa.',
           },
           prompt:
-            'Una **capa lineal** de una red neuronal calcula $\\vec{y}=W\\vec{x}+\\vec{b}$: la matriz $W$ de pesos transforma la entrada $\\vec{x}$, y después se suma el **sesgo** $\\vec{b}$. Calcula $\\vec{y}$ con\n\n$$W=\\begin{pmatrix}1&0&2\\\\-1&3&1\\end{pmatrix},\\qquad \\vec{x}=(2, 1, 1),\\qquad \\vec{b}=(1, -1)$$\n\nEscribe el resultado: primero la primera componente y después la segunda.',
+            'Una neurona lee el embedding de cada animal con peso $2$ para el tamaño y $1$ para la domesticidad, sin sesgo:\n\n$$\\text{activación}=2\\cdot\\text{tamaño}+1\\cdot\\text{domesticidad}$$\n\n¿Qué animal la activa más? Para comprobarlo, pon esos pesos como primera fila de la capa del laboratorio: la salida 1 de cada animal será su activación.',
           hints: [
-            'Primero calcula $W\\vec{x}$, que tiene 2 componentes: una por cada fila de $W$.',
-            'El sesgo se suma al final, a $W\\vec{x}$, componente a componente.',
+            'Calcula la activación de cada uno: dos veces su tamaño más su domesticidad. Los salvajes tienen domesticidad negativa.',
+            'En el laboratorio, lleva $\\hat{\\imath}$ a $(2, 0)$ y $\\hat{\\jmath}$ a $(1, 1)$: la salida 1 es la activación. Busca el animal que queda más a la derecha.',
           ],
           explain:
-            'El orden importa: se transforma $\\vec{x}$ con $W$ y después se suma $\\vec{b}$. Sumar el sesgo a la entrada antes de multiplicar da otro resultado.',
+            'La activación es el producto escalar de los pesos con el animal. Un rasgo grande con peso grande suma mucho, pero un rasgo negativo resta: la domesticidad negativa de «oso» compensa en parte su tamaño.',
           solution:
-            '$W\\vec{x}=(1\\cdot 2+0\\cdot 1+2\\cdot 1,\\ -1\\cdot 2+3\\cdot 1+1\\cdot 1)=(4, 2)$. Sumando el sesgo: $\\vec{y}=(4+1,\\ 2-1)=(5, 1)$.',
-          answer: [5, 1],
-          tol: 0,
+            'Activaciones: «perro», $2\\cdot 1{,}5+2=5$; «oso», $2\\cdot 3-1{,}5=4{,}5$; «gato», $2\\cdot 1+2{,}5=4{,}5$; «tigre», $2\\cdot 2{,}5-2{,}5=2{,}5$. Gana «perro». En el laboratorio, con la fila $(2, 1)$ arriba, «perro» queda en $x=5$, la más a la derecha.',
+          lab: capaLab(ANIMALES, { range: 6 }),
+          options: ['«oso»', '«perro»', '«gato»', '«tigre»'],
+          correct: 1,
         },
         {
           id: 'matriz-vector.ex01.5',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Un modelo no procesa un ejemplo suelto, sino lotes de muchos a la vez, y todos pasan por la misma matriz de pesos. Para eso las formas tienen que casar. NumPy y PyTorch lanzan un error de formas cuando no casan, y saber cuál de varios productos falla ahorra mucho tiempo buscando.',
-            aim: 'Vas a comparar las columnas de cada matriz con las componentes de cada vector, en cuatro productos, y a encontrar el único que ningún código ejecutaría.',
+            why: 'Para traducir con una matriz entre dos espacios de embeddings hay que aprenderla de un diccionario de pares de palabras. Cuántos pares hacen falta depende del tamaño de la matriz: lo decide quien prepara los datos.',
+            aim: 'Vas a contar cuántos pares de palabras hacen falta, como mínimo, para fijar una matriz de traducción entre embeddings de $300$ números.',
             takeaway:
-              'El producto que falla es el de la matriz de 2 filas y 3 columnas por un vector de 2: sobra una columna sin pareja. En el código aparece como un error de formas. Se arregla cambiando el tamaño de la capa o de la entrada, nunca rellenando a ciegas.',
+              'Hacen falta $300$ pares: cada uno fija $300$ de los $90\\,000$ pesos. En la práctica se usan miles, porque los embeddings no encajan exactos y se busca la matriz que menos se equivoca con todos a la vez.',
           },
           prompt:
-            'Una matriz de $m$ filas y $n$ columnas solo se puede multiplicar por un vector que tenga el número de componentes adecuado. ¿Cuál de estos productos NO está definido?',
+            'En el laboratorio, dos palabras con su diana fijan la capa de $2\\times 2$: cada par da dos condiciones y la matriz tiene cuatro pesos. Ahora los embeddings tienen $300$ números, como los de word2vec, y la matriz de traducción es de $300\\times 300$.\n\n¿Cuántos pares de palabras hacen falta, como mínimo, para fijarla, si ninguno repite lo que dicen los demás?',
           hints: [
-            'En cada producto, compara las columnas de la matriz con las componentes del vector: tienen que coincidir.',
-            'El número de filas de la matriz no tiene que coincidir con nada: solo decide cuántas componentes tiene el resultado.',
+            'Cuenta los pesos de la matriz y las condiciones que pone cada par: una por cada número de la traducción.',
+            'Divide los pesos entre las condiciones que pone cada par.',
           ],
           explain:
-            'Tacha las opciones en las que las columnas de la matriz y las componentes del vector coinciden. Queda la que no se puede calcular.',
+            'Cada par dice dónde debe caer una palabra: tantas condiciones como números tiene su traducción. La matriz queda fijada cuando las condiciones igualan a los pesos, si ningún par repite lo que dicen otros.',
           solution:
-            'Una matriz de 2 filas y 3 columnas toma vectores de 3 componentes, no de 2: a su tercera columna no le correspondería ninguna componente. Los otros tres productos sí están definidos: dan un vector de 2, de 3 y de 1 componentes.',
-          options: [
-            'Una matriz de 2 filas y 3 columnas por un vector de 3 componentes',
-            'Una matriz de 3 filas y 2 columnas por un vector de 2 componentes',
-            'Una matriz de 2 filas y 3 columnas por un vector de 2 componentes',
-            'Una matriz de 1 fila y 4 columnas por un vector de 4 componentes',
-          ],
-          correct: 2,
+            'La matriz tiene $300\\cdot 300=90\\,000$ pesos y cada par fija $300$: hacen falta $90\\,000/300=300$ pares. Es lo mismo que en el laboratorio: $2\\times 2$ son $4$ pesos y cada par fija $2$, así que bastan $2$.',
+          lab: capaLab(IDIOMAS, { targets: TRADUCCIONES }),
+          answer: 300,
+          tol: 0,
         },
       ],
     },

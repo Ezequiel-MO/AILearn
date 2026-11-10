@@ -1,51 +1,59 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, CORREOS, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Matriz por vector». La
- * pregunta con números variables (`examen-0.matriz-vector`) la añade otro paso, como entrada
- * `generada`. Ids: `examen-0.<tema>`, únicos en todo el juego (también frente a las preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Matriz por vector»: un
+ * laboratorio (dos ejemplos con diana que fijan la capa, con otros datos), una cuenta de logits y una
+ * de código. La pregunta con números variables (`examen-0.matriz-vector`) la añade otro paso, como
+ * entrada `generada`. Ids: `examen-0.<tema>`, únicos en todo el juego (también frente a las preguntas
+ * de proyecto).
  */
 export const examen0MatrizVector: BankEntry[] = [
   {
     project: 'matriz-vector',
     question: {
-      id: 'examen-0.producto-valido',
-      type: 'opcion',
+      id: 'examen-0.dianas-animales',
+      type: 'laboratorio',
       prompt:
-        'Una capa lineal de una red tiene una matriz de pesos $W$ de 3 filas y 4 columnas. ¿Qué vector de entrada admite el producto $W\\vec{x}$ y cuántas componentes tiene la salida?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. La capa siguiente espera «gato» y «lobo» en sus dianas: son dos ejemplos de entrenamiento, que dicen dónde debe dejar la capa cada palabra. Las dos columnas se mueven.\n\nBusca la capa que lleva las dos palabras a su diana a la vez.',
       hints: [
-        'Las columnas de $W$ se emparejan con las componentes de $\\vec{x}$: han de ser tantas como columnas.',
-        'La salida tiene una componente por cada fila de $W$.',
+        '«gato» sale en $1\\cdot\\hat{\\imath}+2{,}5\\cdot\\hat{\\jmath}$ y «lobo», en $1{,}5\\cdot\\hat{\\imath}-2\\cdot\\hat{\\jmath}$. Mira hacia dónde tendría que ir cada rasgo para que las dos lleguen.',
+        'Las dianas tienen los mismos números que las palabras, cambiados de sitio: la capa intercambia los rasgos.',
       ],
       explain:
-        'En una matriz de $m\\times n$, las $n$ columnas deciden cuántas componentes tiene la entrada y las $m$ filas, cuántas tiene la salida. Aplica esa regla a los números de la capa.',
+        'Cada diana pone dos condiciones y la capa tiene cuatro números: dos palabras de rasgos distintos la fijan. Si aciertas con una sola, la otra suele quedar lejos.',
       solution:
-        'La entrada tiene que tener 4 componentes, una por columna, y la salida tiene 3, una por fila: la capa transforma vectores de 4 componentes en vectores de 3. Con una entrada de 3 componentes sobraría una columna de $W$ sin pareja.',
-      options: [
-        'Una entrada de 3 componentes y una salida de 4',
-        'Una entrada de 4 componentes y una salida de 4',
-        'Una entrada de 4 componentes y una salida de 3',
-        'Una entrada de 3 componentes y una salida de 3',
+        'Con $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(1, 0)$, la capa manda el tamaño a la salida 2 y la domesticidad a la salida 1: «gato» va a $(2{,}5;\\ 1)$ y «lobo» a $(-2;\\ 1{,}5)$. Es la única capa que cumple los dos ejemplos.',
+      lab: capaLab(ANIMALES, { targets: { gato: [2.5, 1], lobo: [-2, 1.5] } }),
+      goals: [
+        {
+          metric: 'on_target',
+          op: 'gte',
+          target: 2,
+          label: 'Palabras en su diana',
+          format: 'integer',
+        },
       ],
-      correct: 2,
+      solved: { ix: 0, iy: 1, jx: 1, jy: 0 },
     },
   },
   {
     project: 'matriz-vector',
     question: {
-      id: 'examen-0.imagen-columnas',
+      id: 'examen-0.logits-correo',
       type: 'vector',
       prompt:
-        'Calcula $A\\vec{v}$ con\n\n$$A=\\begin{pmatrix}2&-1\\\\0&4\\\\1&1\\end{pmatrix},\\qquad \\vec{v}=(1, 3)$$\n\nEscribe el resultado: tiene tantas componentes como filas tiene $A$.',
+        'Un filtro de correo puntúa cada asunto para dos clases: la salida 1 es «spam» y la 2, «normal».\n\n$$W=\\begin{pmatrix}1&-1\\\\-1&1\\end{pmatrix},\\qquad \\vec{b}=(0;\\ 0{,}5)$$\n\n«premio» tiene $3$ enlaces y $1$ saludo. Calcula $W\\vec{x}+\\vec{b}$, primero la puntuación de «spam». En el laboratorio, la capa es $W$, sin el sesgo.',
       hints: [
-        'Por columnas: toma $1$ vez la primera columna, $(2, 0, 1)$, y $3$ veces la segunda, $(-1, 4, 1)$.',
-        'Suma los dos vectores de 3 componentes, componente a componente.',
+        'Cada puntuación usa una fila de $W$: la de «spam» es enlaces menos saludos, y la de «normal», al revés.',
+        'El sesgo se suma al final, uno por clase.',
       ],
       explain:
-        'Las coordenadas de $\\vec{v}$ son los pesos de las dos columnas. Como $A$ tiene 3 filas, el resultado tiene 3 componentes, aunque $\\vec{v}$ tenga 2.',
+        'Cada fila de $W$ por el correo da la puntuación de una clase antes del sesgo; después se suma el sesgo de esa clase. Gana la clase de mayor puntuación.',
       solution:
-        '$1\\cdot(2, 0, 1)+3\\cdot(-1, 4, 1)=(2, 0, 1)+(-3, 12, 3)=(-1, 12, 4)$. Por filas sale lo mismo: $2\\cdot 1+(-1)\\cdot 3=-1$, $0\\cdot 1+4\\cdot 3=12$ y $1\\cdot 1+1\\cdot 3=4$.',
-      answer: [-1, 12, 4],
+        'Fila 1: $1\\cdot 3-1\\cdot 1=2$, más $0$: $2$. Fila 2: $-1\\cdot 3+1\\cdot 1=-2$, más $0{,}5$: $-1{,}5$. Sale $(2;\\ -1{,}5)$: gana «spam».',
+      lab: capaLab(CORREOS, { i: [1, -1], j: [-1, 1], movable: 'none' }),
+      answer: [2, -1.5],
       tol: 0,
     },
   },
