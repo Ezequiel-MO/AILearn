@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { checkProject } from '../../content/validate';
-import { grade } from '../../content/grade';
 import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import { labMeasure, labStart } from '../../engine/labs';
+import { capaScene } from '../../engine/labs/capa';
+import {
+  labAt,
+  defineLabProjectTests,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -17,6 +24,7 @@ const bankQuestions = examen1Inversa
 
 defineProseTests('proyecto inversa', projectQuestions(inversa));
 defineProseTests('banco examen-1 inversa', bankQuestions);
+defineLabProjectTests(inversa, examen1Inversa);
 
 type M = [[number, number], [number, number]];
 type V = [number, number];
@@ -35,21 +43,19 @@ const inv = (a: M): M => {
 };
 const apply = (a: M, v: V): V => [a[0][0] * v[0] + a[0][1] * v[1], a[1][0] * v[0] + a[1][1] * v[1]];
 const flat = (m: M): number[] => [m[0][0] + 0, m[0][1] + 0, m[1][0] + 0, m[1][1] + 0];
-/** Columnas de una matriz como posiciones de î y ĵ. */
-const cols = (m: M): { i: V; j: V } => ({ i: [m[0][0], m[1][0]], j: [m[0][1], m[1][1]] });
 
 describe('proyecto inversa', () => {
   it('pasa checkProject sin problemas', () => {
-    // contract: encargo de la Órbita 1 de matrices: checkProject(inversa) devuelve la lista vacía
+    // contract: encargo común de la Órbita 1 de matrices: checkProject(inversa) devuelve la lista vacía (incluye checkLab en cada laboratorio)
     expect(checkProject(inversa)).toEqual([]);
   });
 
   it('se identifica como pide el encargo', () => {
-    // contract: encargo de la Órbita 1 de matrices: id inversa, nombre «Inversa», subtítulo «Deshacer la transformación»
+    // contract: brief-juego-2.md (petición de Oliver 2026-11-10): Inversa, «deshacer una capa»; el id no cambia
     expect([inversa.id, inversa.name, inversa.sub]).toEqual([
       'inversa',
       'Inversa',
-      'Deshacer la transformación',
+      'Deshacer una capa',
     ]);
   });
 
@@ -61,7 +67,7 @@ describe('proyecto inversa', () => {
   });
 
   it('los ids siguen el patrón inversa.exNN.k e inversa.hoja.k', () => {
-    // contract: encargo de la Órbita 1 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
+    // contract: traspaso 2026-11-10: los ids se conservan al reescribir (el progreso guardado los nombra)
     expect(projectQuestions(inversa).map((q) => q.id)).toEqual([
       ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `inversa.ex0${e}.${k}`)),
       'inversa.hoja.1',
@@ -71,11 +77,6 @@ describe('proyecto inversa', () => {
   });
 });
 
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -83,223 +84,238 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-describe('valores de la tabla del proyecto inversa', () => {
-  const [ex00, ex01, ex02] = inversa.exercises;
+/** La capa fija del laboratorio de `q` como matriz por filas. */
+const encoderOf = (spec: { before?: { i: V; j: V } }): M => {
+  if (!spec.before) throw new Error('el laboratorio no tiene codificador');
+  const { i, j } = spec.before;
+  return [
+    [i[0], j[0]],
+    [i[1], j[1]],
+  ];
+};
 
-  // Matrices de ex00.1 a ex00.3 (columnas fijas del plano), sus destinos y las entradas buscadas.
-  const A1: M = [
-    [3, 0],
-    [0, 2],
-  ];
-  const A2: M = [
-    [1, -1],
-    [0, 1],
-  ];
-  const A3: M = [
-    [1, 1],
-    [-1, 1],
-  ];
-  const targets: [M, V, V][] = [
-    [A1, [3, -4], [1, -2]],
-    [A2, [3, -1], [2, -1]],
-    [A3, [1, 2], [-0.5, 1.5]],
-  ];
+describe('inversa, «Manipular»: el autoencoder se mide con el laboratorio', () => {
+  const all = projectQuestions(inversa);
+  const lab = (k: number) => labQuestion(all, `inversa.ex00.${k}`);
+  const capa = (k: number) => {
+    const spec = lab(k).lab;
+    if (spec.kind !== 'capa') throw new Error('ex00 usa el laboratorio capa');
+    return spec;
+  };
 
-  it('ex00.1 a ex00.3: la meta es A·v = b sobre las columnas fijas de A', () => {
-    // contract: encargo de la Órbita 1 de matrices: A fija (î y ĵ no movibles) y v movible; metas img_x e img_y en b = (3, −4), (3, −1) y (1, 2)
-    expect(ex00!.questions.slice(0, 3).map(goalsOf)).toEqual(
-      targets.map(([, b]) => [`img_x(i,j,v)=${b[0]}±0.01`, `img_y(i,j,v)=${b[1]}±0.01`]),
+  it('las cinco son el mismo autoencoder: las reseñas, con dianas en su sitio de entrada', () => {
+    for (const k of [1, 2, 3, 4, 5]) {
+      const spec = capa(k);
+      // contract: brief-juego-2.md, Inversa: dianas = las posiciones originales; el jugador decodifica desde la identidad
+      expect(
+        spec.points.map((p) => spec.targets?.[p.id]),
+        `ex00.${k}`,
+      ).toEqual(spec.points.map((p) => [p.x, p.y]));
+      expect([spec.i, spec.j], `ex00.${k}`).toEqual([
+        [1, 0],
+        [0, 1],
+      ]);
+    }
+  });
+
+  it('en las de reconstruir, la solución es la inversa del codificador, y cae en la rejilla', () => {
+    for (const k of [1, 2, 3, 5]) {
+      const q = lab(k);
+      const B = encoderOf(capa(k));
+      const A = inv(B);
+      const state = { ix: A[0][0], iy: A[1][0], jx: A[0][1], jy: A[1][1] };
+      // contract: guía de contenido 2026-11-10 (aviso del encargo de Inversa): la decodificadora es B⁻¹, con entradas múltiplos de 0,5
+      expect(solves(q, state), `ex00.${k}`).toBe(true);
+      expect(
+        Object.values(state).every((v) => Number.isInteger(v * 2)),
+        `ex00.${k}`,
+      ).toBe(true);
+      // contract: el estado inicial (la identidad) no reconstruye
+      expect(solves(q), `ex00.${k}`).toBe(false);
+    }
+  });
+
+  it('los cuadraditos del código caben en la ventana', () => {
+    for (const k of [1, 2, 3, 4, 5]) {
+      const spec = capa(k);
+      const middle = Object.values(capaScene(spec, labStart(spec)).middle);
+      // contract: brief común 2026-11-10: nada importante cae fuera de la ventana
+      expect(
+        middle.every((p) => Math.max(Math.abs(p[0]), Math.abs(p[1])) <= spec.range),
+        `ex00.${k}`,
+      ).toBe(true);
+    }
+  });
+
+  it('ex00.1: el codificador escala; arreglar solo la intensidad deja «genial» a 1 de su diana', () => {
+    // contract: enunciado de ex00.1: el codificador estira a lo ancho (×2) y encoge a lo alto (×0,5)
+    expect(encoderOf(capa(1))).toEqual([
+      [2, 0],
+      [0, 0.5],
+    ]);
+    // contract: solution de ex00.1: î en (0,5; 0) y ĵ en (0, 2)
+    expect(solves(lab(1), { ix: 0.5, jy: 2 })).toBe(true);
+    // contract: tentadora y mala (solution): solo la intensidad deja el tono a la mitad, «genial» y «horrible» a 1
+    expect(labAt(lab(1), { ix: 0.5 }).target_err).toBe(1);
+    // contract: tentadora y mala: aplicar otra vez el codificador aleja aún más
+    expect(solves(lab(1), { ix: 2, jy: 0.5 })).toBe(false);
+  });
+
+  it('ex00.2: la cizalla se deshace moviendo solo ĵ; ningún î lo arregla', () => {
+    // contract: enunciado de ex00.2: salida 1 = intensidad + tono, salida 2 = tono
+    expect(encoderOf(capa(2))).toEqual([
+      [1, 1],
+      [0, 1],
+    ]);
+    // contract: solution de ex00.2: ĵ en (−1, 1)
+    expect(solves(lab(2), { jx: -1 })).toBe(true);
+    // contract: solution de ex00.2: «mover î no sirve»
+    for (const ix of [-1, -0.5, 0, 0.5, 1.5, 2]) {
+      expect(solves(lab(2), { ix }), `ix = ${ix}`).toBe(false);
+    }
+    // contract: hint 2 de ex00.2: «sin cambiar su altura»: con ĵ en (−1, 0) se pierde el tono
+    expect(solves(lab(2), { jx: -1, jy: 0 })).toBe(false);
+  });
+
+  it('ex00.3: hay que girar y encoger; girar sin encoger deja cada palabra al doble', () => {
+    // contract: enunciado de ex00.3: salida 1 = intensidad − tono, salida 2 = la suma (det 2)
+    expect(encoderOf(capa(3))).toEqual([
+      [1, -1],
+      [1, 1],
+    ]);
+    const solved = { ix: 0.5, iy: -0.5, jx: 0.5, jy: 0.5 };
+    // contract: solution de ex00.3: determinante de la capa 0,5 y de las dos juntas 1
+    expect([labAt(lab(3), solved).det, labAt(lab(3), solved).det_total]).toEqual([0.5, 1]);
+    // contract: solution de ex00.3: î en (1, −1) y ĵ en (1, 1) deja cada palabra al doble de lejos
+    const twice = { ix: 1, iy: -1, jx: 1, jy: 1 };
+    expect(solves(lab(3), twice)).toBe(false);
+    const spec = capa(3);
+    const images = capaScene(spec, twice).images;
+    expect(spec.points.map((p) => images[p.id])).toEqual(
+      spec.points.map((p) => [2 * p.x, 2 * p.y]),
     );
   });
 
-  it('ex00.1 a ex00.3: las columnas del plano son las de la matriz del enunciado', () => {
-    ex00!.questions.slice(0, 3).forEach((q, k) => {
-      if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      const { i, j } = cols(targets[k]![0]);
-      // contract: enunciado de ex00.1–3: A = (3, 0; 0, 2), (1, −1; 0, 1) y (1, 1; −1, 1), con columnas î y ĵ fijas
-      expect(
-        q.plane.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        q.id,
-      ).toEqual([`i=(${i[0]}, ${i[1]}) false`, `j=(${j[0]}, ${j[1]}) false`, 'v=(1, 1) true']);
-      // contract: encargo de la Órbita 1 de matrices: la flecha discontinua A·v se dibuja con apply:['v'] y la lectura de la matriz está activa
-      expect(q.plane.transform).toEqual({ columns: ['i', 'j'], apply: ['v'] });
-      expect(q.plane.readouts, q.id).toEqual(['matrix', 'components']);
-    });
+  it('ex00.4: el codificador borra la intensidad; el máximo sobre toda la rejilla es 2', () => {
+    // contract: enunciado de ex00.4: al empezar ninguna vuelve; todas caen en el eje vertical, a la altura de su tono
+    expect(labAt(lab(4)).on_target).toBe(0);
+    const spec = capa(4);
+    const middle = capaScene(spec, {}).middle;
+    expect(spec.points.map((p) => middle[p.id])).toEqual(spec.points.map((p) => [0, p.y]));
+    // contract: solution de ex00.4: ĵ en (−1, 1) salva «malo» y «triste», con î donde quieras
+    expect(solves(lab(4), { jx: -1 })).toBe(true);
+    expect(solves(lab(4), { jx: -1, ix: 3, iy: -2 })).toBe(true);
+    // contract: solution de ex00.4: «bueno» acaba en (−1, 1), lejos de su diana
+    expect(capaScene(spec, { jx: -1 }).images.bueno).toEqual([-1, 1]);
+    // contract: tentadora y mala: ĵ en (1, 1) solo salva «bueno»
+    expect(labAt(lab(4), { jx: 1 }).on_target).toBe(1);
+    // contract: enunciado de ex00.4 («¿cuántas puedes salvar? Consigue el máximo»): ningún estado de la rejilla salva más de 2
+    const steps: number[] = [];
+    for (let v = -spec.range; v <= spec.range; v += spec.snap) steps.push(v);
+    let best = 0;
+    for (const jx of steps)
+      for (const jy of steps)
+        for (const ix of steps)
+          best = Math.max(best, labMeasure(spec, { ix, iy: 0, jx, jy }).on_target!);
+    expect(best).toBe(2);
   });
 
-  it('ex00.1 a ex00.3: A·v da b con la entrada de la solución, que se recalcula con la inversa', () => {
-    targets.forEach(([a, b, v], k) => {
-      // contract: solution de ex00.1–3: v = A⁻¹b = (1, −2), (2, −1) y (−0,5; 1,5), y A·v = b
-      expect(apply(inv(a), b), `A⁻¹b ${k}`).toEqual(v);
-      expect(apply(a, v), `A·v ${k}`).toEqual(b);
-      const q = ex00!.questions[k]!;
-      if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      // contract: la solución cumple las metas del plano (con î y ĵ como columnas de A)
-      const { i, j } = cols(a);
-      expect(grade(q, { type: 'manipular', vectors: { i, j, v } }), q.id).toBe(true);
-    });
-  });
-
-  it('ex00.1 a ex00.3: la entrada inicial, la identidad y la inversa mal aplicada no cumplen', () => {
-    targets.forEach(([a, b], k) => {
-      const q = ex00!.questions[k]!;
-      if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      const { i, j } = cols(a);
-      // contract: error didáctico: dejar v donde está, o poner v = b (olvidar que A mueve el vector)
-      expect(grade(q, { type: 'manipular', vectors: { i, j, v: [1, 1] } }), q.id).toBe(false);
-      expect(grade(q, { type: 'manipular', vectors: { i, j, v: b } }), q.id).toBe(false);
-    });
-  });
-
-  it('ex00.3: la solución tiene medios, y la rejilla es de 0,5', () => {
-    const q = ex00!.questions[2]!;
-    // contract: encargo de la Órbita 1 de matrices: det A = 2 y la solución (−0,5; 1,5) cae en la rejilla de 0,5
-    expect(det(A3)).toBe(2);
-    expect(q.type === 'manipular' ? [q.plane.snap, q.plane.range] : []).toEqual([0.5, 4]);
-  });
-
-  it('ex00.4 y ex00.5: î y ĵ son las columnas de la inversa de escalar por 2 y del cuarto de vuelta', () => {
-    const scale: M = [
-      [2, 0],
-      [0, 2],
+  it('ex00.5: casi singular: columnas largas, determinante 4, y medio paso de error deja «genial» a más de 1', () => {
+    // contract: enunciado de ex00.5: el codificador tiene determinante 0,25
+    expect(det(encoderOf(capa(5)))).toBe(0.25);
+    const solved = { ix: 2, iy: -2, jx: -2, jy: 4 };
+    // contract: solution de ex00.5: î en (2, −2) y ĵ en (−2, 4), con determinante 4
+    expect(solves(lab(5), solved)).toBe(true);
+    expect(labAt(lab(5), solved).det).toBe(4);
+    // contract: enunciado y solution de ex00.5: «malo» y «triste» a 0,25 en el código, a más de 0,7 a la salida
+    const middle = capaScene(capa(5), {}).middle;
+    expect(
+      Math.hypot(middle.malo![0] - middle.triste![0], middle.malo![1] - middle.triste![1]),
+    ).toBe(0.25);
+    expect(Math.hypot(0.5, 0.5)).toBeGreaterThan(0.7);
+    // contract: solution de ex00.5: ĵ en (−2; 3,5) deja «genial» a más de 1 de su diana
+    expect(labAt(lab(5), { ...solved, jy: 3.5 }).target_err).toBeGreaterThan(1);
+    // contract: takeaway de ex00.5: un error de 0,25 en la segunda salida del código acaba a más de 1 (columnas de casi 3 y casi 4,5)
+    const A: M = [
+      [2, -2],
+      [-2, 4],
     ];
-    const quarter: M = [
-      [0, -1],
-      [1, 0],
-    ];
-    const cols4 = (m: M): string[] => {
-      const c = cols(m);
-      return [
-        `x(i)=${c.i[0]}±0.01`,
-        `y(i)=${c.i[1]}±0.01`,
-        `x(j)=${c.j[0]}±0.01`,
-        `y(j)=${c.j[1]}±0.01`,
-      ];
-    };
-    // contract: encargo de la Órbita 1 de matrices: A⁻¹ de escalar por 2 es (0,5; 0 / 0; 0,5) y R⁻¹ del cuarto de vuelta es (0, 1; −1, 0)
-    expect([ex00!.questions[3], ex00!.questions[4]].map((q) => goalsOf(q!))).toEqual([
-      cols4(inv(scale)),
-      cols4(inv(quarter)),
-    ]);
-    expect(flat(inv(quarter))).toEqual([0, 1, -1, 0]);
-    // contract: la inversa deshace: A⁻¹A = I en los dos casos
-    expect(flat(mul(inv(scale), scale))).toEqual([1, 0, 0, 1]);
-    expect(flat(mul(inv(quarter), quarter))).toEqual([1, 0, 0, 1]);
-  });
-
-  it('ex00.4 y ex00.5: î y ĵ móviles desde la identidad; rejilla de 0,5 en la primera y de 1 en la segunda', () => {
-    const planes = [ex00!.questions[3], ex00!.questions[4]].map((q) => {
-      if (q?.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      return [
-        q.plane.range,
-        q.plane.snap,
-        q.plane.readouts,
-        q.plane.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        q.plane.transform?.columns,
-      ];
-    });
-    const base = ['i=(1, 0) true', 'j=(0, 1) true'];
-    // contract: encargo de la Órbita 1 de matrices: dos vectores móviles desde la identidad, lectura de la matriz, rango 3
-    expect(planes).toEqual([
-      [3, 0.5, ['matrix'], base, ['i', 'j']],
-      [3, 1, ['matrix'], base, ['i', 'j']],
+    expect(Math.hypot(...apply(A, [0, 0.25]))).toBeGreaterThan(1);
+    expect([Math.hypot(2, -2), Math.hypot(-2, 4)].map((n) => Math.round(n * 10) / 10)).toEqual([
+      2.8, 4.5,
     ]);
   });
+});
 
-  it('ex00.4 y ex00.5: las soluciones cumplen las metas y la matriz original o su opuesta no', () => {
-    const [q4, q5] = [ex00!.questions[3]!, ex00!.questions[4]!];
-    if (q4.type !== 'manipular' || q5.type !== 'manipular') throw new Error('manipular');
-    // contract: solution de ex00.4 y ex00.5: î y ĵ en las columnas de A⁻¹
-    expect(grade(q4, { type: 'manipular', vectors: { i: [0.5, 0], j: [0, 0.5] } })).toBe(true);
-    expect(grade(q5, { type: 'manipular', vectors: { i: [0, -1], j: [1, 0] } })).toBe(true);
-    // contract: error didáctico: dejar la propia matriz A (no la inversa) o la identidad
-    expect(grade(q4, { type: 'manipular', vectors: { i: [2, 0], j: [0, 2] } })).toBe(false);
-    expect(grade(q5, { type: 'manipular', vectors: { i: [0, 1], j: [-1, 0] } })).toBe(false);
+describe('inversa, «Calcular»: las respuestas se recalculan', () => {
+  const [, ex01, ex02] = inversa.exercises;
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 1): reseña (1, 2); no hay inversa (opción 1); det 4; 0,5·60 + 240; solve (opción 1)
+    expect(ex01!.questions.map(answerOf)).toEqual([[[1, 2], 0], 1, [4, 0], [0.5 * 60 + 240, 0], 1]);
   });
 
-  it('ex01: respuestas de calcular', () => {
-    // contract: tabla de ex01: inversa de diag(2, 4) = (0,5; 0 / 0; 0,25); de (3, 2; 1, 1) = (1, −2; −1, 3); x = (3, −2); opción 2 (singular); (AB)⁻¹ = (2, 2; 0, 1)
-    expect(ex01!.questions.map(answerOf)).toEqual([
-      [[0.5, 0, 0, 0.25], 0.01],
-      [[1, -2, -1, 3], 0],
-      [[3, -2], 0],
-      2,
-      [[2, 2, 0, 1], 0],
-    ]);
-    const shapes = ex01!.questions.map((q) => (q.type === 'vector' ? q.shape : 'otro'));
-    // contract: encargo de la Órbita 1 de matrices: una matriz se escribe en cuatro casillas (shape 2×2), el vector solución sin forma
-    expect(shapes).toEqual([[2, 2], [2, 2], undefined, 'otro', [2, 2]]);
-  });
-
-  it('ex01: las respuestas se recalculan con la fórmula y por multiplicación', () => {
-    const D: M = [
-      [2, 0],
-      [0, 4],
+  it('ex01.1: el codificador del laboratorio lleva la reseña de la respuesta al código del enunciado', () => {
+    const q = ex01!.questions[0]!;
+    if (q.type !== 'vector' || q.lab?.kind !== 'capa') throw new Error('ex01.1 es vector con capa');
+    const A: M = [
+      [q.lab.i[0], q.lab.j[0]],
+      [q.lab.i[1], q.lab.j[1]],
     ];
-    // contract: ex01.1: la inversa de una diagonal es la de cada número de la diagonal; D⁻¹D = I
-    expect(flat(inv(D))).toEqual([0.5, 0, 0, 0.25]);
-    expect(flat(mul(inv(D), D))).toEqual([1, 0, 0, 1]);
-    const A2: M = [
-      [3, 2],
+    // contract: enunciado de ex01.1: salida 1 = intensidad − tono, salida 2 = intensidad + tono, código (−1, 3)
+    expect(A).toEqual([
+      [1, -1],
       [1, 1],
-    ];
-    // contract: ex01.2: det = 1 y la inversa por la fórmula es (1, −2; −1, 3); A A⁻¹ = I
-    expect(det(A2)).toBe(1);
-    expect(flat(inv(A2))).toEqual([1, -2, -1, 3]);
-    expect(flat(mul(A2, inv(A2)))).toEqual([1, 0, 0, 1]);
-    const A3: M = [
-      [2, 1],
-      [5, 3],
-    ];
-    // contract: ex01.3: A⁻¹ = (3, −1; −5, 2), x = A⁻¹b = (3, −2) y A x = b = (4, 9)
-    expect(flat(inv(A3))).toEqual([3, -1, -5, 2]);
-    expect(apply(inv(A3), [4, 9])).toEqual([3, -2]);
-    expect(apply(A3, [3, -2])).toEqual([4, 9]);
-    // contract: ex01.5: con A⁻¹ = (1, 1; 0, 1) y B⁻¹ = (2, 0; 0, 1), (AB)⁻¹ = B⁻¹A⁻¹ = (2, 2; 0, 1) y A⁻¹B⁻¹ = (2, 1; 0, 1)
-    const Ai: M = [
-      [1, 1],
-      [0, 1],
-    ];
-    const Bi: M = [
-      [2, 0],
-      [0, 1],
-    ];
-    expect(flat(mul(Bi, Ai))).toEqual([2, 2, 0, 1]);
-    expect(flat(mul(Ai, Bi))).toEqual([2, 1, 0, 1]);
-    // contract: (AB)⁻¹ = B⁻¹A⁻¹: coincide con la inversa de AB calculada con la fórmula
-    const A = inv(Ai);
-    const B = inv(Bi);
-    expect(flat(inv(mul(A, B)))).toEqual([2, 2, 0, 1]);
+    ]);
+    expect(apply(A, q.answer as V)).toEqual([-1, 3]);
+    expect(apply(inv(A), [-1, 3])).toEqual([1, 2]);
   });
 
-  it('ex01.4: solo la tercera matriz tiene determinante 0, y es la correcta', () => {
-    const q = ex01!.questions[3]!;
-    const mats: M[] = [
-      [
-        [1, 2],
-        [3, 4],
-      ],
-      [
-        [0, 1],
-        [1, 0],
-      ],
-      [
-        [2, 4],
-        [1, 2],
-      ],
-      [
-        [2, 1],
-        [1, 1],
-      ],
-    ];
-    // contract: solution de ex01.4: determinantes −2, −1, 0 y 1; la opción 2 es la singular
-    expect(mats.map(det)).toEqual([-2, -1, 0, 1]);
-    expect(q.type === 'opcion' ? q.options : []).toEqual([
-      '$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$',
-      '$\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$',
-      '$\\begin{pmatrix}2&4\\\\1&2\\end{pmatrix}$',
-      '$\\begin{pmatrix}2&1\\\\1&1\\end{pmatrix}$',
+  it('ex01.2: la capa del laboratorio junta «horrible» y «triste» y tiene determinante 0', () => {
+    const q = ex01!.questions[1]!;
+    if (q.type !== 'opcion' || q.lab?.kind !== 'capa') throw new Error('ex01.2 es opcion con capa');
+    const values = labMeasure(q.lab, {});
+    // contract: solution de ex01.2: determinante 0; «horrible» y «triste» caen en el mismo punto (−0,75; −0,75)
+    expect(values.det).toBe(0);
+    const images = capaScene(q.lab, {}).images;
+    expect([images.horrible, images.triste]).toEqual([
+      [-0.75, -0.75],
+      [-0.75, -0.75],
     ]);
+    // contract: ex01.2: la opción correcta dice que no se puede deshacer
+    expect(q.options[q.correct]).toMatch(/^No:/);
+  });
+
+  it('ex01.3: la decodificadora de la normalización, construida en su laboratorio, reconstruye y tiene la respuesta de determinante', () => {
+    const q = ex01!.questions[2]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.3 es numero con capa');
+    const B = encoderOf(q.lab);
+    // contract: enunciado de ex01.3: la normalización multiplica los dos rasgos por 0,5
+    expect(B).toEqual([
+      [0.5, 0],
+      [0, 0.5],
+    ]);
+    // contract: solution de ex01.3: la capa que deshace es 2·I, con determinante 4 = 1/0,25
+    const values = labMeasure(q.lab, { ix: 2, jy: 2 });
+    expect([values.target_err, values.det]).toEqual([0, q.answer]);
+    expect(1 / det(B)).toBe(4);
+    // contract: el laboratorio de ex01.3 no enseña la lectura del determinante
+    expect(q.lab.readouts ?? []).not.toContain('det');
+  });
+
+  it('ex01.4: la estandarización se deshace al revés; el otro orden da 14 430', () => {
+    // contract: solution de ex01.4: 0,5·60 + 240 = 270 y (0,5 + 240)·60 = 14 430
+    expect(0.5 * 60 + 240).toBe(270);
+    expect((0.5 + 240) * 60).toBe(14430);
+    expect(ex01!.questions[3]!.solution).toContain('14\\,430');
+  });
+
+  it('ex01.5: la opción correcta es la de no construir la inversa', () => {
+    const q = ex01!.questions[4]!;
+    if (q.type !== 'opcion') throw new Error('ex01.5 es opcion');
+    // contract: aviso del encargo de Inversa: el Pyodide del juego no lanza error con inv singular; la respuesta habla de cuentas y redondeo
+    expect(q.options[q.correct]).toMatch(/sin construir la inversa/);
+    expect([q.prompt, q.solution, ...q.options].join(' ')).not.toMatch(/lanza/);
   });
 
   it('ex02: cinco preguntas de código', () => {
@@ -364,7 +380,9 @@ describe('valores de la tabla del proyecto inversa', () => {
       W[0]![2]! * (W[1]![0]! * W[2]![1]! - W[1]![1]! * W[2]![0]!);
     expect(d3).toBe(3);
   });
+});
 
+describe('inversa: hojas', () => {
   it('hojas: línea errónea de cada una y formato', () => {
     // contract: encargo de la Órbita 1 de matrices: fórmula sin intercambiar a y d (línea 3), (AB)⁻¹ = A⁻¹B⁻¹ (línea 3) y una correcta (null); al menos una de código
     expect(inversa.sheets.map(answerOf)).toEqual([2, 2, null]);
@@ -438,11 +456,11 @@ describe('valores de la tabla del proyecto inversa', () => {
 
 describe('banco de examen 1 del proyecto inversa', () => {
   it('tiene tres entradas fijas del proyecto inversa, con ids examen-1.*', () => {
-    // contract: encargo de la Órbita 1 de matrices: 3 entradas `{ project: 'inversa', question }` con ids `examen-1.<tema>`, sin usar `examen-1.resolver-sistema`
+    // contract: guía de contenido 2026-11-10: una entrada laboratorio y una cuenta del estilo nuevo; la de código se conserva («Programar» no se toca); sin usar `examen-1.resolver-sistema`
     expect(examen1Inversa.map((e) => e.project)).toEqual(['inversa', 'inversa', 'inversa']);
     expect(examen1Inversa.map((e) => e.question.id)).toEqual([
-      'examen-1.formula-inversa',
-      'examen-1.es-invertible',
+      'examen-1.decodificar-correos',
+      'examen-1.recuperar-correo',
       'examen-1.sistema-en-codigo',
     ]);
   });
@@ -455,43 +473,42 @@ describe('banco de examen 1 del proyecto inversa', () => {
   });
 
   it('ninguna entrada es generada, hay variedad de tipos y los ids no chocan con los del proyecto', () => {
-    // contract: encargo de la Órbita 1 de matrices: tres fijas, un vector de 2×2, una opción y un código; ids únicos en el juego
+    // contract: guía de contenido 2026-11-10: un laboratorio, un vector y un codigo; las generadas las añade el ensamblado
     expect(examen1Inversa.some((e) => e.question.type === 'generada')).toBe(false);
-    expect(examen1Inversa.map((e) => e.question.type)).toEqual(['vector', 'opcion', 'codigo']);
+    expect(examen1Inversa.map((e) => e.question.type)).toEqual(['laboratorio', 'vector', 'codigo']);
     const projectIds = new Set(projectQuestions(inversa).map((q) => q.id));
     expect(examen1Inversa.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
-  it('formula-inversa: la inversa de (1, 2; 1, 1) con det −1 es (−1, 2; 1, −1)', () => {
-    const A: M = [
-      [1, 2],
-      [1, 1],
-    ];
-    const q = examen1Inversa[0]!.question;
-    // contract: solution de examen-1.formula-inversa: det = −1 y A⁻¹ = (−1, 2; 1, −1); A A⁻¹ = I
-    expect(det(A)).toBe(-1);
-    expect(flat(inv(A))).toEqual([-1, 2, 1, -1]);
-    expect(flat(mul(A, inv(A)))).toEqual([1, 0, 0, 1]);
-    expect(q.type === 'vector' ? [q.answer, q.shape, q.tol] : []).toEqual([
-      [-1, 2, 1, -1],
-      [2, 2],
-      0,
+  it('decodificar-correos: otro codificador (un giro) con otros datos; su inversa es la traspuesta', () => {
+    const q = labQuestion(bankQuestions, 'examen-1.decodificar-correos');
+    if (q.lab.kind !== 'capa') throw new Error('capa');
+    const B = encoderOf(q.lab);
+    // contract: enunciado de decodificar-correos: el codificador gira un cuarto de vuelta (antihorario)
+    expect(B).toEqual([
+      [0, -1],
+      [1, 0],
     ]);
+    // contract: solution: î en (0, −1) y ĵ en (1, 0), la traspuesta de B
+    expect(solves(q, { ix: 0, iy: -1, jx: 1, jy: 0 })).toBe(true);
+    expect(flat(inv(B))).toEqual([B[0][0], B[1][0], B[0][1], B[1][1]]);
+    // contract: solution: «premio», codificado en (−1, 3), vuelve a (3, 1)
+    expect(capaScene(q.lab, {}).middle.premio).toEqual([-1, 3]);
+    // contract: tentadora y mala (solution): girar otra vez en el mismo sentido deja cada correo al otro lado del origen
+    expect(solves(q, { ix: 0, iy: 1, jx: -1, jy: 0 })).toBe(false);
+    expect(capaScene(q.lab, { ix: 0, iy: 1, jx: -1, jy: 0 }).images.premio).toEqual([-3, -1]);
+    // contract: el estado inicial no reconstruye
+    expect(solves(q)).toBe(false);
   });
 
-  it('es-invertible: (2, 6; 1, 3) tiene det 0 y la opción correcta lo dice', () => {
-    const q = examen1Inversa[1]!.question;
-    // contract: solution de examen-1.es-invertible: det = 2·3 − 6·1 = 0 y la segunda columna es el triple de la primera; la opción 1 dice que no tiene inversa
-    expect(
-      det([
-        [2, 6],
-        [1, 3],
-      ]),
-    ).toBe(0);
-    expect(q.type === 'opcion' ? q.options[q.correct] : '').toMatch(
-      /^No, porque su determinante es/,
-    );
-    expect(q.type === 'opcion' ? q.correct : -1).toBe(1);
+  it('recuperar-correo: el código (4; 1,5) viene del correo (2,5; 1,5)', () => {
+    const A: M = [
+      [1, 1],
+      [0, 1],
+    ];
+    // contract: solution de recuperar-correo: salida 1 = enlaces + saludos, salida 2 = saludos; A·(2,5; 1,5) = (4; 1,5)
+    expect(apply(A, [2.5, 1.5])).toEqual([4, 1.5]);
+    expect(answerOf(bankQuestions[1]!)).toEqual([[2.5, 1.5], 0]);
   });
 
   it('sistema-en-codigo: A = (3, 1; 1, 2) tiene det 5 y la solución es (1, 2)', () => {

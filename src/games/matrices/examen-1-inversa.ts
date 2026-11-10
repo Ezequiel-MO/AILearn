@@ -1,52 +1,63 @@
 import type { BankEntry } from '../../content/schema';
+import { CORREOS, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Inversa». Las preguntas con
- * números variables las añade otro paso, como entradas `generada`. Ids: `examen-1.<tema>`, únicos
- * en todo el juego (también frente a las preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Inversa»: un laboratorio (la
+ * decodificadora de otro codificador, con los correos), una cuenta (recuperar un correo de su
+ * código) y una de código. La entrada generada (`examen-1.resolver-sistema`) la añade el ensamblado
+ * de la órbita. Ids: `examen-1.<tema>`, únicos en todo el juego (también frente a las preguntas de
+ * proyecto).
  */
 export const examen1Inversa: BankEntry[] = [
   {
     project: 'inversa',
     question: {
-      id: 'examen-1.formula-inversa',
-      type: 'vector',
+      id: 'examen-1.decodificar-correos',
+      type: 'laboratorio',
       prompt:
-        'Calcula la inversa de $A=\\begin{pmatrix}1&2\\\\1&1\\end{pmatrix}$ con la fórmula $A^{-1}=\\frac{1}{ad-bc}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}$ y escríbela en las cuatro casillas.',
+        'Seis correos con dos rasgos: **enlaces** y **saludos**. Un codificador fijo los ha girado un cuarto de vuelta (los cuadraditos). Las dianas son donde estaba cada correo antes de codificarlo.\n\nConstruye la capa que devuelve cada correo a su diana.',
       hints: [
-        'Calcula primero el determinante, $ad-bc$. Esta vez es negativo.',
-        'Intercambia las entradas de la diagonal, cambia de signo las otras dos y divide todo entre el determinante.',
+        'Mira hacia dónde ha girado cada correo respecto a su diana: ¿en qué sentido hay que girar para volver?',
+        'Gira las dos columnas un cuarto de vuelta en sentido horario: $\\hat{\\imath}$ hacia abajo y $\\hat{\\jmath}$ hacia la derecha.',
       ],
       explain:
-        'Cuando el determinante es negativo, dividir entre él cambia el signo de todas las entradas. Comprueba el resultado multiplicándolo por $A$: tiene que salir la identidad.',
+        'El codificador gira sin estirar: no pierde nada, y su inversa es otro giro, el contrario. Cada columna de tu capa dice adónde manda una salida del código.',
       solution:
-        '$\\det A=1\\cdot 1-2\\cdot 1=-1$. Al intercambiar $a$ y $d$ (las dos valen $1$) y cambiar de signo $b$ y $c$ queda $\\begin{pmatrix}1&-2\\\\-1&1\\end{pmatrix}$, y se divide entre $-1$: $A^{-1}=\\begin{pmatrix}-1&2\\\\1&-1\\end{pmatrix}$. Comprobación con la primera columna: $A(-1, 1)=(-1+2,\\ -1+1)=(1, 0)$.',
-      shape: [2, 2],
-      answer: [-1, 2, 1, -1],
-      tol: 0,
+        'La decodificadora: $\\hat{\\imath}$ en $(0, -1)$ y $\\hat{\\jmath}$ en $(1, 0)$, un cuarto de vuelta en sentido horario. «premio», codificado en $(-1, 3)$, vuelve a $(3, 1)$. Girar otra vez en el mismo sentido deja cada correo al otro lado del origen. La inversa de un giro es su traspuesta.',
+      lab: capaLab(CORREOS, {
+        before: { i: [0, 1], j: [-1, 0] },
+        targets: Object.fromEntries(
+          CORREOS.points.map((p) => [p.id, [p.x, p.y] as [number, number]]),
+        ),
+      }),
+      goals: [
+        {
+          metric: 'target_err',
+          op: 'lte',
+          target: 0,
+          label: 'Distancia a su diana del correo más lejano',
+        },
+      ],
+      solved: { ix: 0, iy: -1, jx: 1, jy: 0 },
     },
   },
   {
     project: 'inversa',
     question: {
-      id: 'examen-1.es-invertible',
-      type: 'opcion',
-      prompt: '¿Tiene inversa la matriz $A=\\begin{pmatrix}2&6\\\\1&3\\end{pmatrix}$? ¿Por qué?',
+      id: 'examen-1.recuperar-correo',
+      type: 'vector',
+      prompt:
+        'Un codificador de correos tiene $\\text{salida 1}=\\text{enlaces}+\\text{saludos}$ y $\\text{salida 2}=\\text{saludos}$. Llega el código $(4;\\ 1{,}5)$. ¿Cuántos enlaces y cuántos saludos tenía el correo? Escribe los dos rasgos, primero los enlaces.',
       hints: [
-        'Una matriz tiene inversa si y solo si su determinante no es $0$. Calcúlalo.',
-        'Mira las dos columnas, $(2, 1)$ y $(6, 3)$: ¿cómo son una respecto de la otra?',
+        'La segunda salida ya es un rasgo: léela directamente.',
+        'Quita los saludos a la primera salida y quedan los enlaces.',
       ],
       explain:
-        'Que las columnas sean distintas o que no haya ceros no decide nada. Lo que decide es si las dos columnas apuntan en la misma dirección, y eso lo dice el determinante.',
+        'La segunda salida copia los saludos, así que el sistema se resuelve en orden: primero los saludos y, con ellos, los enlaces.',
       solution:
-        '$\\det A=2\\cdot 3-6\\cdot 1=0$. La segunda columna es el triple de la primera: las dos son paralelas, y $A$ aplasta el plano sobre una recta. Dos entradas distintas de la misma recta quedan en el mismo punto, y no hay manera de saber de cuál de ellas se partió: no tiene inversa.',
-      options: [
-        'Sí, porque todas sus entradas son distintas de cero',
-        'No, porque su determinante es $0$: aplasta el plano sobre una recta y eso no se puede deshacer',
-        'No, porque una matriz solo tiene inversa si es diagonal',
-        'Sí, porque sus dos columnas son distintas',
-      ],
-      correct: 1,
+        'Saludos: $1{,}5$, la segunda salida. Enlaces: $4-1{,}5=2{,}5$. El correo es $(2{,}5;\\ 1{,}5)$. La capa que deshace este codificador resta la segunda salida a la primera: es la inclinación contraria.',
+      answer: [2.5, 1.5],
+      tol: 0,
     },
   },
   {

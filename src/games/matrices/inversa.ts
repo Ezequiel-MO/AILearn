@@ -1,30 +1,36 @@
-import type { Goal, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { inversaWarmup } from './inversa.calentamiento';
-import { transformPlane } from './plane';
+import { RESENAS, capaLab, type CapaOptions } from './datos';
 
-/** Metas de un `manipular` de matriz: î y ĵ en el sitio de las columnas de la matriz pedida. */
-const columns = (i: [number, number], j: [number, number]): Goal[] => [
-  { metric: 'x', of: ['i'], target: i[0], tol: 0.01 },
-  { metric: 'y', of: ['i'], target: i[1], tol: 0.01 },
-  { metric: 'x', of: ['j'], target: j[0], tol: 0.01 },
-  { metric: 'y', of: ['j'], target: j[1], tol: 0.01 },
-];
+/** Las dianas del autoencoder: cada reseña, donde estaba antes de que el codificador la moviera. */
+const DIANAS: Record<string, [number, number]> = Object.fromEntries(
+  RESENAS.points.map((p) => [p.id, [p.x, p.y] as [number, number]]),
+);
 
-/** Metas de un `manipular` de sistema: la imagen A·v del vector móvil `v` en el punto pedido. */
-const image = (x: number, y: number): Goal[] => [
-  { metric: 'img_x', of: ['i', 'j', 'v'], target: x, tol: 0.01 },
-  { metric: 'img_y', of: ['i', 'j', 'v'], target: y, tol: 0.01 },
-];
+/**
+ * Un autoencoder sobre las reseñas: la capa fija `before` codifica (los cuadraditos) y la del
+ * jugador, que empieza en la identidad, decodifica hacia las dianas.
+ */
+const autoencoder = (before: NonNullable<CapaOptions['before']>, options: CapaOptions = {}) =>
+  capaLab(RESENAS, { before, targets: DIANAS, ...options });
 
-/** El vector móvil `v` del que se busca la entrada. */
-const vec = (x: number, y: number): PlaneVector => ({ id: 'v', label: 'v', x, y, movable: true });
+/** La meta de casi todo el ejercicio: que ninguna reseña quede lejos de su diana. */
+const RECONSTRUYE = {
+  metric: 'target_err',
+  op: 'lte',
+  target: 0,
+  label: 'Distancia a su diana de la palabra más lejana',
+} as const;
 
-/** Segundo proyecto de la Órbita 1 «El área»: la inversa como la transformación que deshace. */
+/**
+ * Segundo proyecto de la Órbita 1 «El área»: la inversa como la capa que deshace otra. La escena es un
+ * autoencoder: un codificador fijo mueve las reseñas y el jugador construye la decodificadora.
+ */
 export const inversa: Project = {
   id: 'inversa',
   name: 'Inversa',
-  sub: 'Deshacer la transformación',
+  sub: 'Deshacer una capa',
   bigPicture: {
     parts: ['linear'],
     text: 'Deshacer una transformación es aplicar su matriz inversa, y solo se puede si la transformación no aplasta nada. Es una pregunta útil sobre una capa: ¿se puede recuperar la entrada a partir de la salida? Aquí calculas la inversa en dos dimensiones y compruebas cuándo no existe, que es cuando la matriz pierde una dirección.',
@@ -36,135 +42,126 @@ export const inversa: Project = {
       questions: [
         {
           id: 'inversa.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Antes de entrenar un modelo se suelen escalar los datos para que cada rasgo tenga un tamaño parecido: dividir los precios entre mil, los metros entre diez. Ese escalado es una matriz **diagonal**. Cuando el modelo predice en las unidades escaladas, hay que deshacerlo para dar la respuesta en euros o en metros, y eso es aplicar la inversa.',
-            aim: 'Vas a buscar la entrada que una matriz diagonal lleva a un punto dado y a descubrir que deshacerla es tratar cada coordenada por separado.',
+            why: 'Un autoencoder aprende dos capas: una codifica cada dato y otra lo reconstruye. Se entrena para que la salida sea igual a la entrada, así que la segunda capa tiene que deshacer lo que hizo la primera.',
+            aim: 'Vas a construir la capa que decodifica un codificador que estira la intensidad y encoge el tono, hasta que cada reseña vuelva a su sitio.',
             takeaway:
-              'La inversa de una diagonal pone los inversos de su diagonal: $\\tfrac13$ y $\\tfrac12$. Si un rasgo se multiplicó por un número, para volver a sus unidades originales se divide entre ese mismo número, rasgo a rasgo.',
+              'La decodificadora divide cada rasgo entre lo que el codificador lo multiplicó: la intensidad, a la mitad; el tono, por dos. Deshacer una capa es aplicar su inversa, y la de una capa que escala es escalar al revés.',
           },
           prompt:
-            'Una matriz $A$ lleva cada vector $\\vec{v}$ a otro, $A\\vec{v}$. Su **inversa** $A^{-1}$ hace el camino contrario: si $A\\vec{v}=\\vec{b}$, entonces $A^{-1}\\vec{b}=\\vec{v}$. Por eso resolver $A\\vec{x}=\\vec{b}$ es buscar la entrada que $A$ lleva hasta $\\vec{b}$.\n\nAquí $A=\\begin{pmatrix}3&0\\\\0&2\\end{pmatrix}$ y la flecha discontinua es $A\\vec{v}$. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(3, -4)$.',
+            'Un autoencoder: una capa fija codifica las seis reseñas (los cuadraditos) y la tuya las decodifica. Las dianas son donde estaba cada palabra antes de codificarla. Ahora tu capa no hace nada, y las palabras se quedan en su código: estiradas a lo ancho y encogidas a lo alto.\n\nConstruye la capa que devuelve cada reseña a su diana.',
           hints: [
-            'Como $A$ es diagonal, cada coordenada de $A\\vec{v}$ depende de una sola de $\\vec{v}$: $3x$ en horizontal y $2y$ en vertical.',
-            'Para que $3x$ valga $3$ hace falta $x=1$. Haz lo mismo con la altura.',
+            'Compara cada cuadradito con su diana: ¿cuánto más lejos está en horizontal? ¿Y en vertical? Cada rasgo se ha estirado o encogido por separado.',
+            'Acorta $\\hat{\\imath}$ (la intensidad) sobre el eje horizontal y alarga $\\hat{\\jmath}$ (el tono) sobre el vertical, hasta que las palabras se posen en sus dianas.',
           ],
           explain:
-            'Deshacer una matriz diagonal es dividir cada coordenada entre lo que la matriz la multiplicó. Pregúntate por qué número se multiplicó cada coordenada de $\\vec{v}$ para llegar a la de $\\vec{b}$.',
+            'El codificador multiplica la intensidad por $2$ y el tono por $0{,}5$. Tu capa recibe ese código: para volver al original, la primera salida tiene que dividir entre $2$ y la segunda, multiplicar por $2$.',
           solution:
-            'Como $A\\vec{v}=(3x,\\ 2y)$, hace falta $3x=3$ y $2y=-4$: $x=1$ e $y=-2$, es decir, $\\vec{v}=(1, -2)$. Es lo mismo que calcular $A^{-1}\\vec{b}$ con $A^{-1}=\\begin{pmatrix}\\tfrac13&0\\\\0&\\tfrac12\\end{pmatrix}$: la inversa de una diagonal pone los inversos de los números de la diagonal.',
-          plane: transformPlane({
-            i: [3, 0],
-            j: [0, 2],
-            extra: [vec(1, 1)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-            range: 4,
-          }),
-          goals: image(3, -4),
+            'La decodificadora: $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0, 2)$. «genial», codificada en $(5, 1)$, vuelve a $(2{,}5;\\ 2)$. Si solo arreglas la intensidad, el tono sigue a la mitad y «genial» y «horrible» se quedan a $1$ de su diana. La inversa es una sola: no hay otra capa que valga.',
+          lab: autoencoder({ i: [2, 0], j: [0, 0.5] }, { range: 6 }),
+          goals: [RECONSTRUYE],
+          solved: { ix: 0.5, jy: 2 },
         },
         {
           id: 'inversa.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Para ajustar una regresión lineal, las librerías resuelven un sistema de ecuaciones, y no suelen calcular la inversa: transforman el sistema en uno **triangular** y lo resuelven en orden, una incógnita cada vez, empezando por la que sale sola. Esta inclinación es un sistema triangular pequeño.',
-            aim: 'Vas a buscar la entrada de una inclinación y a ver que, aunque las coordenadas se mezclen, se pueden deshacer una detrás de otra.',
+            why: 'Muchos rasgos llegan contaminados por otros: una medida que arrastra parte de otra. Una capa que suma un rasgo a otro es una cizalla, y la que la deshace tiene que restar justo lo que se sumó.',
+            aim: 'Vas a decodificar un código cuya primera salida lleva la intensidad más el tono, y a descubrir qué columna hay que tocar y cuál no.',
             takeaway:
-              'Con $A=\\begin{pmatrix}1&-1\\\\0&1\\end{pmatrix}$ la altura sale directa y la otra coordenada se despeja con ella. Resolver en orden es más rápido y más preciso que calcular $A^{-1}$, y por eso en NumPy se prefiere `np.linalg.solve` a `np.linalg.inv`.',
+              'Solo cambia la columna del tono: la decodificadora resta a la primera salida el tono que el codificador le sumó. La inversa de inclinar es inclinar hacia el otro lado, y lo que el codificador no tocó, la inversa tampoco.',
           },
           prompt:
-            'Esta matriz **inclina** el plano: $A=\\begin{pmatrix}1&-1\\\\0&1\\end{pmatrix}$, con $A\\hat{\\imath}=(1, 0)$ y $A\\hat{\\jmath}=(-1, 1)$. Busca de nuevo la entrada: mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(3, -1)$.',
+            'Otro codificador: su primera salida es la intensidad **más** el tono, y la segunda, el tono tal cual. Las positivas se han ido a la derecha y las negativas, a la izquierda, cada una a la altura de su diana.\n\nConstruye la capa que devuelve cada reseña a su diana.',
           hints: [
-            'Empieza por la altura: la primera columna es horizontal, así que solo la segunda sube. La altura de $A\\vec{v}$ es la de $\\vec{v}$.',
-            'Con $\\vec{v}=(x, y)$, $A\\vec{v}=(x-y,\\ y)$. Cuando conozcas $y$, despeja $x$ de la primera coordenada.',
+            'Las palabras ya están a la altura de su diana: falla la posición horizontal, y más cuanto mayor es el tono. ¿Qué columna lleva el tono?',
+            'Deja $\\hat{\\imath}$ donde está y lleva la punta de $\\hat{\\jmath}$ hacia la izquierda, sin cambiar su altura.',
           ],
           explain:
-            'Aquí no se puede deshacer coordenada por coordenada a la vez, pero sí en orden: la altura no cambia, así que se conoce directamente, y con ella se deshace la otra.',
+            'Cada palabra se ha corrido en horizontal tanto como vale su tono. Para devolverla, la primera salida tiene que restar el tono, y la columna que manda el tono a esa salida es $\\hat{\\jmath}$.',
           solution:
-            'De la altura sale $y=-1$. Entonces $x-(-1)=3$, así que $x=2$ y $\\vec{v}=(2, -1)$. La inversa de una inclinación es la inclinación contraria: $A^{-1}=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ y $A^{-1}(3, -1)=(3-1,\\ -1)=(2, -1)$.',
-          plane: transformPlane({
-            i: [1, 0],
-            j: [-1, 1],
-            extra: [vec(1, 1)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-            range: 4,
-          }),
-          goals: image(3, -1),
+            'Con $\\hat{\\jmath}$ en $(-1, 1)$, la primera salida es la del código menos la segunda: la intensidad más el tono, menos el tono. «genial», en $(4{,}5;\\ 2)$, vuelve a $(2{,}5;\\ 2)$. Mover $\\hat{\\imath}$ no sirve: el error de cada palabra depende de su tono, y $\\hat{\\imath}$ solo multiplica la primera salida del código.',
+          lab: autoencoder({ i: [1, 0], j: [1, 1] }, { range: 5 }),
+          goals: [RECONSTRUYE],
+          solved: { jx: -1 },
         },
         {
           id: 'inversa.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Ajustar una recta $y=mx+c$ a unos datos por mínimos cuadrados acaba en un sistema de dos ecuaciones con dos incógnitas, la pendiente y la ordenada, como este. Con más rasgos el sistema crece, y cuando dos rasgos casi se repiten, su determinante se acerca a $0$. Como la solución lleva $1/\\det$, los pesos salen enormes e inestables: es la **multicolinealidad**.',
-            aim: 'Vas a resolver un sistema en el que cada coordenada de la salida mezcla las dos de la entrada, y a ver de dónde sale el divisor $\\det A$ que lleva toda inversa.',
+            why: 'Una capa entrenada casi nunca deja un rasgo en una sola salida: cada salida mezcla todos. Para reconstruir la entrada hay que deshacer la mezcla entera, no rasgo a rasgo.',
+            aim: 'Vas a decodificar un codificador que gira las reseñas un octavo de vuelta y las aleja del origen, moviendo las dos columnas a la vez.',
             takeaway:
-              'Aquí salen medios porque $A^{-1}$ lleva delante $1/\\det A=\\tfrac12$. Un determinante pequeño hace grande ese factor: los pesos de una regresión con rasgos casi repetidos saltan mucho con un pequeño cambio en los datos.',
+              'Cada columna de la decodificadora mezcla las dos salidas del código, y además encoge: el codificador doblaba las áreas y tu capa las reduce a la mitad. Juntas dan determinante $1$, el producto del de una capa y el de su inversa.',
           },
           prompt:
-            '$A=\\begin{pmatrix}1&1\\\\-1&1\\end{pmatrix}$ gira el plano y lo agranda: su determinante es $2$. La flecha discontinua es $A\\vec{v}$. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $\\vec{b}=(1, 2)$. Esta vez la solución no tiene coordenadas enteras: la rejilla es de $0{,}5$ en $0{,}5$.',
+            'Este codificador mezcla los dos rasgos: su primera salida es la intensidad menos el tono, y la segunda, la suma. Las reseñas han girado un octavo de vuelta y se han alejado del origen. Las lecturas dan el determinante de tu capa y el de las dos juntas.\n\nConstruye la capa que devuelve cada reseña a su diana.',
           hints: [
-            'Con $\\vec{v}=(x, y)$, $A\\vec{v}=(x+y,\\ -x+y)$. Hacen falta $x+y=1$ y $-x+y=2$.',
-            'Si sumas las dos ecuaciones, $x$ desaparece y puedes despejar $y$. El $2$ del determinante aparece como divisor.',
+            'Las positivas están arriba y las negativas, a la derecha: hay que girar hacia atrás. Y todas están más lejos del origen que sus dianas, así que también hay que encoger.',
+            'Gira las dos columnas un octavo de vuelta en sentido horario y acórtalas. El determinante de las dos capas juntas tiene que llegar a $1$.',
           ],
           explain:
-            'Cada coordenada de $A\\vec{v}$ mezcla las dos de $\\vec{v}$, así que no se deshacen una a una: hay que resolver las dos ecuaciones a la vez.',
+            'Cada salida del código mezcla los dos rasgos, así que ninguna columna se ajusta por separado. Sumando las dos salidas sale el doble de la intensidad; restándolas, el doble del tono: por eso salen medios.',
           solution:
-            'Sumando las dos ecuaciones, $2y=3$, así que $y=1{,}5$, y entonces $x=1-1{,}5=-0{,}5$. Es decir, $\\vec{v}=(-0{,}5;\\ 1{,}5)$. La inversa es $A^{-1}=\\tfrac12\\begin{pmatrix}1&-1\\\\1&1\\end{pmatrix}$: el $\\tfrac12$ es $1/\\det A$, y por eso salen medios.',
-          plane: transformPlane({
-            i: [1, -1],
-            j: [1, 1],
-            extra: [vec(1, 1)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-            range: 4,
-            snap: 0.5,
-          }),
-          goals: image(1, 2),
+            'La decodificadora: $\\hat{\\imath}$ en $(0{,}5;\\ -0{,}5)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 0{,}5)$. La intensidad es la mitad de la suma de las dos salidas y el tono, la mitad de su diferencia. Su determinante es $0{,}5$ y el de las dos capas juntas, $1$. Con $\\hat{\\imath}$ en $(1, -1)$ y $\\hat{\\jmath}$ en $(1, 1)$ el giro se deshace, pero cada palabra queda al doble de lejos.',
+          lab: autoencoder({ i: [1, 1], j: [-1, 1] }, { range: 6, readouts: ['det', 'det_total'] }),
+          goals: [RECONSTRUYE],
+          solved: { ix: 0.5, iy: -0.5, jx: 0.5, jy: 0.5 },
         },
         {
           id: 'inversa.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Al entrenar, el **dropout** apaga al azar una parte de las neuronas de una capa, y la señal que llega a la siguiente se encoge. Para compensarlo, la mayoría de las implementaciones multiplican lo que sobrevive por el inverso de la fracción que queda: si sobrevive la mitad, por $2$. Compensar un escalado con su inverso es la idea de esta pregunta.',
-            aim: 'Vas a construir la matriz que deshace un escalado por $2$ y a comprobar que, aplicada después, devuelve cada flecha a su tamaño.',
+            why: 'Un cuello de botella de verdad tira información. Si el codificador borra un rasgo, ningún decodificador lo recupera: como mucho lo adivina para algunas palabras, las que siguen una regla que la capa pueda aprender.',
+            aim: 'Vas a buscar la decodificadora que devuelve a su diana el mayor número posible de reseñas, cuando el codificador ha borrado la intensidad.',
             takeaway:
-              'La inversa de escalar por $2$ es escalar por $0{,}5$, y juntas dan $A^{-1}A=I$, la identidad, que deja todo como estaba. Un escalado se deshace siempre que no sea por $0$: ese no cambia el tamaño de la información, la borra.',
+              'Solo se salvan dos: «malo» y «triste», cuya intensidad es su tono con el signo cambiado. A las demás, la capa no puede devolverles la intensidad que el código ya no lleva. Una capa que aplasta no tiene inversa: lo que borra no vuelve.',
           },
           prompt:
-            'Escalar por $2$ es la matriz $A=\\begin{pmatrix}2&0\\\\0&2\\end{pmatrix}$: duplica todas las distancias. Su inversa $A^{-1}$ tiene que **deshacerlo**: aplicada después de $A$, deja cada vector donde estaba. Construye $A^{-1}$ colocando $\\hat{\\imath}$ y $\\hat{\\jmath}$ en las columnas que le corresponden. La rejilla es de $0{,}5$ en $0{,}5$.',
+            'Este codificador se queda con el tono y borra la intensidad: todas las reseñas caen sobre el eje vertical, a la altura de su tono. Lo que el código no lleva, tu capa tendrá que adivinarlo, y ningún decodificador devuelve las seis a su diana.\n\n¿Cuántas puedes salvar? Consigue el máximo.',
           hints: [
-            'Si $A$ duplica, ¿por qué número hay que multiplicar para volver al tamaño original?',
-            'La primera columna es la imagen de $\\hat{\\imath}$, que apunta en horizontal; la segunda es la de $\\hat{\\jmath}$, en vertical.',
+            'Tu capa solo recibe el tono: cada palabra acaba en su tono por $\\hat{\\jmath}$, y $\\hat{\\imath}$ no hace nada. Busca palabras cuya intensidad salga de su tono con la misma regla.',
+            'En «malo» y «triste», la intensidad es el tono con el signo cambiado. Inclina $\\hat{\\jmath}$ hacia la izquierda hasta que las dos se posen en su diana.',
           ],
           explain:
-            'La inversa cumple $A^{-1}A=I$: tras escalar por $2$ y aplicar la inversa, cada flecha ha de recuperar su tamaño. Comprueba con $\\hat{\\imath}$ que ir y volver acaba donde se empezó.',
+            'Sin la intensidad, el código de cada palabra es $(0,\\ \\text{tono})$, y tu capa la manda a su tono por $\\hat{\\jmath}$. Todas las salidas caen en una misma recta: solo aciertan las palabras cuya diana está en esa recta, a la distancia justa.',
           solution:
-            'Duplicar y después multiplicar por $0{,}5$ lo deja todo igual, así que $A^{-1}=\\begin{pmatrix}0{,}5&0\\\\0&0{,}5\\end{pmatrix}$: $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0;\\ 0{,}5)$. Se cumple $A^{-1}A=\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}=I$.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'], snap: 0.5 }),
-          goals: columns([0.5, 0], [0, 0.5]),
+            'Con $\\hat{\\jmath}$ en $(-1, 1)$, «malo» vuelve a $(1, -1)$ y «triste», a $(1{,}5;\\ -1{,}5)$: dos. «bueno» acaba en $(-1, 1)$, lejos de su diana: la recta que pasa por las otras dos no pasa por la suya. Ninguna otra regla junta dos palabras: el máximo es dos, y $\\hat{\\imath}$ puede quedar donde quieras.',
+          lab: autoencoder({ i: [0, 0], j: [0, 1] }),
+          goals: [
+            {
+              metric: 'on_target',
+              op: 'gte',
+              target: 2,
+              label: 'Palabras que vuelven a su diana',
+              format: 'integer',
+            },
+          ],
+          solved: { jx: -1 },
         },
         {
           id: 'inversa.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Muchos transformers, como los de la familia Llama, codifican la posición de cada palabra girando su consulta y su clave un ángulo que depende de la posición: es **RoPE**. Al comparar dos palabras, el giro de una se combina con el inverso del giro de la otra y solo queda la diferencia de posiciones. Por eso, en la atención, lo que cuenta de la posición es lo lejos que están dos palabras, no dónde está cada una.',
-            aim: 'Vas a construir el giro que deshace un cuarto de vuelta y a comparar su matriz con la del giro original, número a número.',
+            why: 'Un codificador que casi aplasta deja palabras distintas casi en el mismo código. Para separarlas, la decodificadora necesita pesos enormes, y esos pesos amplifican igual cualquier ruido del código: un redondeo, un error de medida.',
+            aim: 'Vas a decodificar un codificador que deja las reseñas apiñadas cerca de una recta, y a ver qué tamaño necesita la capa que las separa.',
             takeaway:
-              'La inversa de un giro es el giro opuesto, y su matriz es la **traspuesta**: basta cambiar filas por columnas, sin cuentas. Vale para toda matriz que conserva longitudes y ángulos, y por eso deshacerlas no cuesta nada.',
+              'La decodificadora tiene columnas de casi $3$ y casi $4{,}5$ de largo, y multiplica las áreas por $4$. Un error de $0{,}25$ en la segunda salida del código acaba a más de $1$ de la diana: deshacer una capa casi singular amplifica el ruido.',
           },
           prompt:
-            'El giro de un cuarto de vuelta en sentido antihorario es $R=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$. Para deshacerlo hay que girar el plano **al revés**. Construye $R^{-1}$: coloca $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde los lleva el giro que deshace $R$.',
+            'Este codificador casi aplasta: deja las reseñas apiñadas cerca de una recta, con «malo» y «triste» casi en el mismo cuadradito. Su determinante es solo $0{,}25$. La lectura da el determinante de tu capa.\n\nConstruye la capa que devuelve cada reseña a su diana. Vas a necesitar columnas largas.',
           hints: [
-            'Deshacer un cuarto de vuelta antihorario es dar un cuarto de vuelta en sentido horario. ¿Adónde lleva ese giro a $\\hat{\\imath}$, que parte de $(1, 0)$?',
-            'Haz lo mismo con $\\hat{\\jmath}$, que parte de $(0, 1)$. Para comprobar, aplica $R$ y después tu matriz a $\\hat{\\imath}$: tiene que volver a $(1, 0)$.',
+            'Las palabras están mucho más juntas que sus dianas: la decodificadora tiene que separarlas, y estirar mucho en la dirección en la que el codificador apretó.',
+            'Las dos columnas van lejos: $\\hat{\\imath}$ hacia abajo a la derecha y $\\hat{\\jmath}$ hacia arriba a la izquierda, más larga. El determinante de tu capa tiene que acabar en $4$.',
           ],
           explain:
-            'La inversa de un giro es el giro opuesto. Sigue cada flecha en un cuarto de vuelta horario y comprueba que, junto con $R$, vuelve a su sitio.',
+            'El codificador deja cada región con $0{,}25$ veces el área de antes. La capa que lo deshace tiene que multiplicarla por $4$, y unas columnas cortas no pueden: la inversa crece cuando el determinante se acerca a $0$.',
           solution:
-            'Un cuarto de vuelta horario lleva $\\hat{\\imath}$ de $(1, 0)$ a $(0, -1)$ y $\\hat{\\jmath}$ de $(0, 1)$ a $(1, 0)$. Así, $R^{-1}=\\begin{pmatrix}0&1\\\\-1&0\\end{pmatrix}$, que es la traspuesta de $R$: en los giros, la inversa es la traspuesta. Comprobación: $R^{-1}R=\\begin{pmatrix}0&1\\\\-1&0\\end{pmatrix}\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}=\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}$.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([0, -1], [1, 0]),
+            'La decodificadora: $\\hat{\\imath}$ en $(2, -2)$ y $\\hat{\\jmath}$ en $(-2, 4)$, con determinante $4$. «malo» y «triste», a $0{,}25$ en el código, vuelven a $(1, -1)$ y $(1{,}5;\\ -1{,}5)$, a más de $0{,}7$. Con $\\hat{\\jmath}$ medio paso más corta, en $(-2;\\ 3{,}5)$, «genial» se queda a más de $1$ de su diana.',
+          lab: autoencoder({ i: [1, 0.5], j: [0.5, 0.5] }, { range: 5, readouts: ['det'] }),
+          goals: [RECONSTRUYE],
+          solved: { ix: 2, iy: -2, jx: -2, jy: 4 },
         },
       ],
     },
@@ -175,119 +172,124 @@ export const inversa: Project = {
           id: 'inversa.ex01.1',
           type: 'vector',
           purpose: {
-            why: 'Un modelo que supone que los rasgos son independientes, como Naive Bayes con distribuciones normales, usa la **inversa** de una matriz diagonal: en cada rasgo pone el inverso de su varianza. Un rasgo muy disperso pesa poco y uno muy estable pesa mucho. La inversa de una covarianza se llama matriz de precisión.',
-            aim: 'Vas a invertir una matriz diagonal, que estira cada eje por separado. Verás que se deshace eje a eje, y que solo vale si ningún número de la diagonal es cero.',
+            why: 'Con un codificador conocido, saber qué entrada produjo un código es resolver un sistema: dos salidas y dos rasgos desconocidos. Es lo que hace un decodificador, y lo que se pregunta al inspeccionar qué guarda una capa.',
+            aim: 'Vas a deducir los dos rasgos de una reseña nueva a partir de su código, sabiendo cómo mezcla el codificador la intensidad y el tono.',
             takeaway:
-              'Invertir una diagonal es invertir cada número de la diagonal. Por eso un modelo con rasgos independientes se evalúa con tanta rapidez: no resuelve ningún sistema. Y un rasgo con varianza $0$ rompe la cuenta, porque obliga a dividir entre cero, de modo que se quita antes de entrenar o se le suma una varianza mínima.',
+              'Sumando las dos salidas sale el doble de la intensidad y restándolas, el doble del tono: la reseña tenía intensidad $1$ y tono $2$. Resolver el sistema es aplicar la inversa sin escribirla.',
           },
           prompt:
-            'Una matriz diagonal estira cada eje por separado, y su inversa los devuelve a su tamaño: pone en la diagonal los **inversos** de sus números. Calcula $A^{-1}$ para $A=\\begin{pmatrix}2&0\\\\0&4\\end{pmatrix}$ y escríbela en las cuatro casillas (los decimales, con coma).',
+            'El codificador mezcla los rasgos: $\\text{salida 1}=\\text{intensidad}-\\text{tono}$ y $\\text{salida 2}=\\text{intensidad}+\\text{tono}$. Llega el código de una reseña nueva: $(-1, 3)$. ¿Qué intensidad y qué tono tenía? El laboratorio enseña adónde manda el codificador otras seis.',
           hints: [
-            'La inversa de multiplicar por $2$ es multiplicar por $\\tfrac12$. Haz lo mismo con el $4$.',
-            'Los ceros de fuera de la diagonal se quedan como ceros.',
+            'Escribe las dos ecuaciones: intensidad menos tono da $-1$, e intensidad más tono da $3$.',
+            'Suma las dos ecuaciones: el tono desaparece. Después, resta la primera de la segunda.',
           ],
           explain:
-            'La inversa de una diagonal no es la matriz con el signo cambiado ni la traspuesta: cada eje se deshace por separado, dividiendo entre el número que lo estiró.',
+            'El código son dos ecuaciones con dos incógnitas. Como cada salida mezcla los dos rasgos, ninguno se lee directamente: hay que combinar las dos salidas.',
           solution:
-            'El primer eje se estiró por $2$ y se deshace multiplicando por $0{,}5$; el segundo, por $4$ y por $0{,}25$. $A^{-1}=\\begin{pmatrix}0{,}5&0\\\\0&0{,}25\\end{pmatrix}$. Se comprueba multiplicando: $A^{-1}A=I$. Una diagonal solo tiene inversa si ningún número de su diagonal es cero.',
-          shape: [2, 2],
-          answer: [0.5, 0, 0, 0.25],
-          tol: 0.01,
-        },
-        {
-          id: 'inversa.ex01.2',
-          type: 'vector',
-          purpose: {
-            why: 'Para detectar transacciones anómalas con dos rasgos que se mueven juntos, como el importe y la hora, se usa la **distancia de Mahalanobis**, que lleva dentro la inversa de la matriz de covarianza. Esa inversa descuenta la correlación, y así un punto raro de verdad se distingue de uno que solo es grande en los dos rasgos a la vez.',
-            aim: 'Vas a aplicar la fórmula de la inversa de una matriz de $2\\times 2$ paso a paso: determinante, intercambio de la diagonal y cambio de signo. Verás cómo el determinante decide si hay inversa y cuánto se escala.',
-            takeaway:
-              'Con determinante $1$, la inversa tiene entradas enteras: no hubo que dividir. Si el determinante fuera casi $0$, con entradas de este tamaño, la inversa tendría números enormes, y una distancia de Mahalanobis calculada con ella amplificaría cualquier ruido de los datos. Por eso, antes de invertir una covarianza, se comprueba que no esté cerca de ser singular (con su número de condición).',
-          },
-          prompt:
-            'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$ de $2\\times 2$ con $\\det A=ad-bc\\neq 0$, la inversa es $A^{-1}=\\frac{1}{\\det A}\\begin{pmatrix}d&-b\\\\-c&a\\end{pmatrix}$. Calcula con ella la inversa de $A=\\begin{pmatrix}3&2\\\\1&1\\end{pmatrix}$ y escríbela en las cuatro casillas.',
-          hints: [
-            'Primero el determinante: $ad-bc=3\\cdot 1-2\\cdot 1$.',
-            'Intercambia las dos entradas de la diagonal, cambia de signo las otras dos y divide todo entre el determinante.',
-          ],
-          explain:
-            'En la fórmula, la diagonal se intercambia y la otra diagonal cambia de signo. Comprueba el resultado multiplicándolo por $A$: tiene que salir $I$.',
-          solution:
-            '$\\det A=3\\cdot 1-2\\cdot 1=1$, así que no hay que dividir. Se intercambian $a=3$ y $d=1$ y se cambian de signo $b=2$ y $c=1$: $A^{-1}=\\begin{pmatrix}1&-2\\\\-1&3\\end{pmatrix}$. Comprobación con la primera columna: $A(1, -1)=(3-2,\\ 1-1)=(1, 0)$.',
-          shape: [2, 2],
-          answer: [1, -2, -1, 3],
+            'Sumando, $2\\cdot\\text{intensidad}=2$: intensidad $1$. Restando la primera de la segunda, $2\\cdot\\text{tono}=4$: tono $2$. La reseña es $(1, 2)$, y se comprueba: $1-2=-1$ y $1+2=3$. Es la inversa del codificador aplicada al código.',
+          lab: capaLab(RESENAS, { range: 5, i: [1, 1], j: [-1, 1], movable: 'none' }),
+          answer: [1, 2],
           tol: 0,
         },
         {
-          id: 'inversa.ex01.3',
-          type: 'vector',
+          id: 'inversa.ex01.2',
+          type: 'opcion',
           purpose: {
-            why: 'Hallar los coeficientes con los que se combinan dos direcciones para reproducir un vector, por ejemplo al descomponer un embedding en una base de ejes elegidos, es resolver $A\\vec{x}=\\vec{b}$. Con la inversa se hace $\\vec{x}=A^{-1}\\vec{b}$, que es la idea. En el código real se usa `np.linalg.solve`, que es más barato y más estable.',
-            aim: 'Vas a resolver un sistema de dos ecuaciones multiplicando la inversa por el vector, y a comprobar tu solución volviendo a multiplicar. Verás que la comprobación es la forma de fiarte del resultado.',
+            why: 'Antes de entrenar un decodificador conviene saber si el codificador se puede deshacer. Si manda dos entradas distintas al mismo código, ningún decodificador sabrá de cuál venía.',
+            aim: 'Vas a decidir si existe una capa que deshaga esta, mirando adónde manda las seis reseñas.',
             takeaway:
-              'La solución es $\\vec{x}=(3, -2)$, y se confirma porque $A\\vec{x}$ devuelve $\\vec{b}$. En la práctica no se calcula $A^{-1}$ para aplicarla una sola vez: se resuelve el sistema directamente, con el mismo resultado y menos error de redondeo.',
+              'Sus dos columnas son paralelas: todas las reseñas caen en una recta y «horrible» y «triste» salen iguales. No hay inversa: ninguna capa separa lo que esta ha juntado. Su determinante es $0$.',
           },
           prompt:
-            'Resuelve $A\\vec{x}=\\vec{b}$ con $A=\\begin{pmatrix}2&1\\\\5&3\\end{pmatrix}$ y $\\vec{b}=(4, 9)$ calculando $\\vec{x}=A^{-1}\\vec{b}$. Comprueba antes de contestar que $A\\vec{x}$ da $\\vec{b}$. Escribe las dos coordenadas de $\\vec{x}$.',
+            'Esta capa tiene $\\hat{\\imath}$ en $(0{,}5;\\ 0{,}5)$ y $\\hat{\\jmath}$ en $(1, 1)$. Un equipo quiere entrenar un decodificador que reconstruya las reseñas a partir de su salida. Mira en el laboratorio adónde las manda. ¿Existe una capa que la deshaga?',
           hints: [
-            'Calcula $\\det A=2\\cdot 3-1\\cdot 5$ y, con él, la inversa mediante la fórmula.',
-            'Multiplica $A^{-1}$ por $\\vec{b}$ como cualquier matriz por un vector.',
+            'Mira la salida: ¿quedan las seis reseñas en sitios distintos? ¿Por dónde se reparten?',
+            'Las dos columnas apuntan en la misma dirección. Busca dos palabras que hayan caído en el mismo punto.',
           ],
           explain:
-            'La inversa va a la izquierda del vector, igual que $A$ en $A\\vec{x}$: es $A^{-1}\\vec{b}$, no $A\\vec{b}$. Si al multiplicar $A$ por tu $\\vec{x}$ no sale $\\vec{b}$, revisa la inversa o el producto.',
+            'Una capa se puede deshacer si manda cada entrada a un sitio distinto. Si dos entradas acaban en el mismo punto, a la salida no queda nada que las distinga.',
           solution:
-            '$\\det A=6-5=1$, así que $A^{-1}=\\begin{pmatrix}3&-1\\\\-5&2\\end{pmatrix}$. Entonces $\\vec{x}=A^{-1}\\vec{b}=(3\\cdot 4-1\\cdot 9,\\ -5\\cdot 4+2\\cdot 9)=(3, -2)$. Comprobación: $A\\vec{x}=(2\\cdot 3+1\\cdot(-2),\\ 5\\cdot 3+3\\cdot(-2))=(4, 9)$.',
-          answer: [3, -2],
+            'Cada reseña sale en $(0{,}5\\cdot\\text{intensidad}+\\text{tono})$ veces $(1, 1)$: todas caen en la diagonal. «horrible» da $1{,}25-2=-0{,}75$ y «triste», $0{,}75-1{,}5=-0{,}75$: el mismo punto. El determinante es $0{,}5\\cdot 1-1\\cdot 0{,}5=0$. Que no haya ceros en la matriz no decide nada.',
+          lab: capaLab(RESENAS, { i: [0.5, 0.5], j: [1, 1], movable: 'none' }),
+          options: [
+            'Sí: una capa con columnas $(2, 2)$ y $(1, 1)$ la deshace',
+            'No: manda «horrible» y «triste» al mismo punto, y ninguna capa puede saber de cuál venía',
+            'Sí, porque ninguno de sus pesos es $0$',
+            'Solo si antes se gira el plano un cuarto de vuelta',
+          ],
+          correct: 1,
+        },
+        {
+          id: 'inversa.ex01.3',
+          type: 'numero',
+          purpose: {
+            why: 'Antes de entrar en una red, los datos se suelen normalizar: cada rasgo se multiplica por un factor para dejarlo en una escala parecida. Para devolver una reconstrucción a las unidades de verdad, hay que deshacer ese paso.',
+            aim: 'Vas a calcular por cuánto multiplica las áreas la capa que deshace una normalización que reduce los dos rasgos a la mitad.',
+            takeaway:
+              'La normalización deja las áreas en la cuarta parte, $0{,}5\\cdot 0{,}5$; la capa que la deshace las multiplica por $4$. El determinante de la inversa es siempre $1$ entre el de la capa.',
+          },
+          prompt:
+            'Una normalización multiplica la intensidad y el tono por $0{,}5$ antes de entrar en la red: es la capa fija de los cuadraditos. ¿Cuál es el determinante de la capa que la deshace? Puedes construirla en el laboratorio: las dianas son las reseñas sin normalizar.',
+          hints: [
+            '¿Por cuánto tiene que multiplicar cada rasgo la capa que deshace la normalización?',
+            'El determinante de una capa que solo escala es el producto de sus dos factores.',
+          ],
+          explain:
+            'La capa que deshace la normalización devuelve cada rasgo a su tamaño, así que multiplica los dos por $2$. Su determinante dice por cuánto multiplica las áreas.',
+          solution:
+            'La capa que deshace es $\\begin{pmatrix}2&0\\\\0&2\\end{pmatrix}$, y su determinante, $2\\cdot 2=4$. El de la normalización es $0{,}25$, y $4\\cdot 0{,}25=1$: juntas, las áreas no cambian. Contestar $2$ es dar el factor de cada rasgo, no el de las áreas.',
+          lab: autoencoder({ i: [0.5, 0], j: [0, 0.5] }),
+          answer: 4,
           tol: 0,
         },
         {
           id: 'inversa.ex01.4',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Al ajustar una regresión lineal por mínimos cuadrados hay que invertir $X^{\\top}X$. Si dos rasgos son copia uno del otro, esa matriz **no tiene inversa** y el ajuste falla o da pesos sin sentido. En cuanto un conjunto de datos tiene un rasgo redundante, esta pregunta deja de ser teoría.',
-            aim: 'Vas a reconocer cuál de cuatro matrices no se puede invertir, mirando solo su determinante. Verás que los ceros no la delatan, y que una matriz sin ceros puede ser la que falle.',
+            why: 'Un modelo de precios se suele entrenar con el precio estandarizado: menos la media, entre la desviación. Lo que predice sale en esas unidades, y antes de enseñarlo hay que deshacer el paso, como hace `inverse_transform` en scikit-learn.',
+            aim: 'Vas a devolver a euros la predicción de un modelo entrenado con precios estandarizados, deshaciendo los dos pasos en el orden contrario.',
             takeaway:
-              'La que falla tiene las dos columnas paralelas: aplasta el plano sobre una recta, y lo perdido no vuelve. Para afrontarlo, quien ajusta la regresión quita el rasgo repetido o añade una regularización (regresión ridge), que suma a $X^{\\top}X$ un poco de diagonal y la hace invertible.',
+              'Se deshace al revés: primero se multiplica por la desviación y después se suma la media, $0{,}5\\cdot 60+240=270$ mil euros. Deshacer en el orden en que se aplicó da otro número, y el modelo parece fallar cuando el fallo está en la cuenta.',
           },
           prompt:
-            'Una matriz tiene inversa si y solo si su determinante no es $0$. ¿Cuál de estas cuatro matrices **no** tiene inversa?',
+            'Un modelo de precios de pisos se entrenó con el precio estandarizado: al precio se le restó la media, $240$ mil euros, y se dividió entre la desviación típica, $60$ mil. Para un piso, el modelo predice $0{,}5$. ¿Cuántos miles de euros vale, según el modelo?',
           hints: [
-            'Calcula $ad-bc$ de cada una: solo una da $0$.',
-            'Con determinante $0$, las dos columnas son paralelas: una es un múltiplo de la otra.',
+            'La estandarización restó y después dividió. Para deshacerla, empieza por lo último que se hizo.',
+            'Multiplica la predicción por la desviación y súmale la media.',
           ],
           explain:
-            'Decide por el determinante, no por los ceros ni por las entradas repetidas: una matriz con ceros puede tener inversa, y una sin ceros, no.',
+            'Estandarizar es restar la media y dividir entre la desviación. Deshacerlo es multiplicar por la desviación y sumar la media: los mismos pasos, al revés y en orden contrario.',
           solution:
-            'Los determinantes son $1\\cdot 4-2\\cdot 3=-2$, $0\\cdot 0-1\\cdot 1=-1$, $2\\cdot 2-4\\cdot 1=0$ y $2\\cdot 1-1\\cdot 1=1$. La tercera tiene por columnas $(2, 1)$ y $(4, 2)$, paralelas: aplasta el plano sobre una recta y eso no se puede deshacer. La que tiene ceros es un espejo, y los espejos sí se deshacen.',
-          options: [
-            '$\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$',
-            '$\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$',
-            '$\\begin{pmatrix}2&4\\\\1&2\\end{pmatrix}$',
-            '$\\begin{pmatrix}2&1\\\\1&1\\end{pmatrix}$',
-          ],
-          correct: 2,
+            '$0{,}5\\cdot 60=30$ mil por encima de la media, y $240+30=270$ mil euros. En el otro orden, sumando antes la media, saldría $(0{,}5+240)\\cdot 60=14\\,430$, sin sentido. Un $0{,}5$ estandarizado es media desviación por encima de la media.',
+          answer: 270,
+          tol: 0,
         },
         {
           id: 'inversa.ex01.5',
-          type: 'vector',
+          type: 'opcion',
           purpose: {
-            why: 'Una tubería de preparación de datos encadena pasos, como centrar, escalar y girar los ejes, y después de predecir hay que devolver el resultado a las unidades originales. Para eso se aplican los pasos al revés. Es lo que hace `inverse_transform` en una tubería de scikit-learn, y la fórmula de $(AB)^{-1}$ es la razón.',
-            aim: 'Vas a calcular la inversa de un producto a partir de las inversas de sus factores, sin hallar el producto. Verás en qué orden hay que colocarlas, y qué pasa si lo olvidas.',
+            why: 'Al ajustar una regresión lineal o deshacer una capa en código hay que resolver sistemas. Las librerías numéricas ofrecen dos caminos, y elegir mal hace el programa más lento y menos preciso, sobre todo con matrices grandes.',
+            aim: 'Vas a elegir por qué un ingeniero escribe `np.linalg.solve(W, y)` en vez de `np.linalg.inv(W) @ y` para recuperar una entrada a partir de una salida.',
             takeaway:
-              'La inversa del producto lleva las inversas en orden contrario: $B^{-1}A^{-1}$. Si en una tubería deshaces los pasos en el mismo orden en que los aplicaste, las predicciones vuelven a unidades equivocadas, y el modelo parece fallar cuando el fallo está en la cuenta.',
+              '`solve` resuelve el sistema sin construir la inversa entera: hace menos cuentas y redondea menos. Con matrices grandes o casi singulares, esa diferencia se nota. Si la matriz aplasta, ninguna de las dos recupera la entrada.',
           },
           prompt:
-            'Sabes que $A^{-1}=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ y $B^{-1}=\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$. Calcula $(AB)^{-1}$ sin hallar antes $A$, $B$ ni $AB$, y escríbela en las cuatro casillas.',
+            'Una capa $W$ ha producido la salida $\\vec{y}$, y quieres recuperar la entrada $\\vec{x}$ con $W\\vec{x}=\\vec{y}$. En NumPy puedes escribir `np.linalg.inv(W) @ y` o `np.linalg.solve(W, y)`. Las dos dan el mismo vector, salvo redondeos. ¿Por qué se prefiere `solve`?',
           hints: [
-            '$AB$ aplica primero $B$ y después $A$. Para deshacerlo, ¿qué se deshace primero?',
-            'Lo primero que se deshace es lo último que se aplicó, y en un producto la matriz que actúa primero va a la derecha.',
+            'Piensa en lo que hace cada una: una construye una matriz entera y después multiplica; la otra va directa al vector.',
+            'Si el determinante es $0$, ninguna de las dos puede recuperar la entrada: dos entradas dieron la misma salida.',
           ],
           explain:
-            'La inversa de un producto invierte el orden de los factores: al deshacer, lo último que se hizo es lo primero que se deshace. Si multiplicas las inversas en el mismo orden que $A$ y $B$, sale otra matriz.',
+            'Construir $W^{-1}$ entera es más trabajo que resolver un solo sistema, y cada cuenta de más añade redondeo. Si $W$ aplasta, ninguna de las dos recupera la entrada, porque la información ya no está.',
           solution:
-            '$(AB)^{-1}=B^{-1}A^{-1}=\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}=\\begin{pmatrix}2&2\\\\0&1\\end{pmatrix}$. El orden contrario, $A^{-1}B^{-1}=\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$, es otra matriz. Es como vestirse: primero los calcetines y después los zapatos, y para deshacerlo se quitan primero los zapatos.',
-          shape: [2, 2],
-          answer: [2, 2, 0, 1],
-          tol: 0,
+            '`solve` factoriza $W$ y despeja el vector en orden, sin construir la inversa: menos operaciones y menos error de redondeo. Con una matriz singular, tampoco `solve` da una entrada válida. Y `inv` no exige que la matriz sea diagonal ni cambia $W$.',
+          options: [
+            'Porque `inv` solo sirve para matrices diagonales',
+            'Porque resuelve el sistema sin construir la inversa: hace menos cuentas y acumula menos error de redondeo',
+            'Porque `solve` encuentra la entrada aunque el determinante sea $0$',
+            'Porque `inv` modifica la matriz $W$ al calcular su inversa',
+          ],
+          correct: 1,
         },
       ],
     },
