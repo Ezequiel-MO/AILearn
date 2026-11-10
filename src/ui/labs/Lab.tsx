@@ -4,6 +4,7 @@ import { t } from '../strings';
 import { AtencionLab } from './AtencionLab';
 import { CapaLab } from './CapaLab';
 import { CompresionLab } from './CompresionLab';
+import { DescensoLab } from './DescensoLab';
 import { LoraLab } from './LoraLab';
 import type { LabProps } from './parts';
 
@@ -16,6 +17,8 @@ export function Lab({ spec, state, onChange }: LabProps<LabSpec>) {
       return <AtencionLab spec={spec} state={state} onChange={onChange} />;
     case 'compresion':
       return <CompresionLab spec={spec} state={state} onChange={onChange} />;
+    case 'descenso':
+      return <DescensoLab spec={spec} state={state} onChange={onChange} />;
     case 'lora':
       return <LoraLab spec={spec} state={state} onChange={onChange} />;
   }

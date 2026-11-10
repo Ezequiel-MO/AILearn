@@ -4,6 +4,7 @@ import { QuestionView } from '../questions/QuestionView';
 import { atencionSamples } from './labs/atencion';
 import { capaSamples } from './labs/capa';
 import { compresionSamples } from './labs/compresion';
+import { descensoSamples } from './labs/descenso';
 import { loraSamples } from './labs/lora';
 
 // Los textos de las páginas de desarrollo van aquí, no en strings.ts: así no entran en producción.
@@ -14,6 +15,7 @@ const samples: (LabQ | NumeroQ)[] = [
   ...capaSamples,
   ...atencionSamples,
   ...compresionSamples,
+  ...descensoSamples,
   ...loraSamples,
 ];
 

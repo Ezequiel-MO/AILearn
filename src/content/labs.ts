@@ -3,6 +3,7 @@ import type { CapaSpec } from '../engine/labs/capa';
 import type { LabGoal } from '../engine/labs';
 import { atencionSchema } from './labs/atencion';
 import { compresionSchema } from './labs/compresion';
+import { descensoSchema } from './labs/descenso';
 import { loraSchema } from './labs/lora';
 
 /**
@@ -80,6 +81,7 @@ export const labSpecSchema = z.discriminatedUnion('kind', [
   capaSchema,
   atencionSchema,
   compresionSchema,
+  descensoSchema,
   loraSchema,
 ]);
 

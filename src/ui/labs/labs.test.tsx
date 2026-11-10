@@ -5,12 +5,19 @@ import { checkLab } from '../../content/validate';
 import { atencionSamples } from '../dev/labs/atencion';
 import { capaSamples } from '../dev/labs/capa';
 import { compresionSamples } from '../dev/labs/compresion';
+import { descensoSamples } from '../dev/labs/descenso';
 import { loraSamples } from '../dev/labs/lora';
 import { QuestionView } from '../questions/QuestionView';
 import { t } from '../strings';
 
 /** Todas las muestras de la página de desarrollo: una por laboratorio y variante. */
-const samples = [...capaSamples, ...atencionSamples, ...compresionSamples, ...loraSamples];
+const samples = [
+  ...capaSamples,
+  ...atencionSamples,
+  ...compresionSamples,
+  ...descensoSamples,
+  ...loraSamples,
+];
 const labQuestions = samples.filter((q): q is LabQ => q.type === 'laboratorio');
 
 describe('muestras de laboratorio', () => {

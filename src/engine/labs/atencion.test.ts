@@ -43,7 +43,10 @@ describe('laboratorio atención', () => {
   });
 
   it('sin valores no publica la salida', () => {
-    const noValues: AtencionSpec = { ...two, tokens: two.tokens.map((t) => ({ id: t.id, text: t.text, key: t.key })) };
+    const noValues: AtencionSpec = {
+      ...two,
+      tokens: two.tokens.map((t) => ({ id: t.id, text: t.text, key: t.key })),
+    };
     // contract: out_x y out_y existen solo si todos los tokens tienen value
     expect(run(noValues)).not.toHaveProperty('out_x');
   });

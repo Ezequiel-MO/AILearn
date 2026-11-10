@@ -1,0 +1,125 @@
+/* === Laboratorio «descenso»: una bola baja por el mapa de la pérdida === */
+
+.descenso__panels {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* La pérdida y los datos, lado a lado si caben; a 360 px se apilan. */
+.descenso__below {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--space-3);
+}
+
+.descenso__panel {
+  margin: 0;
+  min-width: 0;
+}
+
+/* Mapa de relieve: más pérdida, más oscuro. */
+.descenso__relief path {
+  fill: var(--lab-g2);
+}
+
+.descenso__threshold {
+  fill: none;
+  stroke: var(--lab-good);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.descenso__minimum circle {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+}
+
+.descenso__minimum path {
+  fill: none;
+  stroke: var(--color-text);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+}
+
+.descenso__path {
+  fill: none;
+  stroke: var(--lab-t0);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.descenso__steps circle {
+  fill: var(--lab-t0);
+  stroke: var(--plane-area);
+  stroke-width: 1;
+}
+
+.descenso__arrow line {
+  stroke: var(--lab-t1);
+  stroke-width: 2.5;
+}
+
+.descenso__arrow polygon {
+  fill: var(--lab-t1);
+}
+
+.descenso__end {
+  fill: var(--lab-good);
+  stroke: var(--plane-area);
+  stroke-width: 2;
+}
+
+.descenso__end--bad {
+  fill: var(--lab-bad);
+}
+
+.descenso__alert {
+  color: var(--lab-bad);
+}
+
+/* Gráfica de la pérdida. */
+.descenso__loss-line {
+  fill: none;
+  stroke: var(--lab-t0);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.descenso__threshold-line line {
+  stroke: var(--lab-good);
+  stroke-dasharray: 6 4;
+  stroke-width: 1.5;
+}
+
+.descenso__threshold-line text {
+  fill: var(--lab-good);
+  font-size: 11px;
+}
+
+/* Datos y rectas. */
+.descenso__datum {
+  fill: var(--lab-g2);
+  stroke: var(--plane-area);
+  stroke-width: 1.5;
+}
+
+.descenso__residual {
+  stroke: var(--lab-g1);
+  stroke-opacity: 0.8;
+  stroke-width: 1.5;
+}
+
+.descenso__line-start {
+  stroke: var(--lab-neutral);
+  stroke-dasharray: 5 4;
+  stroke-opacity: 0.8;
+  stroke-width: 2;
+}
+
+.descenso__line-end {
+  stroke: var(--lab-t0);
+  stroke-width: 3;
+}

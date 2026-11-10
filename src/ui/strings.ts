@@ -2,6 +2,7 @@ import { fmt } from './format';
 import { atencionStrings } from './labs/atencion.strings';
 import { capaStrings } from './labs/capa.strings';
 import { compresionStrings } from './labs/compresion.strings';
+import { descensoStrings } from './labs/descenso.strings';
 import { loraStrings } from './labs/lora.strings';
 
 // Todos los textos fijos de la interfaz, en castellano.
@@ -84,6 +85,7 @@ export const t = {
     capa: capaStrings,
     atencion: atencionStrings,
     compresion: compresionStrings,
+    descenso: descensoStrings,
     lora: loraStrings,
   },
 
