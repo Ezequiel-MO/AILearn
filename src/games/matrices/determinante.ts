@@ -1,25 +1,35 @@
-import type { Goal, PlaneSpec, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { determinanteWarmup } from './determinante.calentamiento';
-import { transformPlane, type TransformPlaneOptions } from './plane';
+import { RESENAS, capaLab } from './datos';
 
-/** Plano de transformación con î fijo y ĵ arrastrable. */
-const fixedIPlane = (o: TransformPlaneOptions): PlaneSpec => {
-  const p = transformPlane({ ...o, movable: true });
-  return {
-    ...p,
-    vectors: p.vectors.map((v) => (v.id === 'i' ? { ...v, movable: false } : v)),
-  };
-};
+/** La neurona siguiente mira la segunda salida de la capa: responde «positiva» si es positiva. */
+const MIRA_SALIDA_2 = { w: [0, 1] as [number, number], b: 0 };
 
-/** Meta sobre el determinante de la matriz de columnas î y ĵ. */
-const detGoal = (target: number): Goal => ({ metric: 'det', of: ['i', 'j'], target, tol: 0.01 });
+/** Lo que mide casi toda meta de este proyecto, además del determinante. */
+const ACIERTOS = {
+  metric: 'acc',
+  op: 'gte',
+  target: 1,
+  label: 'Aciertos de la neurona siguiente',
+  format: 'percent',
+} as const;
 
-/** Primer proyecto de la Órbita 1 de matrices: el determinante como factor de área con signo. */
+/** Determinante 0: la capa aplasta el plano sobre una recta. */
+const APLASTA = { metric: 'det', op: 'eq', target: 0, label: 'Determinante de la capa' } as const;
+
+/** Parejas de palabras que la capa deja en el mismo punto. */
+const FUNDIDAS = 'Parejas de palabras fundidas';
+
+/**
+ * Primer proyecto de la Órbita 1 de matrices: el determinante mide cuánto espacio deja la capa a los
+ * datos. Estirar separa, aplastar junta palabras para siempre, aplastar en la dirección que no importa
+ * es comprimir bien, el signo no pierde nada y un determinante casi nulo deja palabras casi encima.
+ */
 export const determinante: Project = {
   id: 'determinante',
   name: 'Determinante',
-  sub: 'El área con signo',
+  sub: 'Cuánto espacio deja la capa',
   bigPicture: {
     parts: ['linear'],
     text: 'El determinante de una matriz dice cuánto escala las áreas la transformación que representa, y si vale $0$, la aplasta en una línea y pierde información. Una capa lineal que aplasta direcciones pierde parte de lo que le llega. Aquí lo ves como área con signo, lo que ayuda a entender cuándo una capa conserva información y cuándo no.',
@@ -31,123 +41,141 @@ export const determinante: Project = {
       questions: [
         {
           id: 'determinante.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Hay modelos generativos, los **flujos normalizadores**, que convierten ruido simple en datos (imágenes, sonido) encadenando transformaciones invertibles. Para saber qué probabilidad dan a cada resultado necesitan saber cuánto estira o encoge las áreas cada paso, y eso es justo el determinante: llevan la cuenta de $\\log\\lvert\\det\\rvert$ capa a capa.',
-            aim: 'Vas a fijar el área del paralelogramo que forman las dos columnas y a ver que el determinante es eso, un factor de área: lo que medía $1$ pasa a medir $3$.',
+            why: 'Una capa de una red recoloca todos los embeddings a la vez. Si los junta, a la capa siguiente le queda menos sitio para distinguirlos; si los separa, le deja más. El determinante de la capa mide eso: por cuánto multiplica las áreas.',
+            aim: 'Vas a estirar una capa que ha apiñado las reseñas cerca del origen, hasta que deje mucho más espacio, sin que la neurona siguiente deje de acertar.',
             takeaway:
-              'El determinante es el factor por el que se multiplican todas las áreas, y con la base en el eje basta mirar la altura. En un flujo normalizador, una capa con $\\det=3$ reparte la probabilidad sobre un área tres veces mayor, así que la densidad en cada punto se divide entre $3$.',
+              'El área del cuadrado unidad tras la capa es el valor absoluto del determinante, y toda región de palabras crece con él. Con $\\hat{\\imath}$ en $(2, 0)$ y $\\hat{\\jmath}$ en $(0, 2)$, el área es $4$ y las palabras quedan al doble de distancia que sin capa.',
           },
           prompt:
-            'El **determinante** de una matriz es el factor por el que multiplica las áreas. El cuadrado unidad, de área $1$, se convierte en el paralelogramo que forman las columnas de la matriz, y su área es el determinante. Aquí $\\hat{\\imath}$ está fijo en $(1, 0)$. Mueve la punta de $\\hat{\\jmath}$ para que el paralelogramo tenga **área 3**, con la punta por encima del eje $x$. Razónalo como base por altura.',
+            'Seis reseñas con dos rasgos: **intensidad** y **tono**. La neurona siguiente mira la segunda salida (el eje vertical) y responde «positiva» a lo que cae en la zona sombreada. Esta capa lo encoge todo a la mitad: las palabras se apiñan y el cuadrado unidad se queda en un cuarto de su área.\n\nEstira la capa hasta que el cuadrado unidad mida al menos $4$, sin que la neurona falle.',
           hints: [
-            'La base del paralelogramo es $\\hat{\\imath}$, que mide $1$. ¿Qué altura necesita para que base por altura dé $3$?',
-            'La altura es la distancia de la punta de $\\hat{\\jmath}$ al eje $x$, es decir, su coordenada $y$ si está por encima del eje. Mover la punta en horizontal no la cambia.',
+            'El cuadrado unidad es el que forman las dos columnas: su área está en el medidor. Las palabras se separan a la vez que él crece.',
+            'Alarga $\\hat{\\imath}$ y $\\hat{\\jmath}$ sin cambiarles el sentido. Si das la vuelta a $\\hat{\\jmath}$ (el tono), el área también crece, pero la neurona falla.',
           ],
           explain:
-            'Un paralelogramo tiene área base por altura. Con la base sobre el eje $x$, la altura es la coordenada $y$ de $\\hat{\\jmath}$, no su longitud: si inclinas el vector sin subir la punta, el área no cambia.',
+            'Una capa multiplica todas las áreas por el mismo factor: el valor absoluto de su determinante. Con las dos columnas sobre los ejes, es el producto de sus longitudes: $0{,}5\\cdot 0{,}5=0{,}25$ al empezar. Para llegar a $4$, ese producto tiene que valer $4$ o más.',
           solution:
-            'Con base $1$, la altura tiene que valer $3$: la punta de $\\hat{\\jmath}$ debe tener $y=3$, con cualquier $x$. Por ejemplo, $\\hat{\\jmath}=(0, 3)$ da $A=\\begin{pmatrix}1&0\\\\0&3\\end{pmatrix}$, con $\\det A=1\\cdot 3-0\\cdot 0=3$. También vale $(2, 3)$, que inclina el paralelogramo sin cambiarle el área.',
-          plane: fixedIPlane({ range: 4, readouts: ['matrix'] }),
-          goals: [detGoal(3)],
+            'Con $\\hat{\\imath}$ en $(2, 0)$ y $\\hat{\\jmath}$ en $(0, 2)$, el determinante es $2\\cdot 2=4$ y la segunda salida sigue siendo el tono, al doble: la neurona acierta las seis. Vale cualquier pareja de columnas que no dé la vuelta al tono y cuyo cuadrado mida $4$ o más. Con $\\hat{\\jmath}$ en $(0, -2)$ el área es $4$, pero el determinante es $-4$ y el tono llega al revés: la neurona falla con las seis.',
+          lab: capaLab(RESENAS, { range: 6, i: [0.5, 0], j: [0, 0.5], readout: MIRA_SALIDA_2 }),
+          goals: [
+            ACIERTOS,
+            {
+              metric: 'area',
+              op: 'gte',
+              target: 4,
+              label: 'Área que deja la capa al cuadrado unidad',
+            },
+          ],
+          solved: { ix: 2, jy: 2 },
         },
         {
           id: 'determinante.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Calcular el determinante de una capa de $1000\\times1000$ es una cuenta cara, salvo que la matriz sea **triangular**: entonces es el producto de la diagonal. Por eso muchos flujos normalizadores diseñan sus capas para que la matriz que hay que medir sea triangular. La de esta pregunta lo es: el número de arriba a la derecha inclina el paralelogramo y no cuenta en el área.',
-            aim: 'Vas a inclinar el paralelogramo sin cambiar su área y a ver cuál de los cuatro números de la matriz no interviene en el determinante.',
+            why: 'Una capa que aplasta el plano sobre una recta tiene determinante $0$. Dos entradas distintas pueden salir iguales, y a partir de ahí ninguna capa posterior las separa: para el resto de la red son la misma palabra.',
+            aim: 'Vas a aplastar la capa sobre una recta y a buscar qué dirección hay que perder para que se fundan dos parejas de reseñas.',
             takeaway:
-              'En $\\begin{pmatrix}1&2\\\\0&2\\end{pmatrix}$ el $2$ de arriba a la derecha inclina, pero el determinante sigue siendo $1\\cdot 2=2$, el producto de la diagonal. Una matriz triangular da su determinante casi gratis, y por eso se elige esa forma cuando un modelo tiene que calcularlo en cada paso.',
+              'Al borrar el tono, «genial» cae sobre «horrible» y «bueno» sobre «malo»: solo se distinguían por ese rasgo. Qué palabras se funden depende de la dirección que aplasta la capa, y lo fundido ya no se recupera.',
           },
           prompt:
-            'Aquí $\\hat{\\imath}=(1, 0)$ está fijo y $\\hat{\\jmath}$ parte de $(0, 2)$: el paralelogramo es un rectángulo de área $2$. Desliza la punta de $\\hat{\\jmath}$ hasta que tenga $x=2$ **sin cambiar el área**: el determinante tiene que seguir en $2$.',
+            'Las mismas reseñas y la misma neurona. Una capa con determinante $0$ manda todo el plano a una recta, y dos palabras distintas pueden caer en el mismo punto: quedan **fundidas**.\n\nAplasta la capa de modo que se fundan al menos dos parejas de reseñas.',
           hints: [
-            'El área es base por altura, y la base $\\hat{\\imath}$ no se mueve. Para que el área no cambie, la altura de la punta, su $y$, ha de seguir igual.',
-            'Deslizar la punta en horizontal inclina el paralelogramo sin cambiar su altura. Mira el valor del determinante mientras la mueves.',
+            'Busca palabras que solo se diferencien en un rasgo: «genial» y «horrible» tienen la misma intensidad. Si la capa pierde el rasgo en el que difieren, caen juntas.',
+            'Lleva $\\hat{\\jmath}$ (el tono) al origen: la capa deja de ver el tono. Poner $\\hat{\\jmath}$ sobre la recta de $\\hat{\\imath}$ también aplasta, pero funde una sola pareja.',
           ],
           explain:
-            'El área depende de la altura de la punta de $\\hat{\\jmath}$ sobre la recta de $\\hat{\\imath}$, no de cuánto se desplaza a lo largo de ella. Si subes o bajas la punta, el determinante cambia; si la deslizas en horizontal, no.',
+            'Con determinante $0$ hay una dirección que la capa manda al origen. Dos palabras se funden cuando su diferencia apunta justo en esa dirección. Las parejas que solo difieren en el tono tienen su diferencia vertical: hay que perder la dirección del tono.',
           solution:
-            'La punta pasa de $(0, 2)$ a $(2, 2)$: se desliza en horizontal y mantiene $y=2$. La matriz es $\\begin{pmatrix}1&2\\\\0&2\\end{pmatrix}$, y su determinante sigue siendo $1\\cdot 2-2\\cdot 0=2$. Una **inclinación** como esta deforma las figuras, pero conserva las áreas.',
-          plane: fixedIPlane({ j: [0, 2], readouts: ['matrix', 'det'] }),
-          goals: [{ metric: 'x', of: ['j'], target: 2, tol: 0.01 }, detGoal(2)],
+            'Con $\\hat{\\jmath}$ en $(0, 0)$ la salida de cada palabra solo depende de su intensidad. Con $\\hat{\\imath}$ en $(0, 1)$, «genial» y «horrible» caen en $(0;\\ 2{,}5)$, y «bueno» y «malo» en $(0, 1)$; con $\\hat{\\imath}$ en otro sitio pasa igual. Si la llevas al origen, se funde todo en un punto. Con $\\hat{\\jmath}$ en $(1, 0)$ también hay determinante $0$, pero solo se funden «malo» y «triste».',
+          lab: capaLab(RESENAS, { readout: MIRA_SALIDA_2 }),
+          goals: [
+            APLASTA,
+            { metric: 'merged', op: 'gte', target: 2, label: FUNDIDAS, format: 'integer' },
+          ],
+          solved: { ix: 0, iy: 1, jy: 0 },
         },
         {
           id: 'determinante.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Cuando unos datos se modelan con una distribución normal de varias variables, como en un modelo de mezcla gaussiana, la fórmula de la probabilidad lleva el determinante de la matriz de covarianza. Ese determinante mide cuánto se esparcen los datos en todas las direcciones a la vez. Con datos reales, esa matriz casi nunca tiene las columnas sobre los ejes, como la de esta pregunta.',
-            aim: 'Vas a construir una matriz con las dos columnas inclinadas y a calcular su determinante con la regla en cruz $ad-bc$, porque ya no se lee a ojo como base por altura.',
+            why: 'Muchas redes tienen un cuello de botella: una capa que deja pasar menos dimensiones de las que recibe, como el centro de un autocodificador. Perder una dirección es inevitable; la cuestión es cuál. Si la capa tira lo que no sirve para la tarea, no se pierde nada que importe.',
+            aim: 'Vas a rehacer una capa que aplasta y ha borrado el tono, para que siga aplastando pero tire el rasgo que a la neurona no le hace falta.',
             takeaway:
-              'Con $\\hat{\\imath}=(2, 1)$ y $\\hat{\\jmath}=(2, 4)$ el área es $2\\cdot 4-2\\cdot 1=6$, aunque ninguna columna esté sobre un eje. La regla $ad-bc$ vale para cualquier matriz de $2\\times2$; para matrices de cualquier tamaño, NumPy hace la cuenta con `np.linalg.det`.',
+              'Con $\\hat{\\imath}$ en el origen el determinante sigue en $0$, pero lo que se pierde es la intensidad: ninguna pareja se funde y la neurona acierta las seis. Comprimir bien es aplastar en la dirección que no importa.',
           },
           prompt:
-            'Construye una transformación con $\\det A=6$ en la que **ninguna columna esté sobre un eje**. Coloca $\\hat{\\imath}$ en $(2, 1)$ y deja a $\\hat{\\jmath}$ con $x=2$; elige la $y$ de $\\hat{\\jmath}$ para que el determinante valga $6$. Mira la lectura del determinante mientras subes o bajas la punta de $\\hat{\\jmath}$.',
+            'Esta capa aplasta (determinante $0$) y ha borrado el tono: las reseñas han caído sobre el eje vertical, ordenadas por su intensidad, y la neurona dice «positiva» a todas. Hay que conservar el cuello de botella: la capa tiene que seguir aplastando.\n\nCámbiala para que siga con determinante $0$ y la neurona acierte las seis.',
           hints: [
-            'Con $\\hat{\\imath}=(2, 1)$ y $\\hat{\\jmath}=(2, y)$, la matriz es $\\begin{pmatrix}2&2\\\\1&y\\end{pmatrix}$. Escribe su determinante $ad-bc$ en función de $y$.',
-            'Resuelve la ecuación $2y-2\\cdot 1=6$.',
+            'Las seis caen en la zona sombreada porque la segunda salida es ahora la intensidad, positiva en todas. El rasgo que distingue a las positivas tiene que volver a esa salida.',
+            'Sube $\\hat{\\jmath}$ (el tono) y lleva $\\hat{\\imath}$ (la intensidad) al origen: la capa sigue aplastando, pero ahora pierde la intensidad.',
           ],
           explain:
-            'El determinante multiplica en cruz: la $x$ de $\\hat{\\imath}$ por la $y$ de $\\hat{\\jmath}$, menos la $x$ de $\\hat{\\jmath}$ por la $y$ de $\\hat{\\imath}$. Si emparejas las coordenadas de otra manera, sale otra ecuación.',
+            'Con determinante $0$, la capa manda una dirección al origen. Antes era la del tono, la que separa los grupos. Si es la de la intensidad, las palabras caen en una recta ordenadas por su tono, y la neurona solo necesita ese número.',
           solution:
-            'La matriz $\\begin{pmatrix}2&2\\\\1&y\\end{pmatrix}$ tiene $\\det=2y-2\\cdot 1$. De $2y-2=6$ sale $y=4$: $\\hat{\\jmath}=(2, 4)$. Ninguna de las dos columnas, $(2, 1)$ y $(2, 4)$, está sobre un eje.',
-          plane: transformPlane({
-            movable: true,
-            range: 5,
-            snap: 1,
-            readouts: ['matrix', 'det'],
-          }),
-          goals: [
-            { metric: 'x', of: ['i'], target: 2, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 1, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 2, tol: 0.01 },
-            detGoal(6),
-          ],
+            'Con $\\hat{\\imath}$ en $(0, 0)$ y $\\hat{\\jmath}$ en $(0, 1)$, cada palabra cae en el eje vertical, a la altura de su tono: determinante $0$ y seis aciertos. También vale $\\hat{\\imath}$ en $(0;\\ 0{,}5)$ y $\\hat{\\jmath}$ en $(0, 2)$. Si subes $\\hat{\\jmath}$ sin tocar $\\hat{\\imath}$, el determinante sigue en $0$, pero la salida 2 suma intensidad y tono: «horrible» entra en la zona y «malo» y «triste» quedan en la frontera.',
+          lab: capaLab(RESENAS, { i: [0, 1], j: [0, 0], readout: MIRA_SALIDA_2 }),
+          goals: [APLASTA, ACIERTOS],
+          solved: { iy: 0, jy: 1 },
         },
         {
           id: 'determinante.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En IA el signo del determinante rara vez decide nada: los flujos normalizadores, por ejemplo, usan su valor absoluto. Donde sí aparece es en visión: voltear una imagen como en un espejo, un aumento de datos muy común al entrenar clasificadores, es una transformación de determinante negativo. Un gato volteado sigue siendo un gato, pero las letras de un cartel volteado ya no se leen igual.',
-            aim: 'Vas a colocar $\\hat{\\jmath}$ al otro lado de la recta de $\\hat{\\imath}$ y a ver cómo el determinante pasa a negativo y el paralelogramo se pinta de rojo, mientras su área sigue siendo un número positivo.',
+            why: 'El signo del determinante dice si la capa da la vuelta al plano, como un espejo. Al entrenar, una red llega a capas con determinante negativo igual que positivo: voltear no borra nada, y la capa siguiente se adapta al nuevo sentido.',
+            aim: 'Vas a conseguir una capa que voltee el plano sin que la neurona siguiente note la diferencia.',
             takeaway:
-              'El valor absoluto del determinante es el área y el signo es la orientación: con $\\det A=-2$ las áreas se duplican y el plano queda volteado. Un aumento de datos con volteos solo tiene sentido si la etiqueta no depende de la orientación: vale para fotos de animales, no para texto.',
+              'Dar la vuelta a la intensidad hace el determinante negativo y la neurona acierta igual: lo que mira no ha cambiado. Voltear el tono también da $-1$, pero lo que lee llega al revés. El signo no es información perdida: el área sigue ahí.',
           },
           prompt:
-            'Si el determinante es **negativo**, la transformación da la vuelta al plano, como un espejo, y el paralelogramo se pinta de rojo. Con $\\hat{\\imath}=(1, 1)$ fijo, mueve $\\hat{\\jmath}$ hasta que $\\det A=-2$. Fíjate en de qué lado de la recta de $\\hat{\\imath}$ queda $\\hat{\\jmath}$.',
+            'Las mismas reseñas y la misma neurona, con una capa que no cambia nada. Un determinante negativo significa que la capa voltea el plano: el cuadrado unidad sale del revés.\n\nHaz que el determinante sea $-1$ o menos sin que la neurona deje de acertar con las seis.',
           hints: [
-            'Con $\\hat{\\imath}=(1, 1)$ y $\\hat{\\jmath}=(x, y)$, el determinante es $1\\cdot y-x\\cdot 1=y-x$. Hace falta $y-x=-2$.',
-            'Prueba con $x=2$: ¿qué $y$ cumple $y-2=-2$?',
+            'Hay dos maneras de voltear: dar la vuelta a una columna o a la otra. Mira cuál de los dos rasgos lee la neurona en el eje vertical.',
+            'Lleva $\\hat{\\imath}$ (la intensidad) al otro lado del origen, hacia la izquierda. El tono sigue subiendo y bajando como antes.',
           ],
           explain:
-            'El signo del determinante es la orientación: con signo positivo, $\\hat{\\jmath}$ queda a la izquierda de $\\hat{\\imath}$, como en la identidad; con signo negativo queda a la derecha y el plano se ha volteado. Si te sale $+2$ en vez de $-2$, $\\hat{\\jmath}$ está al otro lado de la recta de $\\hat{\\imath}$.',
+            'El determinante cambia de signo cuando una columna cruza al otro lado de la recta de la otra. Si la que cruza es la intensidad, la segunda salida sigue siendo el tono. Si es el tono, las positivas caen abajo, fuera de la zona sombreada.',
           solution:
-            'El determinante es $y-x$, así que hace falta $y=x-2$. Sirve $\\hat{\\jmath}=(2, 0)$, y también $(3, 1)$ o $(1, -1)$. El área es $\\lvert -2\\rvert=2$, y el signo menos dice que $\\hat{\\jmath}$ está a la derecha de $\\hat{\\imath}$: la transformación voltea la orientación del plano.',
-          plane: fixedIPlane({ i: [1, 1], range: 3, readouts: ['matrix', 'det'] }),
-          goals: [detGoal(-2)],
+            'Con $\\hat{\\imath}$ en $(-1, 0)$ el determinante es $-1$: las palabras pasan al lado izquierdo, a la misma altura, y la neurona acierta las seis. Con $(-2, 0)$ también, con determinante $-2$. Con $\\hat{\\jmath}$ en $(0, -1)$ el determinante es $-1$ y falla con todas. Intercambiar las columnas también da $-1$, pero la segunda salida pasa a ser la intensidad y acierta solo tres.',
+          lab: capaLab(RESENAS, { readout: MIRA_SALIDA_2 }),
+          goals: [
+            { metric: 'det', op: 'lte', target: -1, label: 'Determinante de la capa' },
+            ACIERTOS,
+          ],
+          solved: { ix: -1 },
         },
         {
           id: 'determinante.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Si una capa de una red neuronal tiene determinante $0$, aplasta una dirección entera: dos entradas distintas pueden salir iguales, y ninguna capa posterior podrá distinguirlas. Por eso los modelos que necesitan volver atrás, como los flujos normalizadores, exigen capas **invertibles**: con determinante $0$ no hay camino de vuelta.',
-            aim: 'Vas a llevar $\\hat{\\jmath}$ a la recta de $\\hat{\\imath}$ y a ver cómo el paralelogramo se adelgaza hasta un segmento: el plano entero cae sobre una recta.',
+            why: 'Una capa con determinante muy pequeño no llega a aplastar, pero casi: dos entradas distintas salen casi en el mismo sitio. Un poco de redondeo o de ruido basta para confundirlas, y deshacer la capa amplifica cualquier error. Lo mide el número de condición.',
+            aim: 'Vas a construir una capa casi plana que deje «genial» y «feliz» casi encima, sin fundir ninguna pareja y sin que llegue a aplastar.',
             takeaway:
-              'Determinante $0$ es área $0$: las columnas son paralelas y una dirección del plano se pierde. Lo perdido no se recupera con ninguna operación posterior, así que una matriz con $\\det A=0$ no tiene inversa.',
+              'Con una capa casi plana nada se funde y la neurona acierta, pero «genial» y «feliz» quedan casi encima. Si la capa aplasta del todo, se funden. Entre «casi» y «del todo» solo cambia un número: por eso preocupa un determinante pequeño.',
           },
           prompt:
-            'Con $\\hat{\\imath}=(2, 1)$ fijo, aplasta el plano sobre una recta: mueve $\\hat{\\jmath}$ hasta que $\\det A=0$. Para descartar la solución trivial de poner $\\hat{\\jmath}$ en el origen, la punta de $\\hat{\\jmath}$ tiene que quedar en $x=-2$. Mira el paralelogramo: cuanto más se acerca el determinante a $0$, más se adelgaza.',
+            '«genial» y «feliz» son casi sinónimos: están a $0{,}71$. Una capa casi plana los acercaría aún más sin llegar a fundirlos.\n\nConstruye una capa que los deje a $0{,}5$ o menos, sin fundir ninguna pareja y con un determinante de al menos $0{,}1$: que no llegue a aplastar.',
           hints: [
-            'Para que el área sea $0$, $\\hat{\\jmath}$ tiene que estar en la recta que pasa por $\\hat{\\imath}$ y por el origen. ¿Qué punto de esa recta tiene $x=-2$?',
-            'En esa recta, la $y$ vale la mitad de la $x$. También puedes plantear $2y-x\\cdot 1=0$.',
+            'La línea entre «genial» y «feliz» va en diagonal: difieren lo mismo en intensidad que en tono. La capa tiene que encoger esa dirección.',
+            'Inclina $\\hat{\\jmath}$ hacia la izquierda y acórtala, hacia el lado opuesto de $\\hat{\\imath}$, sin llegar a su recta: si cae en ella, el determinante es $0$.',
           ],
           explain:
-            'Un determinante cero significa área cero: $\\hat{\\imath}$ y $\\hat{\\jmath}$ están en la misma recta, y el paralelogramo se ha reducido a un segmento. Todo el plano se aplasta sobre esa recta.',
+            '«genial» y «feliz» se diferencian en $0{,}5$ de intensidad y $0{,}5$ de tono: tras la capa, su distancia es la mitad de lo que mide $\\hat{\\imath}+\\hat{\\jmath}$. Para acercarlas, esa suma tiene que encoger: las columnas quedan casi opuestas, el cuadrado unidad se adelgaza y el determinante baja.',
           solution:
-            'El determinante es $2y-x\\cdot 1$; con $x=-2$, la ecuación $2y+2=0$ da $y=-1$. Así, $\\hat{\\jmath}=(-2, -1)=-\\hat{\\imath}$, paralelo a $\\hat{\\imath}$. El paralelogramo es un segmento de área $0$ y todo el plano cae sobre esa recta. Una matriz así no tiene inversa: ya no se sabe qué punto de partida dio cada punto de llegada.',
-          plane: fixedIPlane({ i: [2, 1], range: 3, readouts: ['matrix', 'det'] }),
-          goals: [{ metric: 'x', of: ['j'], target: -2, tol: 0.01 }, detGoal(0)],
+            'Con $\\hat{\\jmath}$ en $(-0{,}5;\\ 0{,}5)$ el determinante es $0{,}5$: «genial» y «feliz» quedan a $0{,}35$, ninguna pareja se funde y la neurona acierta las seis. Encoger toda la capa a la mitad también vale. Con $\\hat{\\jmath}$ en $(-1, 0)$ quedan a $0$: el determinante es $0$ y se funden. Una capa así es invertible en teoría, pero un error pequeño a la salida crece mucho al deshacerla.',
+          lab: capaLab(RESENAS, { readout: MIRA_SALIDA_2, pair: ['genial', 'feliz'] }),
+          goals: [
+            {
+              metric: 'pair_dist',
+              op: 'lte',
+              target: 0.5,
+              label: 'Distancia entre «genial» y «feliz»',
+            },
+            { metric: 'merged', op: 'lte', target: 0, label: FUNDIDAS, format: 'integer' },
+            { metric: 'det', op: 'gte', target: 0.1, label: 'Determinante de la capa' },
+          ],
+          solved: { jx: -0.5, jy: 0.5 },
         },
       ],
     },
@@ -156,118 +184,126 @@ export const determinante: Project = {
       questions: [
         {
           id: 'determinante.ex01.1',
-          type: 'numero',
+          type: 'opcion',
           purpose: {
-            why: 'Una matriz de $2\\times 2$ aparece como la covarianza de dos rasgos o como una capa de un modelo de juguete, y antes de usarla conviene saber si es **invertible** y cuánto escala. El determinante responde a las dos cosas con una sola cuenta, $ad-bc$, y es la comprobación rápida que se hace a mano antes de fiarse de un resultado de la máquina.',
-            aim: 'Vas a calcular el determinante de una matriz con una entrada negativa y a cuidar el signo de cada producto. Verás que una resta mal leída cambia el resultado entero, y con él lo que dirías de la matriz.',
+            why: 'Antes de fiarse de una capa conviene saber si pierde información: si su matriz tiene determinante $0$, hay entradas distintas que salen iguales. Con los pesos delante, la comprobación es una cuenta de dos productos.',
+            aim: 'Vas a decidir si una capa con pesos con nombre pierde información, calculando su determinante a partir de lo que hace cada salida.',
             takeaway:
-              'El número que sale es el factor de área de la matriz y, al ser distinto de cero, dice que no aplasta el plano: la matriz tiene inversa. Con entradas de este tamaño, un determinante muy cercano a $0$ avisaría de que está a punto de perder una dirección. En matrices grandes eso no basta, porque el determinante también crece o encoge con la escala de los números: para saber si una matriz está cerca de no tener inversa se mira otra medida, el **número de condición** (`np.linalg.cond`).',
+              'La salida 2 es la salida 1 cambiada de signo: la capa solo da un número útil y su determinante es $0$. «horrible» y «triste» salen en el mismo punto, y nada posterior las separa.',
           },
           prompt:
-            'Para una matriz $A=\\begin{pmatrix}a&b\\\\c&d\\end{pmatrix}$, el determinante es $\\det A=ad-bc$. Calcula $\\det A$ con $A=\\begin{pmatrix}2&-3\\\\1&4\\end{pmatrix}$.',
+            'Una capa calcula, para cada reseña:\n\n$$\\text{salida 1}=0{,}5\\cdot\\text{intensidad}+\\text{tono}\\qquad\\text{salida 2}=-0{,}5\\cdot\\text{intensidad}-\\text{tono}$$\n\n¿Pierde información? Puedes construir la capa en el laboratorio y mirar dónde caen las palabras.',
           hints: [
-            'Multiplica la diagonal principal, $a\\cdot d$, y después $b\\cdot c$, con su signo.',
-            'Restar un número negativo es sumarlo.',
+            'Escribe la matriz: una fila por salida y una columna por rasgo. Después calcula $ad-bc$, con el signo de cada producto.',
+            'En el laboratorio, $\\hat{\\imath}$ es la columna de la intensidad y $\\hat{\\jmath}$ la del tono. Mira si las palabras caen sobre una recta.',
           ],
           explain:
-            'El determinante resta dos productos: el de la diagonal principal menos el de la otra diagonal. Cuida el signo de $b\\cdot c$ antes de restar: aquí es negativo, y restarlo suma.',
+            'Una capa pierde información cuando su determinante es $0$: manda una dirección entera al origen y las palabras que difieren en esa dirección salen iguales. Que ningún peso sea $0$ no dice nada.',
           solution:
-            '$\\det A=2\\cdot 4-(-3)\\cdot 1=8+3=11$. Si te sale $5$, has sumado $ad+bc$ en lugar de restar, o has perdido el signo menos de $b$.',
-          answer: 11,
-          tol: 0,
+            'La matriz es $\\begin{pmatrix}0{,}5&1\\\\-0{,}5&-1\\end{pmatrix}$ : el producto de la diagonal, $-0{,}5$, menos el de la otra, también $-0{,}5$, da $\\det=0$. Sí pierde: «horrible» y «triste» salen las dos en $(-0{,}75;\\ 0{,}75)$. Si te sale $-1$, has sumado los dos productos en vez de restarlos.',
+          lab: capaLab(RESENAS),
+          options: [
+            'Sí: su determinante es $0$, y hay reseñas distintas que salen en el mismo punto',
+            'No: ningún peso de la matriz es $0$',
+            'No: su determinante es $-1$, y un determinante negativo solo voltea el plano',
+            'Sí: tiene pesos negativos, y un peso negativo borra su rasgo',
+          ],
+          correct: 0,
         },
         {
           id: 'determinante.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Cuando una tienda te recomienda cinco productos, no le sirve enseñarte cinco fundas de móvil casi iguales: busca **variedad**. Para medirla, cada producto se describe con un vector, y dos productos parecidos tienen vectores que apuntan casi hacia el mismo sitio. Un método que se usa para esto, los procesos puntuales determinantales, toma los vectores de la lista como lados de un paralelogramo y mide su área con un determinante (con más de dos vectores, mide un volumen). Si dos productos se parecen, el paralelogramo queda casi plano y el área se acerca a $0$; si son distintos, se abre y el área crece. Aquí lo haces con dos vectores en el plano.',
-            aim: 'Vas a calcular el área del paralelogramo que forman $\\vec{u}$ y $\\vec{v}$: los pones como columnas de una matriz, calculas su determinante y le quitas el signo, porque un área no puede ser negativa. Verás que ese signo solo dice en qué orden pusiste los dos vectores: si los cambias de orden, el determinante cambia de signo, pero el paralelogramo es el mismo y el área también.',
+            why: 'Un flujo normalizador, un tipo de modelo generativo, transforma datos simples con capas invertibles. Para saber cuánta probabilidad cae en cada sitio necesita saber cuánto estira cada capa las áreas: el valor absoluto de su determinante.',
+            aim: 'Vas a calcular el área de una región de reseñas después de una capa, a partir del área que tiene antes y del determinante.',
             takeaway:
-              'Con un área de $10$, los dos vectores aportan direcciones distintas; si fueran paralelos el área sería $0$ y uno sobraría. Un seleccionador de elementos variados prefiere los conjuntos de área grande, porque cada elemento añade algo que los demás no tienen.',
+              'El área pasa de $4{,}5$ a $9$: toda región se multiplica por $\\lvert\\det A\\rvert=2$, sea cual sea su forma. El signo menos solo dice que sale volteada; en un flujo, la densidad se dividiría por ese $2$.',
           },
           prompt:
-            'Un paralelogramo tiene por lados los vectores $\\vec{u}=(2, 3)$ y $\\vec{v}=(4, 1)$. Su área es $\\lvert\\det A\\rvert$, con $A$ la matriz que tiene a $\\vec{u}$ y $\\vec{v}$ por columnas. Calcula el área.',
+            'El cuadrilátero con esquinas en «bueno», «malo», «horrible» y «genial» mide $4{,}5$ de área. Una capa da la vuelta a la intensidad y dobla el tono:\n\n$$A=\\begin{pmatrix}-1&0\\\\0&2\\end{pmatrix}$$\n\n¿Qué área tiene ese cuadrilátero a la salida? Puedes construir la capa en el laboratorio y mirarlo.',
           hints: [
-            'La matriz es $A=\\begin{pmatrix}2&4\\\\3&1\\end{pmatrix}$: cada vector va en una columna.',
-            'Calcula $ad-bc$. Si te sale negativo, recuerda que un área no lo es.',
+            'Una capa multiplica todas las áreas por el mismo número. Calcula el determinante de $A$.',
+            'Un área no es negativa: usa el valor absoluto del determinante.',
           ],
           explain:
-            'El determinante lleva un signo, la orientación, y el área no: el área es su valor absoluto. El signo solo dice en qué orden están los dos vectores.',
+            'Las áreas se multiplican por $\\lvert\\det A\\rvert$: vale para el cuadrado unidad y para cualquier otra región. Aquí la matriz es diagonal, y el determinante es el producto de la diagonal.',
           solution:
-            '$\\det A=2\\cdot 1-4\\cdot 3=-10$, y el área es $\\lvert -10\\rvert=10$. El signo menos indica que $\\vec{v}$ queda a la derecha de $\\vec{u}$. Si cambias el orden de los dos vectores, el determinante pasa a $+10$ y el paralelogramo es el mismo.',
-          answer: 10,
+            '$\\det A=(-1)\\cdot 2-0\\cdot 0=-2$, así que el área se multiplica por $2$: $4{,}5\\cdot 2=9$. Si te sale $-9$, falta el valor absoluto. En el laboratorio, con $\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, 2)$, las reseñas pasan a la izquierda y se alargan en vertical.',
+          lab: capaLab(RESENAS),
+          answer: 9,
           tol: 0,
         },
         {
           id: 'determinante.ex01.3',
           type: 'numero',
           purpose: {
-            why: 'Para simular datos con varias variables correlacionadas, o para calcular la probabilidad de una distribución normal, se descompone la covarianza en una matriz **triangular** (la factorización de Cholesky). Se hace porque con una triangular las cuentas se simplifican: su determinante es el producto de la diagonal, sin más operaciones.',
-            aim: 'Vas a calcular el determinante de una matriz triangular y a descubrir qué número de la matriz no interviene. Verás cuánto trabajo te ahorra tener un cero en el sitio adecuado.',
+            why: 'Un buscador de frases guarda un vector por frase y devuelve las más cercanas. Si la capa que hace esos vectores aplasta, frases distintas acaban con el mismo vector y el buscador ya no puede elegir entre ellas.',
+            aim: 'Vas a contar cuántos puntos de salida distintos deja una capa que aplasta, sabiendo qué rasgo pierde.',
             takeaway:
-              'En una triangular el determinante se lee de la diagonal: $-8$ sale de $-2$ por $4$. Con matrices de miles de filas, esa diferencia separa una cuenta inmediata de una muy lenta, y por eso los métodos numéricos buscan una forma triangular antes de calcular nada.',
+              'Quedan $4$ salidas para $6$ palabras: la capa solo ve la intensidad, y las reseñas con la misma intensidad se funden. Con determinante $0$, las palabras que solo se distinguían por lo que se pierde caen juntas.',
           },
           prompt:
-            'Una matriz de $2\\times 2$ es **triangular** si tiene un cero fuera de la diagonal, como esta. Calcula $\\det A$ con $A=\\begin{pmatrix}-2&5\\\\0&4\\end{pmatrix}$.',
+            'Una capa calcula, para cada reseña:\n\n$$\\text{salida 1}=\\text{intensidad}\\qquad\\text{salida 2}=2\\cdot\\text{intensidad}$$\n\nLe llegan las seis reseñas. ¿En cuántos puntos distintos caen? Puedes construir la capa en el laboratorio y mirarlo.',
           hints: [
-            'Aplica $ad-bc$. ¿Cuánto vale $b\\cdot c$ cuando $c=0$?',
-            'Mira dónde van los vectores de la base: $\\hat{\\imath}$ va a $(-2, 0)$, sobre el eje $x$.',
+            'El tono no aparece en ninguna salida: dos reseñas con la misma intensidad salen en el mismo sitio.',
+            'Mira las intensidades de las seis reseñas y cuenta cuántos valores distintos hay.',
           ],
           explain:
-            'Con un cero fuera de la diagonal, uno de los dos productos desaparece y el determinante es el producto de la diagonal. El otro número, aquí el $5$, no interviene.',
+            'La salida solo depende de la intensidad, así que cada valor distinto de la intensidad da un punto. Las palabras que comparten intensidad comparten salida, aunque su tono sea opuesto.',
           solution:
-            '$\\det A=(-2)\\cdot 4-5\\cdot 0=-8$, el producto de la diagonal. En el plano, el paralelogramo tiene base $2$ (con signo menos, porque $\\hat{\\imath}$ apunta a la izquierda) y altura $4$. El $5$ solo inclina el paralelogramo, y las inclinaciones no cambian el área.',
-          answer: -8,
+            'Las intensidades son $2{,}5$, $1$, $2$, $2{,}5$, $1$ y $1{,}5$: cuatro valores distintos. «genial» y «horrible» caen en $(2{,}5;\\ 5)$, y «bueno» y «malo» en $(1, 2)$. Quedan $4$ puntos para $6$ palabras. Si respondes $6$, cuentas palabras y no salidas.',
+          lab: capaLab(RESENAS, { range: 5 }),
+          answer: 4,
           tol: 0,
         },
         {
           id: 'determinante.ex01.4',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'En visión por ordenador con nubes de puntos en 3D, como las de un coche autónomo o un modelo de una molécula, hay que distinguir un **giro** de un espejo. Un giro conserva la orientación y se acepta como cambio de punto de vista. Un espejo cambia la mano de la figura, y se reconoce porque su matriz tiene el determinante negativo.',
-            aim: 'Vas a mirar cuatro matrices y a decidir cuál invierte la orientación, fijándote solo en el signo del determinante. Verás que mirar los signos de las entradas lleva a error.',
+            why: 'Un flujo normalizador encadena capas y necesita el factor de área del conjunto. No multiplica las matrices: multiplica sus determinantes, porque cada capa escala lo que le deja la anterior.',
+            aim: 'Vas a obtener el determinante de tres capas seguidas a partir del de cada una, sin multiplicar ninguna matriz.',
             takeaway:
-              'Un determinante negativo es un espejo, y uno positivo, un giro o un estiramiento. Esta comprobación sirve para detectar un fallo en una tubería de datos: si una matriz que debía ser un giro sale con determinante $-1$, las figuras llegan reflejadas al modelo sin que nadie lo note.',
+              'El conjunto tiene determinante $-3$: las áreas se triplican y la orientación sale volteada, porque solo una capa voltea. La capa que encoge a la mitad compensa a la que dobla.',
           },
           prompt:
-            'Una transformación **voltea la orientación** del plano, como un espejo, cuando su determinante es negativo. ¿Cuál de estas matrices la voltea?',
+            'Tres capas de $2\\times 2$ van seguidas, sin activación en medio. Sus determinantes son $2$, $0{,}5$ y $-3$. ¿Cuánto vale el determinante de la capa única que equivale a las tres?',
           hints: [
-            'Calcula el determinante de cada una: solo importa su signo.',
-            'Que una matriz tenga entradas negativas no quiere decir que su determinante lo sea.',
+            'Cada capa multiplica por su determinante las áreas que le llegan.',
+            'Multiplica los tres, con su signo: $2$ por $0{,}5$ primero.',
           ],
           explain:
-            'Solo el signo del determinante decide la orientación, no el de las entradas. Calcula $ad-bc$ de las cuatro y mira cuál sale negativo.',
+            'Las áreas se escalan capa a capa: el determinante de un producto es el producto de los determinantes. Los determinantes se multiplican, no se suman.',
           solution:
-            'Los determinantes son $2\\cdot 1-1\\cdot 1=1$; $0\\cdot 0-(-1)\\cdot 1=1$ (el giro de un cuarto de vuelta, que conserva la orientación); $1\\cdot 1-3\\cdot 2=-5$; y $(-1)(-2)-0=2$. Solo la tercera es negativa. La cuarta tiene dos entradas negativas, pero su determinante es positivo: da la vuelta en dos direcciones, y las dos vueltas se compensan.',
-          options: [
-            '$\\begin{pmatrix}2&1\\\\1&1\\end{pmatrix}$',
-            '$\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$',
-            '$\\begin{pmatrix}1&3\\\\2&1\\end{pmatrix}$',
-            '$\\begin{pmatrix}-1&0\\\\0&-2\\end{pmatrix}$',
-          ],
-          correct: 2,
+            '$2\\cdot 0{,}5\\cdot(-3)=-3$. Las dos primeras juntas dejan el área igual ($2\\cdot 0{,}5=1$) y la tercera la triplica y voltea el plano. Si sumas, sale $-0{,}5$, que no es el factor de ninguna de las tres.',
+          answer: -3,
+          tol: 0,
         },
         {
           id: 'determinante.ex01.5',
-          type: 'numero',
+          type: 'opcion',
           purpose: {
-            why: 'Un flujo normalizador encadena muchas capas, y calcular el determinante de la matriz que resulta de multiplicarlas todas sería costoso. No hace falta: el determinante de un producto es el producto de los determinantes. En la práctica se suman los **logaritmos** de cada capa, porque multiplicar muchos números pequeños acaba en cero en el ordenador.',
-            aim: 'Vas a calcular el determinante de dos capas seguidas sin multiplicarlas. Verás que cada capa aporta su factor de área y que el signo también se compone.',
+            why: 'En las capas grandes de un modelo, el determinante sale a menudo diminuto o enorme aunque la capa no pierda nada, porque multiplica cientos de factores. Por eso los flujos normalizadores usan su logaritmo, y para saber si una capa casi aplasta se mira el número de condición.',
+            aim: 'Vas a interpretar el determinante de una capa de 768 dimensiones que encoge un poco cada eje, y a decidir si pierde información.',
             takeaway:
-              'El factor de las dos capas juntas es $-6$, el producto de los dos. Un modelo con muchas capas toma el logaritmo del valor absoluto de cada una y los suma. La suma es estable, y el signo se anota aparte, porque solo dice si la pareja voltea la orientación.',
+              'Cada eje solo se encoge un 10 %, y la capa se deshace dividiendo por $0{,}9$: no pierde nada. Su determinante es diminuto solo porque multiplica 768 factores. Su número de condición es $1$, el mejor posible.',
           },
           prompt:
-            'Dos capas lineales de $2\\times 2$ van seguidas, sin activación en medio: primero $W_1$, con $\\det W_1=2$, y después $W_2$, con $\\det W_2=-3$. Juntas equivalen a la matriz $W_2W_1$. Sin multiplicar las matrices, ¿cuánto vale $\\det(W_2W_1)$?',
+            'Una capa de $768\\times 768$ multiplica cada coordenada del embedding por $0{,}9$ y no mezcla ninguna con otra. Su determinante es $0{,}9^{768}\\approx 7\\cdot 10^{-36}$. ¿Qué dice ese número?',
           hints: [
-            'Cada capa multiplica las áreas por su determinante. ¿Por cuánto las multiplican las dos, una tras otra?',
-            'El signo también se compone: la capa $W_2$ voltea el plano y la $W_1$ no.',
+            'Piensa en una sola coordenada: ¿cuánto se acercan dos palabras que solo se diferencian en ella?',
+            'El determinante de una matriz diagonal es el producto de su diagonal: $0{,}9$ multiplicado $768$ veces.',
           ],
           explain:
-            'Cada transformación escala el área por su determinante, así que dos seguidas la escalan por el producto de los dos: $\\det(AB)=\\det A\\cdot\\det B$. Los determinantes se multiplican, no se suman.',
+            'Una capa diagonal multiplica cada dirección por su número de la diagonal, y su determinante es el producto de todos. Muchos factores algo menores que $1$ dan un producto minúsculo, aunque ninguna dirección se aplaste.',
           solution:
-            '$\\det(W_2W_1)=2\\cdot(-3)=-6$. Las dos capas juntas multiplican las áreas por $6$, y el signo menos dice que la pareja voltea la orientación, porque solo $W_2$ lo hace. Este es el factor de área de la capa única equivalente.',
-          answer: -6,
-          tol: 0,
+            'La segunda. La distancia entre dos palabras cualesquiera se multiplica por $0{,}9$: nada se funde ni queda casi encima, y la capa se deshace multiplicando por $1/0{,}9$. El logaritmo del determinante, $768\\cdot\\ln 0{,}9\\approx -80{,}9$, es la cifra con la que trabaja un flujo. El determinante es positivo: no voltea nada.',
+          options: [
+            'Que la capa casi aplasta: habrá palabras que queden casi encima',
+            'Que la capa no pierde nada: encoge un poco cada uno de los 768 ejes, y esos 768 factores multiplicados dan un número diminuto',
+            'Que la capa voltea el espacio',
+            'Que hay un error: un determinante no puede ser tan pequeño sin ser $0$',
+          ],
+          correct: 1,
         },
       ],
     },

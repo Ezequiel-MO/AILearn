@@ -1,51 +1,58 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Determinante». La entrada
- * generada `examen-1.determinante` la añade otro paso. Ids: `examen-1.<tema>`, únicos en todo el
- * juego (también frente a las preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Determinante»: un laboratorio
+ * (aplastar en la dirección que no importa, con otros datos), una cuenta de un flujo normalizador y
+ * una de código. La entrada generada `examen-1.determinante` la añade otro paso. Ids:
+ * `examen-1.<tema>`, únicos en todo el juego (también frente a las preguntas de proyecto).
  */
 export const examen1Determinante: BankEntry[] = [
   {
     project: 'determinante',
     question: {
-      id: 'examen-1.determinante-escala',
-      type: 'opcion',
+      id: 'examen-1.aplastar-animales',
+      type: 'laboratorio',
       prompt:
-        'Una matriz $A$ de $2\\times 2$ tiene $\\det A=4$. ¿Cuánto vale $\\det(3A)$, con $3A$ la matriz que multiplica por $3$ cada entrada de $A$?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. La neurona siguiente mira la primera salida (el eje horizontal) y responde «mascota» a lo que cae en la zona sombreada. Ahora ahí llega el tamaño.\n\nHaz una capa que aplaste el plano (determinante $0$) y con la que la neurona acierte los seis.',
       hints: [
-        '$3A$ es el producto de $3I$ por $A$, y $3I$ estira el plano por $3$ en horizontal y en vertical.',
-        'Cada transformación escala las áreas por su determinante: calcula $\\det(3I)$.',
+        'El tamaño no distingue un perro de un lobo. La capa puede perder ese rasgo entero: lo que no puede perder es el otro.',
+        'Lleva $\\hat{\\imath}$ (el tamaño) al origen y $\\hat{\\jmath}$ (la domesticidad) sobre el eje horizontal, hacia la derecha.',
       ],
       explain:
-        'El determinante de un producto es el producto de los determinantes. $3A$ es $A$ seguida de un estiramiento uniforme por $3$, que multiplica las áreas por $9$ y no por $3$.',
+        'Con determinante $0$ la capa pierde una dirección. Si es la del tamaño, la primera salida puede ser la domesticidad, que es lo único que necesita la neurona.',
       solution:
-        '$3A=(3I)A$ y $\\det(3I)=3\\cdot 3-0\\cdot 0=9$, luego $\\det(3A)=9\\cdot 4=36$. En una matriz de $2\\times 2$, multiplicar cada entrada por $k$ multiplica el determinante por $k^2$: cada una de las dos direcciones del plano se estira por $k$.',
-      options: [
-        '$12$, porque el determinante también se multiplica por $3$',
-        '$36$, porque $3A$ estira por $3$ en las dos direcciones y las áreas se multiplican por $3\\cdot 3$',
-        '$7$, porque $\\det(3A)=3+\\det A$',
-        '$4$, porque estirar el plano no cambia el determinante',
+        'Con $\\hat{\\imath}$ en $(0, 0)$ y $\\hat{\\jmath}$ en $(1, 0)$, cada animal cae sobre el eje horizontal según su domesticidad: determinante $0$ y seis aciertos. Si en cambio llevas $\\hat{\\jmath}$ al origen, el determinante también es $0$, pero se pierde la domesticidad y la neurona dice «mascota» a todos.',
+      lab: capaLab(ANIMALES, { readout: { w: [1, 0], b: 0 } }),
+      goals: [
+        { metric: 'det', op: 'eq', target: 0, label: 'Determinante de la capa' },
+        {
+          metric: 'acc',
+          op: 'gte',
+          target: 1,
+          label: 'Aciertos de la neurona siguiente',
+          format: 'percent',
+        },
       ],
-      correct: 1,
+      solved: { ix: 0, jx: 1, jy: 0 },
     },
   },
   {
     project: 'determinante',
     question: {
-      id: 'examen-1.area-imagen',
+      id: 'examen-1.densidad-flujo',
       type: 'numero',
       prompt:
-        'La matriz $A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}$ transforma un cuadrado de área $5$. ¿Qué área tiene su imagen?',
+        'Un flujo normalizador pasa sus datos por una capa invertible:\n\n$$A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$$\n\nAlrededor de un punto, la densidad de probabilidad es $0{,}3$. La probabilidad de una región no cambia al pasar por la capa, pero su área sí. ¿Qué densidad hay alrededor del punto de llegada?',
       hints: [
-        'Una matriz multiplica todas las áreas por el mismo factor: $\\lvert\\det A\\rvert$.',
-        'Este determinante es negativo: la figura sale volteada, pero su área no es negativa.',
+        'Calcula por cuánto multiplica la capa las áreas: $\\lvert\\det A\\rvert$.',
+        'Si la misma probabilidad se reparte en un área mayor, la densidad baja en la misma proporción.',
       ],
       explain:
-        'Toda área se multiplica por $\\lvert\\det A\\rvert$, sea cual sea la figura. Usa el valor absoluto, porque un área no tiene signo.',
+        'Probabilidad es densidad por área. Si la capa multiplica las áreas por $\\lvert\\det A\\rvert$ y la probabilidad se conserva, la densidad se divide por ese mismo número.',
       solution:
-        '$\\det A=1\\cdot 4-2\\cdot 3=-2$, luego las áreas se multiplican por $\\lvert -2\\rvert=2$ y la imagen tiene área $5\\cdot 2=10$. Si te sale $-10$, has olvidado el valor absoluto; si te sale $5$, no has aplicado el factor de la matriz.',
-      answer: 10,
+        '$\\det A=2\\cdot 2-1\\cdot 1=3$: las áreas se triplican, y la densidad pasa de $0{,}3$ a $0{,}3/3=0{,}1$. Si multiplicas, sale $0{,}9$, que daría más probabilidad de la que había.',
+      answer: 0.1,
       tol: 0,
     },
   },
