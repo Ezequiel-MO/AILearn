@@ -1,0 +1,312 @@
+/* === Laboratorio «lora»: una corrección de rango bajo sobre una capa congelada === */
+
+.lora__zone {
+  fill: var(--lab-g1);
+  fill-opacity: 0.1;
+}
+
+.lora__boundary {
+  stroke: var(--lab-g1);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+}
+
+/* La recta de B: todas las flechas de desplazamiento son paralelas a ella. */
+.lora__b-line {
+  stroke: var(--lab-t0);
+  stroke-opacity: 0.35;
+  stroke-width: 1.5;
+  stroke-dasharray: 2 5;
+}
+
+.lora__b line {
+  stroke: var(--lab-t0);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.lora__b polygon {
+  fill: var(--lab-t0);
+}
+
+.lora__b text {
+  fill: var(--lab-t0);
+  font-size: 17px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+}
+
+/* Grupos: el color de cada palabra y de lo que se dibuja de ella. */
+.lora__points circle,
+.lora__labels text,
+.lora__shifts g,
+.lora__target,
+.lora__legend li {
+  --group: var(--lab-g3);
+}
+
+.lora__points circle[data-group='0'],
+.lora__labels text[data-group='0'],
+.lora__shifts g[data-group='0'],
+.lora__target[data-group='0'],
+.lora__legend li[data-group='0'] {
+  --group: var(--lab-g0);
+}
+
+.lora__points circle[data-group='1'],
+.lora__labels text[data-group='1'],
+.lora__shifts g[data-group='1'],
+.lora__target[data-group='1'],
+.lora__legend li[data-group='1'] {
+  --group: var(--lab-g1);
+}
+
+.lora__points circle[data-group='2'],
+.lora__labels text[data-group='2'],
+.lora__shifts g[data-group='2'],
+.lora__target[data-group='2'],
+.lora__legend li[data-group='2'] {
+  --group: var(--lab-g2);
+}
+
+.lora__shifts line {
+  stroke: var(--group);
+  stroke-opacity: 0.8;
+  stroke-width: 1.75;
+}
+
+.lora__shifts polygon {
+  fill: var(--group);
+  fill-opacity: 0.85;
+}
+
+.lora__ghost {
+  fill: none;
+  stroke: var(--group);
+  stroke-opacity: 0.7;
+  stroke-width: 1.5;
+}
+
+.lora__target line {
+  stroke: var(--group);
+  stroke-opacity: 0.5;
+  stroke-dasharray: 4 3;
+}
+
+.lora__target circle {
+  fill: none;
+  stroke: var(--group);
+  stroke-width: 1.5;
+}
+
+.lora__points circle {
+  fill: var(--group);
+  stroke: var(--plane-area);
+  stroke-width: 1.5;
+  transition:
+    cx 90ms linear,
+    cy 90ms linear;
+}
+
+.lora__labels text {
+  fill: var(--group);
+  font-size: 14px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* --- Panel --- */
+.lora__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lora__legend li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--group);
+}
+
+.lora__legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--group);
+}
+
+/* Las tres matrices en fila (se apilan si no caben), con sus signos. */
+.lora__matrices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.lora__matrix {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.lora__matrix-title {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lora__matrix--frozen {
+  opacity: 0.75;
+  filter: saturate(0.4);
+}
+
+.lora__padlock {
+  fill: var(--lab-neutral);
+  stroke: var(--lab-neutral);
+  stroke-width: 1.5;
+}
+
+.lora__sign {
+  color: var(--color-text-muted);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.lora__grid {
+  display: grid;
+  gap: var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.lora__grid--2 {
+  grid-template-columns: repeat(2, minmax(3rem, 1fr));
+}
+
+.lora__grid--3 {
+  grid-template-columns: repeat(3, minmax(3rem, 1fr));
+}
+
+/* Color por signo (verde positivo, rojo negativo) e intensidad por magnitud. */
+.lora__cell {
+  --mag: 0;
+  --tint: var(--color-surface-raised);
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--tint) calc(var(--mag) * 55%), var(--color-surface-raised));
+  font-size: var(--text-base);
+  text-align: center;
+}
+
+.lora__cell[data-sign='pos'] {
+  --tint: var(--lab-good);
+}
+
+.lora__cell[data-sign='neg'] {
+  --tint: var(--lab-bad);
+}
+
+.lora__cell[data-tone='0'] {
+  outline: 1.5px solid var(--lab-t0);
+}
+
+.lora__cell[data-tone='1'] {
+  outline: 1.5px solid var(--lab-t1);
+}
+
+.lora__sliders {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.lora__sliders[data-tone='0'] legend {
+  color: var(--lab-t0);
+}
+
+.lora__sliders[data-tone='1'] legend {
+  color: var(--lab-t1);
+}
+
+.lora__sliders legend {
+  padding: 0 var(--space-1);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+/* Parámetros de una capa real: dos barras en escala logarítmica con el número escrito. */
+.lora__size {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.lora__size-title {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lora__bar {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.lora__bar-label {
+  font-size: var(--text-sm);
+}
+
+.lora__bar-track {
+  display: block;
+  height: 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.lora__bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-sm);
+  background: var(--lab-neutral);
+  transition: width 120ms linear;
+}
+
+.lora__bar[data-kind='lora'] .lora__bar-track span {
+  background: var(--lab-t1);
+}
+
+.lora__bar-number {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.lora__percent {
+  margin: 0;
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lora__points circle,
+  .lora__bar-track span {
+    transition: none;
+  }
+}

@@ -2,12 +2,15 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { labQSchema, numeroQSchema, type LabQ } from '../../content/schema';
 import { checkLab } from '../../content/validate';
+import { atencionSamples } from '../dev/labs/atencion';
 import { capaSamples } from '../dev/labs/capa';
+import { compresionSamples } from '../dev/labs/compresion';
+import { loraSamples } from '../dev/labs/lora';
 import { QuestionView } from '../questions/QuestionView';
 import { t } from '../strings';
 
 /** Todas las muestras de la página de desarrollo: una por laboratorio y variante. */
-const samples = [...capaSamples];
+const samples = [...capaSamples, ...atencionSamples, ...compresionSamples, ...loraSamples];
 const labQuestions = samples.filter((q): q is LabQ => q.type === 'laboratorio');
 
 describe('muestras de laboratorio', () => {

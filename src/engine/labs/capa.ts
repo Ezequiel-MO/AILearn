@@ -5,6 +5,22 @@ import { mean, variance, type LabControl, type LabModel, type LabState, type Vec
  * lineal, la matriz A cuyas columnas se arrastran. Se ve cada palabra antes y después, y lo que le
  * pasa a lo que viene detrás: la neurona siguiente que clasifica, la dirección sobre la que se
  * proyecta, las palabras que dejan de distinguirse.
+ *
+ * MANDOS: `ix`, `iy` (columna î de A) y `jx`, `jy` (columna ĵ), según `movable`; `vx`, `vy` (la
+ * dirección v) si `probe.movable`. Todos en la rejilla `snap`, de −range a range.
+ *
+ * MÉTRICAS (siempre): `m11`, `m12`, `m21`, `m22` (A por filas), `det`, `area` (|det|), `det_total`
+ * (det de A·B), `merged` (parejas de palabras que caen en el mismo punto), `spread_x`, `spread_y`
+ * (varianza de cada coordenada de salida), `cov_xy` (su covarianza), `asym` (|m12 − m21|).
+ * Con `readout`: `acc` (fracción de palabras de los grupos 0 y 1 bien clasificadas), `hits` (cuántas),
+ * `margin` (distancia con signo a la frontera de la palabra más justa; negativa si alguna falla).
+ * Con `targets`: `target_err` (distancia a su diana de la palabra más lejana), `on_target` (cuántas la tocan).
+ * Con `pair`: `pair_dist0`, `pair_cos0` (antes de la capa) y `pair_dist`, `pair_cos` (después).
+ * Con `probe`: `v_norm`, `img_angle` (grados entre v y A·v), `stretch` (|A·v| / |v|), `rayleigh`
+ * (vᵀAv / vᵀv), `iter_norm` (|Aⁿ·v| con n = `iterate`), `iter_turn` (grados que gira el último paso),
+ * `var_v` (varianza de los puntos proyectados sobre la recta de v), `var_frac` (parte de la varianza
+ * total), `lost` (varianza que se pierde) y, con grupos 0 y 1: `sep_v` (separación de sus medias sobre v),
+ * `acc_v` (aciertos de cortar por el punto medio) y `gap_v` (hueco entre los grupos; negativo si se mezclan).
  */
 
 export interface CapaPoint {
@@ -184,6 +200,12 @@ const measure = (spec: CapaSpec, state: LabState): Record<string, number> => {
   out.merged = merged;
   out.spread_x = variance(imgs.map((p) => p[0]));
   out.spread_y = variance(imgs.map((p) => p[1]));
+  // Covarianza entre las dos coordenadas de salida: 0 si la capa las deja sin relación (decorreladas).
+  const mx = mean(imgs.map((p) => p[0]));
+  const my = mean(imgs.map((p) => p[1]));
+  out.cov_xy = mean(imgs.map((p) => (p[0] - mx) * (p[1] - my)));
+  // Cuánto le falta a A para ser simétrica.
+  out.asym = Math.abs(a[1] - a[2]);
 
   if (spec.readout) {
     const { w, b } = spec.readout;
@@ -237,6 +259,9 @@ const measure = (spec: CapaSpec, state: LabState): Record<string, number> => {
     out.rayleigh = vn === 0 ? NaN : dot(v, av) / (vn * vn);
     const last = scene.path[scene.path.length - 1]!;
     out.iter_norm = norm(last);
+    // Cuánto gira el último paso: tiende a 0 cuando el camino se alinea con la dirección dominante.
+    const prev = scene.path.length > 1 ? scene.path[scene.path.length - 2]! : null;
+    out.iter_turn = prev ? degrees(cos(prev, last)) : NaN;
 
     const source = pts.map((p) => scene.projected[p.id]!);
     const along = source.map((p) => (vn === 0 ? NaN : dot(p, v) / vn));

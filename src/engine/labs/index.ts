@@ -1,4 +1,7 @@
+import { atencion, type AtencionSpec } from './atencion';
 import { capa, type CapaSpec } from './capa';
+import { compresion, type CompresionSpec } from './compresion';
+import { lora, type LoraSpec } from './lora';
 import {
   goalMet,
   settle,
@@ -14,12 +17,15 @@ export type { LabControl, LabGoal, LabState, LabValues, GoalOp } from './types';
 export { goalMet, settle, settleValue, startState, stateProblems } from './types';
 
 /** Todo laboratorio. Uno nuevo entra aquí, en `MODELS` y en `labSpecSchema` (`src/content/labs.ts`). */
-export type LabSpec = CapaSpec;
+export type LabSpec = CapaSpec | AtencionSpec | CompresionSpec | LoraSpec;
 
 export type LabKind = LabSpec['kind'];
 
 const MODELS: { [K in LabKind]: LabModel<Extract<LabSpec, { kind: K }>> } = {
   capa,
+  atencion,
+  compresion,
+  lora,
 };
 
 const modelOf = (spec: LabSpec): LabModel<LabSpec> => MODELS[spec.kind] as LabModel<LabSpec>;

@@ -41,6 +41,9 @@ export const capaStrings = {
       stretch: 'Cuánto estira A a v',
       rayleigh: 'vᵀAv / vᵀv',
       iter_norm: 'Longitud tras aplicar A varias veces',
+      iter_turn: 'Giro del último paso',
+      cov_xy: 'Covarianza entre las dos coordenadas de salida',
+      asym: 'Lo que le falta a A para ser simétrica',
       var_v: 'Varianza sobre la recta de v',
       var_frac: 'Parte de la varianza que conserva la recta de v',
       lost: 'Varianza que se pierde',
@@ -61,4 +64,5 @@ export const capaFormats: Record<string, ValueFormat> = {
   hits: 'integer',
   on_target: 'integer',
   img_angle: 'degrees',
+  iter_turn: 'degrees',
 };

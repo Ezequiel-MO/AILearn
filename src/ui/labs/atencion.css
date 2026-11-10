@@ -1,0 +1,260 @@
+/* === Laboratorio «atención»: la frase, el plano de claves y los pesos === */
+
+.atencion__stack {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* --- La frase --- */
+.atencion__arcs path {
+  fill: none;
+  stroke: var(--lab-g2);
+  stroke-linecap: round;
+}
+
+.atencion__arcs path[data-top='true'] {
+  stroke: var(--lab-g0);
+}
+
+.atencion__chip rect {
+  fill: var(--color-surface-raised);
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+
+.atencion__chip text {
+  fill: var(--color-text);
+  font-family: var(--font-sans);
+}
+
+.atencion__chip--focus rect {
+  stroke: var(--lab-t0);
+  stroke-width: 3;
+}
+
+.atencion__chip--focus text {
+  fill: var(--lab-t0);
+  font-weight: 600;
+}
+
+.atencion__chip--masked {
+  opacity: 0.45;
+}
+
+.atencion__chip--masked rect {
+  stroke-dasharray: 4 3;
+}
+
+.atencion__chip--masked text {
+  text-decoration: line-through;
+}
+
+.atencion__lock path {
+  fill: none;
+  stroke: var(--lab-neutral);
+  stroke-width: 1.5;
+}
+
+.atencion__lock rect {
+  fill: var(--lab-neutral);
+}
+
+.atencion__looking {
+  fill: var(--lab-t0);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+/* --- El plano de claves --- */
+.atencion__key line {
+  stroke: var(--lab-g3);
+  stroke-opacity: 0.6;
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.atencion__key polygon {
+  fill: var(--lab-g3);
+  fill-opacity: 0.7;
+}
+
+.atencion__key--top line {
+  stroke: var(--lab-g0);
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+
+.atencion__key--top polygon {
+  fill: var(--lab-g0);
+  fill-opacity: 1;
+}
+
+.atencion__key--masked {
+  opacity: 0.3;
+}
+
+.atencion__query line {
+  stroke: var(--lab-t0);
+  stroke-width: 3.5;
+  stroke-linecap: round;
+}
+
+.atencion__query polygon {
+  fill: var(--lab-t0);
+}
+
+.atencion__labels text {
+  fill: var(--lab-g3);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.atencion__labels .atencion__label--top {
+  fill: var(--lab-g0);
+  font-weight: 700;
+}
+
+.atencion__labels .atencion__label--masked {
+  opacity: 0.45;
+}
+
+.atencion__labels .atencion__qname {
+  fill: var(--lab-t0);
+  font-size: 17px;
+  font-style: italic;
+}
+
+/* --- Los pesos --- */
+.atencion__title {
+  margin: 0 0 var(--space-2);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.atencion__weights ul {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.atencion__bar {
+  display: grid;
+  grid-template-columns: minmax(3.5rem, auto) 1fr auto;
+  grid-template-areas:
+    'name track pct'
+    '. score score';
+  gap: 0 var(--space-3);
+  align-items: center;
+}
+
+.atencion__bar-name {
+  grid-area: name;
+  font-size: var(--text-sm);
+}
+
+.atencion__bar--focus .atencion__bar-name {
+  color: var(--lab-t0);
+  font-weight: 600;
+}
+
+.atencion__bar-track {
+  grid-area: track;
+  display: block;
+  height: 0.9rem;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+}
+
+.atencion__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--lab-g2);
+  transition: width 120ms linear;
+}
+
+.atencion__bar--top .atencion__bar-fill {
+  background: var(--lab-g0);
+}
+
+.atencion__bar-pct {
+  grid-area: pct;
+  min-width: 4.5rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: right;
+}
+
+.atencion__bar-score {
+  grid-area: score;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-align: right;
+}
+
+.atencion__bar--masked {
+  opacity: 0.55;
+}
+
+/* --- El mapa completo --- */
+.atencion__heat {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.atencion__heatmap {
+  max-width: 24rem;
+}
+
+.atencion__axis-label {
+  fill: var(--color-text-muted);
+  font-family: var(--font-sans);
+  font-size: 12px;
+}
+
+.atencion__axis-label--focus {
+  fill: var(--lab-t0);
+  font-weight: 600;
+}
+
+.atencion__cell-bg {
+  fill: var(--plane-area);
+  stroke: var(--color-border);
+}
+
+.atencion__cell-fill {
+  fill: var(--lab-g2);
+}
+
+.atencion__cell-text {
+  fill: var(--color-text);
+  font-size: 11px;
+}
+
+.atencion__hatch {
+  stroke: var(--lab-neutral);
+  stroke-width: 1;
+}
+
+.atencion__focus-row {
+  fill: none;
+  stroke: var(--lab-t0);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .atencion__bar-fill {
+    transition: none;
+  }
+}

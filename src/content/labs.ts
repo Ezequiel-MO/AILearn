@@ -1,6 +1,9 @@
 import { z } from 'zod';
 import type { CapaSpec } from '../engine/labs/capa';
 import type { LabGoal } from '../engine/labs';
+import { atencionSchema } from './labs/atencion';
+import { compresionSchema } from './labs/compresion';
+import { loraSchema } from './labs/lora';
 
 /**
  * Esquemas de los laboratorios (`src/engine/labs`): uno por `kind`, con la misma forma que su `Spec`
@@ -72,7 +75,13 @@ export const capaSchema = z
     if (s.iterate !== undefined && !s.probe) issue(['iterate'], 'iterate exige probe');
   }) satisfies z.ZodType<CapaSpec>;
 
-export const labSpecSchema = capaSchema;
+/** Todo laboratorio: el esquema de cada `kind` vive en `./labs/<kind>.ts` (el de `capa`, aquí arriba). */
+export const labSpecSchema = z.discriminatedUnion('kind', [
+  capaSchema,
+  atencionSchema,
+  compresionSchema,
+  loraSchema,
+]);
 
 /**
  * Una meta del laboratorio, con el rótulo que ve el jugador en su medidor: «Aciertos de la neurona

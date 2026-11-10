@@ -1,0 +1,194 @@
+/* === Laboratorio «compresion»: una matriz como suma de capas de rango 1 (SVD) === */
+
+.compresion {
+  --compresion-white: #f1f4f9;
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.compresion__matrices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.compresion__matrix {
+  display: grid;
+  flex: 1 1 8rem;
+  gap: var(--space-2);
+  margin: 0;
+  min-width: 0;
+  max-width: 18rem;
+  align-content: start;
+}
+
+.compresion__matrix figcaption {
+  display: grid;
+  gap: 2px;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text-muted, var(--lab-neutral));
+}
+
+.compresion__matrix figcaption strong {
+  color: var(--color-text);
+}
+
+.compresion__grid {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-mono);
+}
+
+.compresion__bg {
+  fill: var(--plane-area);
+  stroke: var(--color-border);
+}
+
+.compresion__cell {
+  stroke: var(--plane-area);
+  stroke-width: 0.5;
+}
+
+.compresion__cell--gray {
+  fill: var(--compresion-white);
+}
+
+.compresion__cell--pos {
+  fill: var(--lab-g2);
+}
+
+.compresion__cell--neg {
+  fill: var(--lab-g1);
+}
+
+.compresion__cell--bad {
+  fill: var(--lab-bad);
+}
+
+.compresion__label {
+  font-size: 11px;
+  fill: var(--color-text);
+}
+
+.compresion__section {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.compresion__title {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-text);
+}
+
+/* La tira de capas: miniaturas con «+» entre ellas; las que no se suman, atenuadas. */
+.compresion__strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compresion__layer {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  width: 3.25rem;
+  padding: 3px;
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
+  opacity: 0.4;
+}
+
+.compresion__layer--on {
+  border-color: var(--lab-t0);
+  opacity: 1;
+}
+
+.compresion__layer-sigma {
+  font-size: 11px;
+  color: var(--color-text);
+}
+
+.compresion__plus {
+  color: var(--lab-neutral);
+  font-weight: 700;
+}
+
+/* Barras: los valores singulares y el almacenamiento. */
+.compresion__bars {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.compresion__bar {
+  display: grid;
+  grid-template-columns: 2.5rem 1fr 4rem;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.compresion__bar-value {
+  text-align: right;
+}
+
+.compresion__bar-track {
+  display: block;
+  height: 10px;
+  border-radius: 5px;
+  background: var(--plane-area);
+  overflow: hidden;
+}
+
+.compresion__bar-fill {
+  display: block;
+  height: 100%;
+  background: var(--lab-neutral);
+}
+
+.compresion__bar--on .compresion__bar-fill {
+  background: var(--lab-t0);
+}
+
+.compresion__store {
+  display: grid;
+  gap: 4px;
+}
+
+.compresion__store-text {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-text);
+}
+
+.compresion__bar-fill--full {
+  background: var(--lab-neutral);
+}
+
+.compresion__store .compresion__bar-fill:not(.compresion__bar-fill--full) {
+  background: var(--lab-t0);
+}
+
+/* A 360 px, las matrices se apilan de dos en dos y la tira de capas se reduce. */
+@media (max-width: 30rem) {
+  .compresion__matrix {
+    flex-basis: 7rem;
+  }
+
+  .compresion__layer {
+    width: 2.5rem;
+  }
+}

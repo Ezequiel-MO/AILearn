@@ -1,5 +1,8 @@
 import { fmt } from './format';
+import { atencionStrings } from './labs/atencion.strings';
 import { capaStrings } from './labs/capa.strings';
+import { compresionStrings } from './labs/compresion.strings';
+import { loraStrings } from './labs/lora.strings';
 
 // Todos los textos fijos de la interfaz, en castellano.
 //
@@ -79,6 +82,9 @@ export const t = {
     solve: 'Ver una solución',
     explore: 'Mueve los mandos para explorar: aquí no puntúan.',
     capa: capaStrings,
+    atencion: atencionStrings,
+    compresion: compresionStrings,
+    lora: loraStrings,
   },
 
   // --- Preguntas (tarea 10) ---
