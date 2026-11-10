@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { BankEntry, LabQ, Project, Question } from '../../src/content/schema';
-import { labMeasure, labSolved, type LabState, type LabValues } from '../../src/engine/labs';
+import {
+  labMeasure,
+  labSolved,
+  labStart,
+  type LabState,
+  type LabValues,
+} from '../../src/engine/labs';
+import { capaScene } from '../../src/engine/labs/capa';
 
 /**
  * Ayudantes para las pruebas de un proyecto escrito con laboratorios (petición de Oliver del
@@ -69,13 +76,40 @@ export const defineLabProjectTests = (project: Project, bank: readonly BankEntry
       expect(withLab.length).toBeGreaterThanOrEqual(3);
     });
 
-    it('el laboratorio de una pregunta de «Calcular» no trae lecturas', () => {
-      const out = calcular.flatMap((q) =>
-        'lab' in q && q.lab && 'readouts' in q.lab && (q.lab.readouts?.length ?? 0) > 0
-          ? [q.id]
-          : [],
-      );
-      // contract: guía de contenido 2026-11-10: la figura de «Calcular» va sin la lectura que da la respuesta; si hace falta una, la prueba del proyecto lo justifica
+    it('ninguna lectura del laboratorio de una pregunta numérica de «Calcular» vale la respuesta', () => {
+      const out = calcular.flatMap((q) => {
+        if (q.type !== 'numero' || !q.lab || !('readouts' in q.lab)) return [];
+        const values = labMeasure(q.lab, {});
+        return (q.lab.readouts ?? [])
+          .filter((m) => Math.abs((values[m] ?? NaN) - q.answer) <= Math.max(q.tol, 1e-9))
+          .map((m) => `${q.id}: la lectura ${m} enseña la respuesta`);
+      });
+      // contract: guía de contenido 2026-11-10: la figura de «Calcular» va sin la lectura que da la respuesta
+      expect(out).toEqual([]);
+    });
+
+    it('en un laboratorio capa, las palabras y las dianas caben en la ventana, al empezar y resuelto', () => {
+      const out = labs.flatMap((q) => {
+        const spec = q.lab;
+        if (spec.kind !== 'capa') return [];
+        const outside = (p: readonly [number, number]): boolean =>
+          Math.max(Math.abs(p[0]), Math.abs(p[1])) > spec.range + 1e-9;
+        const states: [string, LabState][] = [
+          ['al empezar', labStart(spec)],
+          ['resuelto', { ...labStart(spec), ...q.solved }],
+        ];
+        return [
+          ...states.flatMap(([when, state]) =>
+            Object.entries(capaScene(spec, state).images)
+              .filter(([, at]) => outside(at))
+              .map(([id]) => `${q.id}: «${id}» queda fuera de la ventana ${when}`),
+          ),
+          ...Object.entries(spec.targets ?? {})
+            .filter(([, at]) => outside(at))
+            .map(([id]) => `${q.id}: la diana de «${id}» queda fuera de la ventana`),
+        ];
+      });
+      // contract: revisión de la Órbita 2 (lo fijo cabe en la vista), llevada a los laboratorios: lo que no se ve no enseña
       expect(out).toEqual([]);
     });
 
