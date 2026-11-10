@@ -577,3 +577,32 @@ test('14. despegue del juego 3, pregunta 1: se mueve un punto del plano de curva
   await submitButton(page).click();
   await expect(page.locator('.runner__feedback')).toContainText('¡Correcto!');
 });
+
+test('15. Columnas, «Manipular», pregunta 1: se resuelve un laboratorio moviendo las columnas con el teclado', async ({
+  page,
+}) => {
+  await openWith(page, '/j/matrices/p/columnas/ex/0?abierto');
+  // contract: src/games/matrices/columnas.ts, ejercicio «Manipular» de 5 preguntas
+  await expect(progress(page)).toHaveText('1 de 5');
+
+  const meter = page.locator('.lab__goal-value');
+  // contract: columnas.ex00.1: al empezar, la neurona dice «positiva» a todo y acierta 3 de 6
+  await expect(meter).toContainText('50 %');
+
+  // contract: columnas.ex00.1, rejilla 0,5: ĵ de (0, 1) a (1, 0) y î de (1, 0) al origen dejan el tono en la salida 1
+  const j = page.getByRole('button', { name: /^Columna ĵ de la capa/ });
+  await j.focus();
+  for (const key of ['ArrowRight', 'ArrowRight', 'ArrowDown', 'ArrowDown']) {
+    await page.keyboard.press(key);
+  }
+  await expect(j).toHaveAccessibleName(/\(1, 0\)/);
+  const i = page.getByRole('button', { name: /^Columna î de la capa/ });
+  await i.focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  await expect(i).toHaveAccessibleName(/\(0, 0\)/);
+  await expect(meter).toContainText('100 %');
+
+  await submitButton(page).click();
+  await expect(page.locator('.runner__feedback')).toContainText('¡Correcto!');
+});

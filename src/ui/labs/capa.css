@@ -240,8 +240,22 @@
   text-align: center;
 }
 
+.capa__matrix th[scope='row'] {
+  padding-right: var(--space-1);
+  color: var(--color-text-muted);
+  font-weight: 400;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.capa__matrix td.capa__matrix-corner {
+  min-width: 0;
+  padding: 0;
+  background: none;
+}
+
 .capa__matrix td {
-  min-width: 4.5rem;
+  min-width: 3.5rem;
   padding: var(--space-2);
   border-radius: var(--radius-sm);
   background: var(--color-surface-raised);

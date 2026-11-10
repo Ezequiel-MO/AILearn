@@ -1,13 +1,28 @@
 import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { columnasWarmup } from './columnas.calentamiento';
-import { transformPlane } from './plane';
+import { CORREOS, RESENAS, RESENAS_NEGATIVIDAD, capaLab } from './datos';
 
-/** Primer proyecto de la Órbita 0: una matriz es la lista de adónde van î y ĵ. */
+/** Lo que mide casi toda meta de este proyecto: la neurona que viene detrás de la capa. */
+const ACIERTOS = {
+  metric: 'acc',
+  op: 'gte',
+  target: 1,
+  label: 'Aciertos de la neurona siguiente',
+  format: 'percent',
+} as const;
+
+/** La neurona siguiente solo mira la primera salida de la capa: responde al grupo 1 si es positiva. */
+const MIRA_SALIDA_1 = { w: [1, 0] as [number, number], b: 0 };
+
+/**
+ * Primer proyecto de la Órbita 0: cada columna de la matriz de una capa dice adónde manda la capa un
+ * rasgo, y de eso depende lo que puede leer la neurona que viene detrás.
+ */
 export const columnas: Project = {
   id: 'columnas',
   name: 'Columnas',
-  sub: 'Adónde van î y ĵ',
+  sub: 'Adónde manda la capa cada rasgo',
   bigPicture: {
     parts: ['linear'],
     text: 'Cada capa lineal de una red guarda una matriz de pesos $W$ y la aplica a todos los vectores que le llegan. Leer sus columnas como «adónde va cada eje» es leer qué hace la capa. En el GPT-2 pequeño, la primera capa del MLP de cada bloque es una matriz de $3072\\times 768$; aquí la ves en $2\\times 2$, donde cabe en un dibujo.',
@@ -19,138 +34,141 @@ export const columnas: Project = {
       questions: [
         {
           id: 'columnas.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Un **reflejo**, como un giro, no cambia longitudes ni ángulos: si se reflejara todo el espacio de un modelo de embeddings, cambiando el signo de una coordenada en todos los vectores, los cosenos y las búsquedas saldrían iguales. Lo único que cambia es la orientación, y la detecta el signo del determinante. En IA ese signo casi nunca decide nada; aquí sirve para aprender a leer el determinante, que en otras preguntas sí importa.',
-            aim: 'Vas a construir un espejo moviendo una sola flecha y a ver cómo lo delata el panel: el cuadrado unidad conserva su tamaño, pero se pone rojo y el determinante sale negativo.',
+            why: 'Una capa de una red es una matriz: recoloca todos los embeddings a la vez para que la neurona que viene detrás pueda decidir. Lo que esa neurona no tiene delante, no lo puede usar.',
+            aim: 'Vas a mover las columnas de una capa hasta que la neurona siguiente, que solo mira la primera salida, distinga las reseñas positivas de las negativas.',
             takeaway:
-              'El reflejo respecto al eje horizontal es $\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$, con determinante $-1$: el área no cambia y la orientación se invierte. Para comparar vectores por su coseno, un reflejo es tan inofensivo como un giro.',
+              'Cada columna dice adónde manda la capa un rasgo. La neurona acierta cuando la columna del tono apunta a la salida que ella mira; la intensidad, que no distingue, puede ir a otra parte. Entrenar una capa es encontrar esas columnas.',
           },
           prompt:
-            'Un **reflejo** respecto al eje horizontal da la vuelta al plano de arriba abajo, como un espejo apoyado sobre ese eje: $\\hat{\\imath}$, que está sobre el eje, se queda donde estaba, y $\\hat{\\jmath}$ pasa de apuntar arriba a apuntar abajo.\n\nArrastra las puntas hasta que $\\hat{\\imath}$ quede en $(1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$. Fíjate en el cuadrado unidad: se pone rojo y la lectura $\\det$ se vuelve negativa, porque el plano se ha dado la vuelta.',
+            'Seis reseñas de una palabra, con dos rasgos: **intensidad** y **tono**. La neurona siguiente solo mira la primera salida de la capa (el eje horizontal) y responde «positiva» a lo que cae en la zona sombreada. Ahora mismo ahí llega la intensidad, y dice «positiva» a todo.\n\nMueve las columnas de la capa hasta que acierte con las seis.',
           hints: [
-            'Solo hay que mover $\\hat{\\jmath}$: la punta baja del $(0, 1)$ al $(0, -1)$.',
-            'En la lectura de la matriz, la primera columna tiene que ser $1$ y $0$, y la segunda, $0$ y $-1$.',
+            'Mira qué distingue a «genial» de «horrible»: no es la intensidad, que es la misma. La columna de ese otro rasgo es la que tiene que apuntar hacia la zona sombreada.',
+            'Lleva la punta de $\\hat{\\jmath}$ (el tono) sobre el eje horizontal, hacia la derecha, y saca $\\hat{\\imath}$ (la intensidad) de ese eje: súbela o llévala al origen.',
           ],
           explain:
-            'Las columnas de la matriz son los sitios a los que van $\\hat{\\imath}$ y $\\hat{\\jmath}$. Un reflejo no estira nada: solo cambia el sentido de una de las dos flechas, y por eso el cuadrado unidad conserva su área pero queda del revés.',
+            'La primera salida es lo que la capa pone en el eje horizontal: la intensidad por la primera coordenada de $\\hat{\\imath}$ más el tono por la primera de $\\hat{\\jmath}$. Para que su signo sea el del tono, tiene que pesar el tono y no la intensidad.',
           solution:
-            '$\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$ dan la matriz $\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$. Todo punto $(x, y)$ acaba en $(x, -y)$. El determinante vale $-1$: el área no cambia, pero el signo negativo avisa de que la orientación del plano se ha invertido, y el cuadrado se ve rojo.',
-          plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
-          goals: [
-            { metric: 'x', of: ['i'], target: 1, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 0, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: -1, tol: 0.01 },
-          ],
+            'Una capa que vale: $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(1, 0)$. La primera salida pasa a ser el tono: positivo en «genial», «feliz» y «bueno», negativo en las otras tres, y la neurona acierta las seis. Hay muchas más: basta con que en la primera salida el tono pese bastante más que la intensidad. Al entrenar pasa igual: muchas matrices valen.',
+          lab: capaLab(RESENAS, { readout: MIRA_SALIDA_1 }),
+          goals: [ACIERTOS],
+          solved: { ix: 0, iy: 1, jx: 1, jy: 0 },
         },
         {
           id: 'columnas.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Al entrenar un modelo de visión se suelen deformar un poco las fotos (girarlas, estirarlas, **inclinarlas**) para que aprenda que un objeto torcido sigue siendo el mismo objeto: es el aumento de datos. Cada una de esas deformaciones es una matriz como la de esta pregunta, aplicada a las posiciones de los píxeles.',
-            aim: 'Vas a inclinar el plano moviendo solo $\\hat{\\jmath}$ y a ver que la rejilla entera se tuerce con él: los cuadrados se vuelven paralelogramos, pero las rectas siguen rectas y paralelas.',
+            why: 'Una neurona no responde a cualquier señal: tiene un umbral (su sesgo) y solo se activa si lo que le llega lo supera. Una señal débil se queda sin contar, aunque apunte al lado correcto.',
+            aim: 'Vas a hacer que una capa que ya manda el tono a la salida correcta lo mande con fuerza suficiente para una neurona que exige más.',
             takeaway:
-              'La inclinación $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ manda $(x, y)$ a $(x+y,\\ y)$ y tiene determinante $1$: deforma las formas sin cambiar su área. No destruye información, se puede deshacer, y por eso sirve para crear variantes de una foto sin perder nada de ella.',
+              'La longitud de una columna es cuánto pesa su rasgo en la salida. Alargar la columna del tono aleja las palabras de la frontera, y «bueno» pasa el umbral. Un peso grande en una capa es eso: un rasgo que cuenta mucho.',
           },
           prompt:
-            'Una **inclinación horizontal** deja cada recta horizontal en su altura, pero la desliza hacia la derecha tanto más cuanto más arriba está. $\\hat{\\imath}$ no se mueve, y $\\hat{\\jmath}$, que apuntaba arriba, se inclina hacia la derecha.\n\nLleva $\\hat{\\jmath}$ a $(1, 1)$ sin tocar $\\hat{\\imath}$. El cuadrado unidad se convierte en un paralelogramo.',
+            'La capa ya manda el tono a la primera salida, pero esta neurona es más exigente: solo dice «positiva» si le llega más de $1{,}5$ (su zona sombreada empieza más a la derecha). «bueno» y «feliz» se quedan cortas.\n\nCambia la capa para que acierte con las seis.',
           hints: [
-            'Agarra solo la punta de $\\hat{\\jmath}$ y llévala una unidad a la derecha, sin cambiar su altura.',
-            'La rejilla sigue formada por rectas paralelas y equiespaciadas, solo que inclinadas.',
+            'Las palabras positivas están en el lado bueno, pero demasiado cerca del origen. ¿Qué columna decide cuánto avanzan hacia la derecha?',
+            'Alarga $\\hat{\\jmath}$ (el tono) sobre el eje horizontal: cada palabra avanza su tono multiplicado por la longitud de esa columna.',
           ],
           explain:
-            'Moviendo solo $\\hat{\\jmath}$ se deforma toda la rejilla, porque cada punto es una combinación de $\\hat{\\imath}$ y $\\hat{\\jmath}$. Compara la lectura $\\det$ con la del reflejo: aquí el cuadrado sigue sin ponerse rojo.',
+            'La primera salida de cada palabra es su tono multiplicado por la primera coordenada de $\\hat{\\jmath}$. Con esa coordenada en $1$, «bueno» llega a $1$ y «feliz» a $1{,}5$: ninguna pasa de $1{,}5$. Hace falta un peso mayor.',
           solution:
-            '$\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$ dan la matriz $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$. El punto $(x, y)$ acaba en $(x+y,\\ y)$. El determinante sigue valiendo $1$: el paralelogramo tiene la misma área que el cuadrado y la misma orientación.',
-          plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
-          goals: [
-            { metric: 'x', of: ['i'], target: 1, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 1, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: 1, tol: 0.01 },
-          ],
+            'Con $\\hat{\\jmath}$ en $(2, 0)$ el tono cuenta el doble: «bueno» llega a $2$, «feliz» a $3$ y «genial» a $4$, y las negativas se alejan hacia la izquierda. Con $(1{,}5;\\ 0)$ no basta: «bueno» se queda en $1{,}5$, justo sobre la frontera. También vale ayudarse de la intensidad, con $\\hat{\\imath}$ en $(1, 1)$: suma a todas, pero solo las positivas pasan el umbral.',
+          lab: capaLab(RESENAS, {
+            range: 5,
+            i: [0, 1],
+            j: [1, 0],
+            readout: { w: [1, 0], b: -1.5 },
+          }),
+          goals: [ACIERTOS],
+          solved: { jx: 2 },
         },
         {
           id: 'columnas.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En una capa de una red neuronal, cada **columna** de la matriz de pesos dice qué aporta a la salida uno de los números de la entrada: la primera columna, el primero; la segunda, el segundo. Leer una matriz por columnas es leer qué hace la capa con cada rasgo por separado, y es la forma más directa de imaginar qué hace una matriz que solo conoces por sus números.',
-            aim: 'Vas a pasar del papel al plano: leer las dos columnas de una matriz escrita como dos puntos y colocar en ellos $\\hat{\\imath}$ y $\\hat{\\jmath}$, con la lectura del panel como única comprobación.',
+            why: 'El signo de un rasgo es una convención: un equipo mide «tono» y otro, «negatividad». A la red le da igual, porque el signo de cada peso se aprende. Un peso negativo no es un error: es un rasgo que cuenta en contra.',
+            aim: 'Vas a arreglar una capa que falla con todas las reseñas porque su segundo rasgo llega medido al revés, tocando una sola columna.',
             takeaway:
-              'Las columnas de $A$ son adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$: con colocar esas dos flechas, la rejilla entera queda decidida. Ante una matriz desconocida, lee primero sus columnas: te dicen qué le pasa a cada eje.',
+              'El sentido de una columna dice si su rasgo empuja a favor o en contra. Al darle la vuelta, el cuadrado unidad cambia de color y el determinante, de signo: la capa ha volteado el plano, y la neurona acierta igual.',
           },
           prompt:
-            'Construye la transformación de esta matriz:\n\n$$A=\\begin{pmatrix}2&-1\\\\1&1\\end{pmatrix}$$\n\nSu primera columna es adónde va $\\hat{\\imath}$ y su segunda columna es adónde va $\\hat{\\jmath}$. Arrastra las puntas hasta que la lectura del panel sea la misma matriz, y fíjate en el cuadrado unidad: sus dos lados son las dos columnas.',
+            'Las mismas reseñas, pero el segundo rasgo ahora es la **negatividad**: cuanto peor la reseña, más alto. La capa de antes, que mandaba ese rasgo a la primera salida, falla con las seis.\n\nArréglala para que la neurona acierte con todas.',
           hints: [
-            'La primera columna, $2$ y $1$, son las coordenadas de la punta de $\\hat{\\imath}$: dos a la derecha y una arriba.',
-            'La segunda columna, $-1$ y $1$, son las coordenadas de la punta de $\\hat{\\jmath}$: una a la izquierda y una arriba.',
+            'La capa manda la negatividad hacia la zona sombreada, y por eso las reseñas negativas caen dentro. ¿Hacia dónde tendría que mandarla?',
+            'Da la vuelta a $\\hat{\\jmath}$: llévala al otro lado del origen, sobre el eje horizontal. Lo que antes sumaba ahora resta.',
           ],
           explain:
-            'Leer una matriz por columnas es leer dos puntos: cada columna es una flecha del plano. Ponlas en su sitio y la rejilla entera se coloca sola.',
+            'La primera salida es la negatividad multiplicada por la primera coordenada de $\\hat{\\jmath}$. Con esa coordenada positiva, cuanto más negativa la reseña, más a la derecha cae. Hace falta que ese peso sea negativo.',
           solution:
-            '$\\hat{\\imath}$ va a $(2, 1)$ y $\\hat{\\jmath}$ va a $(-1, 1)$. El determinante vale $2\\cdot 1-(-1)\\cdot 1=3$: el cuadrado unidad se convierte en un paralelogramo de área $3$, sin ponerse rojo.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: [
-            { metric: 'x', of: ['i'], target: 2, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 1, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: -1, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: 1, tol: 0.01 },
-          ],
+            'Con $\\hat{\\jmath}$ en $(-1, 0)$, la primera salida es la negatividad cambiada de signo, que vuelve a ser el tono: la neurona acierta las seis. Dar la vuelta a $\\hat{\\imath}$ no arregla nada, porque la intensidad no llega a esa salida. Fíjate en el determinante: ha pasado de $-1$ a $1$. La capa ha dado la vuelta al plano y no se ha perdido nada.',
+          lab: capaLab(RESENAS_NEGATIVIDAD, {
+            i: [0, 1],
+            j: [1, 0],
+            readout: MIRA_SALIDA_1,
+            readouts: ['det'],
+          }),
+          goals: [ACIERTOS],
+          solved: { jx: -1 },
         },
         {
           id: 'columnas.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Para dibujar embeddings de cientos de dimensiones se proyectan en un plano, por ejemplo con PCA, y esa proyección **aplasta**: puntos distintos caen en el mismo sitio y lo perdido no se recupera. Lo mismo pasa dentro de una red cuando una capa manda entradas distintas a la misma salida: las capas siguientes ya no pueden distinguirlas.',
-            aim: 'Vas a aplastar el plano entero sobre una recta llevando una sola flecha al origen, y a ver qué marca el determinante cuando el cuadrado unidad se queda sin área.',
+            why: 'Casi nunca hay un rasgo que decida por sí solo. Un filtro de spam, como cualquier clasificador, combina señales: unas suman y otras restan. Cada neurona de una red lee una combinación así de los rasgos que le llegan.',
+            aim: 'Vas a construir una capa cuya primera salida mezcle dos rasgos, porque con uno solo no hay manera de separar el spam del correo normal.',
             takeaway:
-              'Determinante $0$ quiere decir que la matriz aplasta: hay puntos distintos con la misma imagen y ninguna matriz lo deshace. Una proyección a dos dimensiones sirve para mirar los datos, no para guardarlos.',
+              'La primera salida es «enlaces − saludos»: una mezcla que ningún rasgo da por separado. Las dos columnas aportan a la misma salida, una a favor y otra en contra. Eso es una neurona: una suma de rasgos con pesos.',
           },
           prompt:
-            'Hay matrices que **aplastan** el plano. Lleva $\\hat{\\jmath}$ al origen $(0, 0)$ y deja $\\hat{\\imath}$ en $(1, 0)$: toda la rejilla se cae sobre una recta, el eje horizontal, y el cuadrado unidad se queda sin área. La lectura $\\det$ lo dice.',
+            'Seis correos con dos rasgos: cuántos **enlaces** llevan y cuántos **saludos** personales. La neurona responde «spam» a lo que cae en la zona sombreada. Hay spam que saluda y correo normal con enlaces: ningún rasgo basta.\n\nMueve las columnas hasta que acierte con los seis.',
           hints: [
-            'Lleva la punta de $\\hat{\\jmath}$ hasta el centro del plano, donde se cruzan los ejes.',
-            'Cuando $\\hat{\\jmath}$ llega al origen, la segunda columna de la matriz es $0$ y $0$.',
+            'Compara un correo de spam con uno normal: en el spam hay más enlaces que saludos, y en el normal, al revés. La primera salida tiene que medir esa diferencia.',
+            'Deja $\\hat{\\imath}$ (enlaces) apuntando a la derecha y lleva $\\hat{\\jmath}$ (saludos) hacia la izquierda: los enlaces suman y los saludos restan.',
           ],
           explain:
-            'Con $\\hat{\\jmath}$ en el origen, todo lo que antes se movía en vertical desaparece. Todos los puntos del plano se quedan sobre una sola recta y la rejilla ya no se puede recuperar.',
+            'Con una sola columna sobre el eje horizontal, la primera salida es un solo rasgo y siempre queda algún correo en el lado equivocado. Con las dos, la salida es enlaces por un peso más saludos por otro: si el segundo es negativo, mide lo que sobra de un rasgo sobre el otro.',
           solution:
-            '$\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(0, 0)$ dan la matriz $\\begin{pmatrix}1&0\\\\0&0\\end{pmatrix}$. El punto $(x, y)$ acaba en $(x, 0)$: la altura se pierde. El determinante vale $0$, y no hay ninguna matriz que devuelva el plano a su estado de antes, porque puntos distintos han acabado en el mismo sitio.',
-          plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
-          goals: [
-            { metric: 'x', of: ['i'], target: 1, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 0, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: 0, tol: 0.01 },
-          ],
+            'Una capa que vale: $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(-1, 1)$. La primera salida es enlaces menos saludos: $2$, $1{,}5$ y $0{,}5$ en el spam, y $-1$ en los tres normales. La segunda coordenada de las columnas le da igual a esta neurona: solo decide la altura a la que queda cada correo.',
+          lab: capaLab(CORREOS, { readout: MIRA_SALIDA_1 }),
+          goals: [ACIERTOS],
+          solved: { jx: -1, jy: 1 },
         },
         {
           id: 'columnas.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Dos modelos de embeddings distintos colocan los mismos significados en sitios distintos: en el mejor de los casos, sus espacios difieren en un giro o en un cambio de signo, que conservan todos los cosenos. Por eso los embeddings de dos modelos no se comparan coordenada a coordenada. Aquí aprendes a distinguir esos cambios por el **determinante**: la media vuelta conserva la orientación y el reflejo la invierte.',
-            aim: 'Vas a dar media vuelta al plano y a compararla con el reflejo de la primera pregunta: las dos dejan el cuadrado del mismo tamaño, pero solo una lo pone rojo.',
+            why: 'Detrás de una capa no hay una neurona, hay cientos, y cada una mira otra cosa. Una capa que acierta para una tirando el resto deja a las demás sin nada que leer: lo que una capa borra, ninguna posterior lo recupera.',
+            aim: 'Vas a rehacer una capa que acierta, pero ha aplastado las reseñas sobre una recta, para que acierte igual sin tirar la intensidad.',
             takeaway:
-              'La media vuelta $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$ manda cada vector a su opuesto y tiene determinante $1$: dar la vuelta a las dos flechas a la vez no invierte la orientación. Como cambia el signo de todos los vectores, los cosenos entre ellos no se mueven.',
+              'Acertar y conservar no están reñidos: el tono va a una salida y la intensidad, a la otra. Cuando el cuadrado unidad tiene área, la capa no aplasta y las palabras se siguen distinguiendo por los dos rasgos.',
           },
           prompt:
-            'Una **media vuelta** alrededor del origen manda cada punto al que está justo al otro lado. Lleva $\\hat{\\imath}$ a $(-1, 0)$ y $\\hat{\\jmath}$ a $(0, -1)$. Fíjate en el cuadrado unidad y en la lectura $\\det$, y compara con el reflejo de la primera pregunta: ¿se pone rojo el cuadrado?',
+            'Esta capa acierta con las seis reseñas, pero ha mandado la intensidad al origen: todas las palabras han caído sobre una recta y el cuadrado unidad se ha quedado sin área. Otra neurona necesitará la intensidad.\n\nRecupérala sin que esta neurona deje de acertar.',
           hints: [
-            'Las dos flechas pasan a apuntar en sentido contrario al que tenían.',
-            'La lectura de la matriz tiene que mostrar $-1$ en la diagonal y $0$ fuera de ella.',
+            '$\\hat{\\imath}$ (la intensidad) está en el origen: por eso el cuadrado no tiene área. Hay que sacarla de ahí, pero no hacia cualquier sitio.',
+            'Sube $\\hat{\\imath}$ por el eje vertical: la intensidad va a la segunda salida, que esta neurona no mira, y la primera sigue siendo solo el tono.',
           ],
           explain:
-            'Dar la vuelta a las dos flechas a la vez no invierte la orientación: el cuadrado no se ve rojo. El reflejo de la primera pregunta, en cambio, da la vuelta a una sola.',
+            'Si $\\hat{\\imath}$ se mueve en horizontal, la intensidad entra en la primera salida y empuja a «horrible» hacia la zona sombreada. En vertical no toca esa salida. El área del cuadrado unidad mide cuánto espacio deja la capa: si vale $0$, todo ha caído en una recta.',
           solution:
-            '$\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, -1)$ dan la matriz $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$. Todo punto $(x, y)$ acaba en $(-x, -y)$, es decir, multiplicado por $-1$. El determinante vale $1$: se conservan el área y la orientación.',
-          plane: transformPlane({ movable: true, readouts: ['matrix', 'det'] }),
+            'Con $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(1, 0)$, la primera salida sigue siendo el tono (la neurona acierta las seis) y la segunda es la intensidad: el cuadrado unidad vuelve a tener área $1$. Con $\\hat{\\imath}$ en $(1, 1)$ el área también es $1$, pero «horrible» pasa a la zona sombreada y «malo» y «triste» se quedan sobre la frontera: la intensidad se ha colado en la salida que mira la neurona.',
+          lab: capaLab(RESENAS, {
+            i: [0, 0],
+            j: [1, 0],
+            readout: MIRA_SALIDA_1,
+            readouts: ['det'],
+          }),
           goals: [
-            { metric: 'x', of: ['i'], target: -1, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 0, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: -1, tol: 0.01 },
+            ACIERTOS,
+            {
+              metric: 'area',
+              op: 'gte',
+              target: 1,
+              label: 'Área que deja la capa al cuadrado unidad',
+            },
           ],
+          solved: { ix: 0, iy: 1 },
         },
       ],
     },
@@ -161,124 +179,120 @@ export const columnas: Project = {
           id: 'columnas.ex01.1',
           type: 'vector',
           purpose: {
-            why: 'Muchas veces no tienes la fórmula de una transformación, solo ves dónde caen sus resultados. Para estimar la parte lineal de una deformación de imagen (giro, estirado, inclinación) basta mirar adónde van dos puntos de referencia. Leer esas dos flechas y escribir la matriz es el primer paso.',
-            aim: 'Vas a leer en el plano adónde han ido $\\hat{\\imath}$ y $\\hat{\\jmath}$ y a escribir con ellas las cuatro casillas de $A$, cada flecha en su columna.',
+            why: 'En el código, una capa es una tabla de pesos: una fila por salida y una columna por rasgo de entrada. Leer y escribir esa tabla sin dudar de qué va en cada casilla es lo primero que hace falta para entender cualquier modelo.',
+            aim: 'Vas a escribir los cuatro pesos de la capa de un filtro de spam a partir de lo que debe hacer cada salida con los enlaces y los saludos.',
             takeaway:
-              'Las columnas de la matriz son $(1, -1)$ y $(2, 1)$: una flecha por columna. Colocarlas como filas daría la matriz traspuesta, que es otra transformación. Con las columnas leídas ya sabes qué hace la matriz con cualquier punto.',
+              'Cada fila es una salida y cada columna, un rasgo: el peso de la fila 1 y la columna 2 es cuánto cuentan los saludos en la primera salida. Así se lee la matriz de pesos de cualquier capa, tenga 4 números o millones.',
           },
           prompt:
-            'Este plano muestra una transformación ya hecha. Lee adónde han ido $\\hat{\\imath}$ y $\\hat{\\jmath}$ y escribe la matriz $A$ de la transformación. Rellena las cuatro casillas.',
+            'El filtro de spam necesita una capa con estas dos salidas para cada correo:\n\n$$\\text{salida 1}=\\text{enlaces}-\\text{saludos}\\qquad\\text{salida 2}=\\text{saludos}$$\n\nEscribe su matriz de pesos: una fila por salida y una columna por rasgo (primero los enlaces, después los saludos). Puedes construirla en el laboratorio y mirar adónde van los correos.',
           hints: [
-            'Mira primero la punta de $\\hat{\\imath}$ y escribe sus coordenadas en la primera columna, de arriba abajo.',
-            'Haz lo mismo con $\\hat{\\jmath}$ en la segunda columna.',
+            'La primera fila son los pesos de la salida 1: cuánto cuentan los enlaces y cuánto los saludos. Un rasgo que resta lleva peso negativo.',
+            'La salida 2 copia los saludos y no usa los enlaces: su fila tiene un $0$ y un $1$. Cuida el orden: los enlaces son la primera columna.',
           ],
           explain:
-            'La primera columna de la matriz es el sitio al que ha ido $\\hat{\\imath}$ y la segunda, el de $\\hat{\\jmath}$. Las coordenadas de cada punto se escriben en vertical.',
+            'Cada salida es una suma de los rasgos con sus pesos, y esos pesos forman una fila. Leída por columnas, la misma tabla dice adónde manda la capa cada rasgo: los enlaces van a $(1, 0)$ y los saludos, a $(-1, 1)$.',
           solution:
-            '$\\hat{\\imath}$ ha ido a $(1, -1)$ y $\\hat{\\jmath}$ a $(2, 1)$, así que $A=\\begin{pmatrix}1&2\\\\-1&1\\end{pmatrix}$. Si pones cada pareja en una fila, sale la matriz traspuesta, que es otra transformación.',
-          plane: transformPlane({ i: [1, -1], j: [2, 1] }),
+            '$A=\\begin{pmatrix}1&-1\\\\0&1\\end{pmatrix}$. Fila 1: $1$ por los enlaces y $-1$ por los saludos. Fila 2: $0$ por los enlaces y $1$ por los saludos. En el laboratorio es dejar $\\hat{\\imath}$ en $(1, 0)$ y llevar $\\hat{\\jmath}$ a $(-1, 1)$. Con las filas puestas como columnas sale otra capa: la que da de segunda salida saludos menos enlaces.',
+          lab: capaLab(CORREOS, { readout: MIRA_SALIDA_1 }),
           shape: [2, 2],
-          answer: [1, 2, -1, 1],
+          answer: [1, -1, 0, 1],
           tol: 0,
         },
         {
           id: 'columnas.ex01.2',
-          type: 'vector',
+          type: 'numero',
           purpose: {
-            why: 'La tabla de embeddings de un modelo de lenguaje es una matriz con un vector por cada palabra o fragmento de palabra del vocabulario: aquí, uno por columna (muchas bibliotecas los guardan por filas, y la idea es la misma). Pedir el embedding de una palabra es leer su columna: no hace falta calcular nada. Esta pregunta es ese acceso, hecho con $\\hat{\\jmath}$.',
-            aim: 'Vas a decir adónde va $\\hat{\\jmath}$ leyendo la segunda columna de la matriz, sin hacer ninguna cuenta, y a ver que esa columna es todo lo que $\\hat{\\jmath}$ pide.',
+            why: 'El tamaño de un modelo se mide en parámetros, y casi todos están en las matrices de sus capas. Contarlos a partir de las dimensiones dice cuánta memoria pide una capa y dónde se va el peso de un modelo.',
+            aim: 'Vas a contar los parámetros de una capa real, la que ensancha los vectores en cada bloque del GPT-2 pequeño, a partir de sus entradas y sus salidas.',
             takeaway:
-              '$\\hat{\\jmath}$ va a $(1, 2)$, la segunda columna. Multiplicar la matriz por $(0, 1)$ devuelve exactamente esa columna. En un modelo de lenguaje, así se obtiene el vector de una palabra: se «consulta» su columna de la tabla en vez de multiplicar.',
+              'Son $2\\,362\\,368$ parámetros en una sola capa, casi todos pesos de la matriz. El GPT-2 pequeño tiene 12 bloques con una capa así y otra que deshace el ensanche: ahí está buena parte de sus 124 millones de parámetros.',
           },
           prompt:
-            'Una transformación tiene esta matriz:\n\n$$A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$$\n\n¿Adónde va $\\hat{\\jmath}$? Escribe sus coordenadas: primero la $x$ y después la $y$.',
+            'En cada bloque del GPT-2 pequeño, una capa recibe vectores de $768$ números y devuelve vectores de $3072$. Su matriz de pesos tiene una fila por salida y una columna por entrada, y además hay un sesgo por salida.\n\n¿Cuántos parámetros tiene la capa, entre pesos y sesgos?',
           hints: [
-            'La imagen de $\\hat{\\jmath}$ es una columna entera de $A$. ¿Cuál?',
-            'Léela de arriba abajo: la primera coordenada es la de arriba.',
+            'La matriz tiene $3072$ filas y $768$ columnas: multiplica para contar sus pesos.',
+            'Suma un sesgo por cada salida: $3072$ más.',
           ],
           explain:
-            'La imagen de $\\hat{\\jmath}=(0, 1)$ es la segunda columna de la matriz, no la segunda fila. Las filas mezclan las coordenadas de varias flechas.',
+            'Cada salida tiene un peso por cada entrada: los pesos son filas por columnas. El sesgo es un número más por salida, y no depende de cuántas entradas haya.',
           solution:
-            'La segunda columna de $A$ es $(1, 2)$, de modo que $\\hat{\\jmath}$ va a $(1, 2)$. La segunda fila es $(0, 2)$ y la primera columna es $(3, 0)$: son dos confusiones habituales.',
-          answer: [1, 2],
+            'Pesos: $3072\\cdot 768=2\\,359\\,296$. Sesgos: $3072$. En total, $2\\,359\\,296+3072=2\\,362\\,368$ parámetros. Los sesgos son poco más de uno de cada mil: el tamaño de una capa lo decide su matriz.',
+          answer: 2362368,
           tol: 0,
         },
         {
           id: 'columnas.ex01.3',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Reordenar coordenadas es una operación corriente: pasar los canales de una imagen de RGB a BGR, o colocar los rasgos de los datos en otro orden para que casen con un modelo. Una **matriz de permutación** lo hace, y se reconoce a simple vista por sus columnas, sin calcular nada.',
-            aim: 'Vas a deducir qué hace la matriz leyendo adónde manda cada eje, y a elegir la descripción que la resume entre cuatro.',
+            why: 'Cada salida de una capa es una neurona haciendo una cuenta corta: multiplica cada rasgo de la entrada por su peso y suma. Un modelo de lenguaje repite esa cuenta miles de millones de veces por cada palabra que escribe.',
+            aim: 'Vas a hacer a mano la cuenta de una neurona para una palabra: sus dos rasgos, cada uno por su peso, y la suma.',
             takeaway:
-              'La matriz intercambia $x$ e $y$: es el reflejo respecto a la diagonal. Una permutación solo reordena los números de un vector y no cambia su longitud, así que reordenar rasgos de un modo coherente en todos los datos no altera las distancias entre ellos.',
+              'La primera salida de «feliz» es $0{,}5\\cdot 2+1\\cdot 1{,}5=2{,}5$: el producto escalar de la primera fila de pesos con la palabra. Una capa entera son tantas cuentas como filas, todas sobre la misma entrada.',
           },
           prompt:
-            'Esta es la matriz de una transformación del plano:\n\n$$A=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$$\n\n¿Qué hace?',
+            'Una capa tiene estos pesos:\n\n$$A=\\begin{pmatrix}0{,}5&1\\\\1&0\\end{pmatrix}$$\n\nLe llega «feliz», con intensidad $2$ y tono $1{,}5$. ¿Cuánto vale su primera salida? Después puedes construir la capa en el laboratorio y ver dónde cae la palabra.',
           hints: [
-            'Lee las columnas: ¿adónde va $\\hat{\\imath}=(1, 0)$ y adónde va $\\hat{\\jmath}=(0, 1)$?',
-            'Los dos puntos se intercambian: mira qué pasa con las coordenadas de cualquier otro punto.',
+            'La primera salida usa solo la primera fila de $A$: un peso para la intensidad y otro para el tono.',
+            'Multiplica cada rasgo de «feliz» por su peso y suma los dos productos.',
           ],
           explain:
-            'La primera columna dice que $\\hat{\\imath}$ va a $(0, 1)$ y la segunda, que $\\hat{\\jmath}$ va a $(1, 0)$. Con eso se sabe qué hace con todos los demás puntos.',
+            'La salida 1 es la fila 1 por la palabra: peso de la intensidad por intensidad más peso del tono por tono. La segunda fila no interviene: es otra neurona, con su propia cuenta.',
           solution:
-            '$\\hat{\\imath}$ va a $(0, 1)$ y $\\hat{\\jmath}$ va a $(1, 0)$: las dos flechas intercambian sus sitios. Cada punto $(x, y)$ acaba en $(y, x)$, que es un reflejo respecto a la recta $y=x$. No es un giro de un cuarto de vuelta ni una inclinación, y como las flechas no se estiran, tampoco es un estiramiento.',
-          options: [
-            'Un giro de un cuarto de vuelta alrededor del origen',
-            'Una inclinación horizontal: $\\hat{\\imath}$ se queda donde estaba',
-            'Un reflejo respecto a la recta $y=x$: intercambia las dos coordenadas',
-            'Un estiramiento que deja las dos flechas en su dirección',
-          ],
-          correct: 2,
-        },
-        {
-          id: 'columnas.ex01.4',
-          type: 'vector',
-          purpose: {
-            why: 'Al girar o estirar una foto para aumentar datos, las etiquetas viajan con ella: las esquinas de la caja que marca un objeto se mueven con la misma matriz que los píxeles. Calcular adónde cae un punto es saber dónde queda cada etiqueta tras deformar la imagen.',
-            aim: 'Vas a mover un punto del plano tomando pasos de las columnas nuevas, tantos de cada una como dicen sus coordenadas, y a ver adónde queda tras la transformación.',
-            takeaway:
-              'El punto $(2, 3)$ cae en $(-1, 4)$. Es la misma cuenta para cada punto de la imagen y para cada esquina de su caja, así que la deformación se aplica a todo a la vez y las etiquetas siguen coincidiendo con el objeto.',
-          },
-          prompt:
-            'La transformación de este plano tiene la matriz\n\n$$A=\\begin{pmatrix}1&-1\\\\2&0\\end{pmatrix}$$\n\nEl punto $(2, 3)$ es $2\\,\\hat{\\imath}+3\\,\\hat{\\jmath}$: dos pasos de $\\hat{\\imath}$ y tres de $\\hat{\\jmath}$. Tras la transformación, son dos pasos de la nueva $\\hat{\\imath}$ y tres de la nueva $\\hat{\\jmath}$. ¿Adónde va el punto $(2, 3)$?',
-          hints: [
-            'Lee las columnas de $A$: ¿adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$?',
-            'Suma dos veces la imagen de $\\hat{\\imath}$ y tres veces la de $\\hat{\\jmath}$, componente a componente.',
-          ],
-          explain:
-            'Una transformación lineal conserva las combinaciones: si un punto es dos pasos de una flecha y tres de la otra, su imagen es dos pasos de la imagen de la primera y tres de la imagen de la segunda. No hace falta ningún producto de matrices.',
-          solution:
-            '$\\hat{\\imath}$ va a $(1, 2)$ y $\\hat{\\jmath}$ va a $(-1, 0)$. Entonces $(2, 3)$ va a $2\\cdot(1, 2)+3\\cdot(-1, 0)=(2-3,\\ 4+0)=(-1, 4)$.',
-          plane: transformPlane({ i: [1, 2], j: [-1, 0] }),
-          answer: [-1, 4],
+            '$0{,}5\\cdot 2+1\\cdot 1{,}5=1+1{,}5=2{,}5$. En el laboratorio, con $\\hat{\\imath}$ en $(0{,}5;\\ 1)$ y $\\hat{\\jmath}$ en $(1, 0)$, «feliz» cae en $(2{,}5;\\ 2)$: su primera coordenada es esa salida. La segunda, $2$, es la cuenta de la fila 2: $1\\cdot 2+0\\cdot 1{,}5$.',
+          lab: capaLab(RESENAS),
+          answer: 2.5,
           tol: 0,
         },
         {
-          id: 'columnas.ex01.5',
+          id: 'columnas.ex01.4',
           type: 'opcion',
           purpose: {
-            why: 'Cuando una capa pasa de 2 rasgos a 3 salidas, sus columnas tienen 3 componentes y viven en un espacio más grande que el de la entrada. Es lo que hace el primer paso de un bloque feed-forward de un transformer: ampliar los números para tener más espacio donde mezclar la información antes de volver a reducirlos.',
-            aim: 'Vas a leer la forma de una matriz de 3 filas y 2 columnas y a decir qué vectores admite y qué vectores devuelve, mirando solo sus columnas.',
+            why: 'Los rasgos cambian de escala a menudo: otra unidad, otra normalización. Saber qué parte de la matriz toca cada rasgo dice qué hay que ajustar en la capa, y por qué normalizar los datos cambia los pesos que se aprenden.',
+            aim: 'Vas a decidir qué parte de una matriz de pesos hay que cambiar para que un rasgo cuente el doble en todas las salidas, sin tocar el otro.',
             takeaway:
-              'Admite vectores de 2 componentes (una por columna) y devuelve vectores de 3 (el largo de cada columna). Como solo tiene dos columnas, sus salidas ocupan como mucho un plano dentro del espacio de 3 componentes: ampliar no crea direcciones nuevas.',
+              'Un rasgo es una columna: doblar la segunda columna dobla lo que el tono aporta a cada salida y deja la intensidad como estaba. Una fila, en cambio, es una salida: doblarla cambia el peso de todos los rasgos en esa neurona.',
           },
           prompt:
-            'Una capa lineal de una red neuronal es una matriz. Esta tiene 3 filas y 2 columnas:\n\n$$W=\\begin{pmatrix}1&0\\\\2&1\\\\0&3\\end{pmatrix}$$\n\nSus columnas son las imágenes de las flechas de entrada. ¿Qué vectores recibe y qué vectores devuelve?',
+            'Los datos van a llegar con el tono medido en otra escala: cada valor, la mitad que ahora. Para que las dos salidas de esta capa no cambien, el tono tiene que contar el doble en ambas. ¿Qué cambias en la matriz?\n\n$$A=\\begin{pmatrix}0&1\\\\1&0{,}5\\end{pmatrix}$$',
           hints: [
-            'Cuenta cuántas columnas hay: cada una es la imagen de una flecha de la entrada.',
-            'Cada columna tiene tantos números como filas hay, y esa es la forma de la salida.',
+            'El tono aparece en las dos salidas. Busca en la matriz los dos números que lo multiplican: ¿están en una fila o en una columna?',
+            'En el laboratorio, $\\hat{\\jmath}$ es la columna del tono. Alárgala al doble y mira cuánto se mueve cada palabra.',
           ],
           explain:
-            'El número de columnas es el de componentes de la entrada, y el de filas es el de componentes de la salida. En una matriz de $2\\times 2$ coinciden, y por eso allí no se nota.',
+            'Los pesos de un rasgo están uno debajo de otro, en su columna: uno por salida. Los de una salida están en una fila. Cambiar la escala de un rasgo de entrada es cambiar la de su columna.',
           solution:
-            '$W$ tiene 2 columnas, así que recibe vectores de 2 componentes, y 3 filas, así que cada columna tiene 3 números y los resultados son vectores de 3 componentes. Convierte un vector de 2 componentes en uno de 3.',
+            'La segunda columna, $(1;\\ 0{,}5)$, son los pesos del tono en la salida 1 y en la 2. Doblada, $(2, 1)$, compensa que el tono llegue a la mitad. Doblar la segunda fila cambiaría la salida 2 entera, intensidad incluida; doblar la primera columna tocaría la intensidad, y doblar toda la matriz, los dos rasgos.',
+          lab: capaLab(RESENAS, { range: 5, i: [0, 1], j: [1, 0.5] }),
           options: [
-            'Recibe vectores de 3 componentes y devuelve vectores de 2',
-            'Recibe vectores de 3 componentes y devuelve vectores de 3',
-            'Recibe vectores de 2 componentes y devuelve vectores de 2',
-            'Recibe vectores de 2 componentes y devuelve vectores de 3',
+            'Multiplicar por 2 la segunda fila',
+            'Multiplicar por 2 la segunda columna',
+            'Multiplicar por 2 la primera columna',
+            'Multiplicar por 2 toda la matriz',
           ],
-          correct: 3,
+          correct: 1,
+        },
+        {
+          id: 'columnas.ex01.5',
+          type: 'numero',
+          purpose: {
+            why: 'Un error de formas es el fallo más corriente al montar un modelo: una matriz que no casa con el vector que le llega. Saber qué dimensión va en las filas y cuál en las columnas lo evita antes de ejecutar nada.',
+            aim: 'Vas a deducir la forma de la matriz de una capa que reduce embeddings, a partir del tamaño de lo que entra y de lo que sale.',
+            takeaway:
+              'Hay una columna por cada número de la entrada, $384$, y una fila por cada número de la salida, $128$: la matriz es de $128\\times 384$. En NumPy y en PyTorch, esa forma se escribe (salidas, entradas).',
+          },
+          prompt:
+            'Un buscador guarda embeddings de frases de $384$ números. Para ahorrar memoria, una capa los convierte en vectores de $128$. ¿Cuántas columnas tiene la matriz de pesos de esa capa?',
+          hints: [
+            'Cada columna de la matriz dice adónde va un rasgo de la entrada. ¿Cuántos rasgos tiene cada embedding que llega?',
+            'El $128$ es el número de salidas: una fila por cada una.',
+          ],
+          explain:
+            'Las columnas se cuentan con la entrada y las filas, con la salida. En las capas de $2\\times 2$ de este proyecto coinciden y no se nota; en una capa real casi nunca coinciden.',
+          solution:
+            '$384$ columnas, una por cada número del embedding que entra. Las filas son $128$, una por salida, así que la matriz es de $128\\times 384$ y guarda $128\\cdot 384=49\\,152$ pesos.',
+          answer: 384,
+          tol: 0,
         },
       ],
     },

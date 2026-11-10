@@ -15,6 +15,8 @@ const MARGIN = 26;
 const CENTER = VIEW / 2;
 const EDGE = CENTER - MARGIN;
 const LABEL_SIZE = 14;
+/** Ancho aproximado de un carácter del nombre de un eje, para reservarle sitio entre los rótulos. */
+const AXIS_NAME_CHAR = 7;
 
 type P = readonly [number, number];
 
@@ -86,9 +88,27 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
     [k * across[0] + far * along[0], k * across[1] + far * along[1]],
   ];
 
-  // --- Rótulos de las palabras: cada uno busca sitio sin pisar puntos ni rótulos ya puestos ---
+  // Una capa fija que no cambia nada (la identidad) no se dibuja: el laboratorio va solo de los datos.
+  const layerShown =
+    movable.has('ix') || movable.has('jx') || a11 !== 1 || a12 !== 0 || a21 !== 0 || a22 !== 1;
+  // Con la capa a la vista, el plano es el de sus salidas: los rasgos de entrada van en las columnas.
+  const axisNames = layerShown ? t.labs.capa.outputs : spec.axes;
+
+  // --- Rótulos de las palabras: cada uno busca sitio sin pisar puntos, nombres de eje ni rótulos ya puestos ---
   const area: Box = { x0: MARGIN, y0: MARGIN, x1: VIEW - MARGIN, y1: VIEW - MARGIN };
   const obstacles: Box[] = spec.points.map((p) => dotBox(at(scene.images[p.id]!), 8));
+  if (axisNames) {
+    const wide = (name: string): number => name.length * AXIS_NAME_CHAR + 8;
+    obstacles.push(
+      {
+        x0: VIEW - MARGIN - 4 - wide(axisNames[0]),
+        y0: sy(0) - 24,
+        x1: VIEW - MARGIN,
+        y1: sy(0) - 2,
+      },
+      { x0: sx(0) + 4, y0: MARGIN, x1: sx(0) + 8 + wide(axisNames[1]), y1: MARGIN + 20 },
+    );
+  }
   const labels = spec.points.map((p) => {
     const c = at(scene.images[p.id]!);
     const placed = placePointLabel(
@@ -158,10 +178,6 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
       </g>
     );
   };
-
-  // Una capa fija que no cambia nada (la identidad) no se dibuja: el laboratorio va solo de los datos.
-  const layerShown =
-    movable.has('ix') || movable.has('jx') || a11 !== 1 || a12 !== 0 || a21 !== 0 || a22 !== 1;
 
   const L = t.labs.capa;
   const readouts: ReadoutItem[] = (spec.readouts ?? []).flatMap((m) =>
@@ -310,13 +326,13 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
               </text>
             </g>
           ))}
-        {spec.axes ? (
+        {axisNames ? (
           <>
             <text className="lab__axis-name" x={VIEW - MARGIN - 4} y={sy(0) - 8} textAnchor="end">
-              {spec.axes[0]}
+              {axisNames[0]}
             </text>
             <text className="lab__axis-name" x={sx(0) + 8} y={MARGIN + 14}>
-              {spec.axes[1]}
+              {axisNames[1]}
             </text>
           </>
         ) : null}
@@ -398,6 +414,7 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
         <table>
           <thead>
             <tr>
+              <td className="capa__matrix-corner" />
               <th scope="col" data-tone={0}>
                 {L.column('î', spec.axes?.[0])}
               </th>
@@ -408,10 +425,12 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
           </thead>
           <tbody>
             <tr>
+              <th scope="row">{L.outputs[0]}</th>
               <td data-tone={0}>{fmt(a11)}</td>
               <td data-tone={1}>{fmt(a12)}</td>
             </tr>
             <tr>
+              <th scope="row">{L.outputs[1]}</th>
               <td data-tone={0}>{fmt(a21)}</td>
               <td data-tone={1}>{fmt(a22)}</td>
             </tr>

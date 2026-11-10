@@ -1,7 +1,9 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Columnas». Las entradas
+ * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Columnas»: un laboratorio (una
+ * capa para otra neurona, con otros datos), una cuenta de parámetros y una de código. Las entradas
  * generadas del banco (`examen-0.matriz-vector`, `examen-0.producto-matrices` y
  * `examen-0.forma-producto`) las añade el ensamblado de la órbita. Ids: `examen-0.<tema>`, únicos
  * en todo el juego (también frente a las preguntas de proyecto).
@@ -10,44 +12,47 @@ export const examen0Columnas: BankEntry[] = [
   {
     project: 'columnas',
     question: {
-      id: 'examen-0.reconocer-reflejo',
-      type: 'opcion',
+      id: 'examen-0.capa-mascotas',
+      type: 'laboratorio',
       prompt:
-        'Esta es la matriz de una transformación del plano:\n\n$$A=\\begin{pmatrix}-1&0\\\\0&1\\end{pmatrix}$$\n\n¿Qué hace con el plano?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. La neurona siguiente solo mira la primera salida de la capa (el eje horizontal) y responde «mascota» a lo que cae en la zona sombreada.\n\nMueve las columnas de la capa hasta que acierte con los seis.',
       hints: [
-        'Lee las columnas: $\\hat{\\imath}$ va a la primera y $\\hat{\\jmath}$ va a la segunda.',
-        'Una de las dos flechas conserva su sitio y la otra da la vuelta.',
+        'Busca el rasgo que distingue a «perro» de «lobo»: su columna es la que tiene que apuntar hacia la zona sombreada.',
+        'Lleva $\\hat{\\jmath}$ (la domesticidad) sobre el eje horizontal, hacia la derecha, y saca $\\hat{\\imath}$ (el tamaño) de ese eje.',
       ],
       explain:
-        'Las columnas son los sitios a los que van $\\hat{\\imath}$ y $\\hat{\\jmath}$. Compara cada una con su posición de partida y mira cuántas flechas cambian de sentido.',
+        'La primera salida es el tamaño por la primera coordenada de $\\hat{\\imath}$ más la domesticidad por la primera de $\\hat{\\jmath}$. El tamaño no distingue una mascota de un animal salvaje: la que tiene que pesar en esa salida es la domesticidad.',
       solution:
-        '$\\hat{\\imath}$ va a $(-1, 0)$ y $\\hat{\\jmath}$ se queda en $(0, 1)$. Cada punto $(x, y)$ acaba en $(-x, y)$: es un reflejo respecto al eje vertical. No es una media vuelta, porque esa daría la vuelta a las dos flechas, ni una inclinación, porque no hay números fuera de la diagonal.',
-      options: [
-        'Un reflejo respecto al eje horizontal',
-        'Un giro de media vuelta alrededor del origen',
-        'Un reflejo respecto al eje vertical',
-        'Una inclinación horizontal',
+        'Una capa que vale: $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(1, 0)$. La primera salida pasa a ser la domesticidad, positiva en «gato», «perro» y «hámster» y negativa en «lobo», «tigre» y «oso»: la neurona acierta los seis. Valen muchas otras, siempre que en la primera salida la domesticidad pese bastante más que el tamaño.',
+      lab: capaLab(ANIMALES, { readout: { w: [1, 0], b: 0 } }),
+      goals: [
+        {
+          metric: 'acc',
+          op: 'gte',
+          target: 1,
+          label: 'Aciertos de la neurona siguiente',
+          format: 'percent',
+        },
       ],
-      correct: 2,
+      solved: { ix: 0, iy: 1, jx: 1, jy: 0 },
     },
   },
   {
     project: 'columnas',
     question: {
-      id: 'examen-0.matriz-desde-imagenes',
-      type: 'vector',
+      id: 'examen-0.parametros-capa',
+      type: 'numero',
       prompt:
-        'Una transformación del plano manda $\\hat{\\imath}$ a $(0, 3)$ y $\\hat{\\jmath}$ a $(-2, 1)$. Escribe su matriz. Rellena las cuatro casillas.',
+        'Una capa convierte embeddings de $384$ números en vectores de $128$. Su matriz de pesos tiene una fila por salida y una columna por entrada, y hay un sesgo por salida.\n\n¿Cuántos parámetros tiene la capa, entre pesos y sesgos?',
       hints: [
-        'La primera columna son las coordenadas de la imagen de $\\hat{\\imath}$.',
-        'Escribe cada pareja en vertical, de arriba abajo, y no en horizontal.',
+        'Los pesos son filas por columnas: una fila por cada salida y una columna por cada entrada.',
+        'Los sesgos se cuentan con las salidas, no con las entradas.',
       ],
       explain:
-        'Una matriz es la lista de adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$, una imagen por columna. Con las parejas en filas saldría la matriz traspuesta.',
+        'Cada salida tiene un peso por cada entrada, y además un sesgo propio. El número de entradas solo cuenta en los pesos.',
       solution:
-        'La primera columna es $(0, 3)$ y la segunda es $(-2, 1)$, así que la matriz es $\\begin{pmatrix}0&-2\\\\3&1\\end{pmatrix}$. Si pones las parejas en filas, sale $\\begin{pmatrix}0&3\\\\-2&1\\end{pmatrix}$, que manda $\\hat{\\imath}$ a $(0, -2)$ y no a $(0, 3)$.',
-      shape: [2, 2],
-      answer: [0, -2, 3, 1],
+        'Pesos: $128\\cdot 384=49\\,152$. Sesgos: $128$, uno por salida. En total, $49\\,152+128=49\\,280$ parámetros. Sumar $384$ sesgos sería contar uno por entrada.',
+      answer: 49280,
       tol: 0,
     },
   },
