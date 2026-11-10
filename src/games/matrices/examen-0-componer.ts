@@ -1,52 +1,64 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Componer». Las preguntas con
- * números variables las añade otro paso, como entradas `generada`. Ids: `examen-0.<tema>`, únicos
- * en todo el juego (también frente a las preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 0 para el proyecto «Componer»: un laboratorio (la
+ * segunda capa tras una que mezcla, con otros datos), una cuenta de la capa única que equivale a dos
+ * y una de código. La generada (`examen-0.producto-matrices`) la añade el ensamblado de la órbita.
+ * Ids: `examen-0.<tema>`, únicos en todo el juego (también frente a las preguntas de proyecto).
  */
 export const examen0Componer: BankEntry[] = [
   {
     project: 'componer',
     question: {
-      id: 'examen-0.orden-producto',
-      type: 'opcion',
+      id: 'examen-0.capa-tras-mezcla',
+      type: 'laboratorio',
       prompt:
-        'Un vector $\\vec{v}$ pasa por dos transformaciones lineales seguidas: primero $G$, un giro, y después $E$, un estiramiento. ¿Con qué expresión se obtiene el resultado completo?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. Una primera capa, fija, ya los ha mezclado: los cuadraditos marcan dónde los deja. Tu capa va detrás, y la neurona siguiente solo mira tu primera salida y responde «mascota» a lo que cae en la zona sombreada.\n\nConstruye la segunda capa para que acierte con los seis.',
       hints: [
-        'En $M\\vec{v}$, la matriz $M$ actúa sobre $\\vec{v}$. Si hay dos, la segunda actúa sobre lo que sale de la primera.',
-        'Escribe $E(G\\vec{v})$: ¿quién actúa primero y a qué lado de la otra está?',
+        'Mira los cuadraditos: las mascotas y los salvajes se separan por la diferencia entre sus dos coordenadas, no por una sola.',
+        'Tu primera salida tiene que restar una coordenada de los cuadraditos de la otra, con el signo que deje las mascotas a la derecha.',
       ],
       explain:
-        'El producto se lee de derecha a izquierda: la matriz más cercana al vector actúa primero. Con transformaciones distintas, el orden cambia el resultado.',
+        'Tu capa trabaja con la mezcla, no con los rasgos. La primera coordenada de un cuadradito es tamaño menos domesticidad, y la segunda, tamaño más domesticidad. La segunda menos la primera es el doble de la domesticidad.',
       solution:
-        'Primero actúa $G$ sobre $\\vec{v}$, y $E$ actúa sobre lo que sale: $E(G\\vec{v})=(EG)\\vec{v}$. La matriz de la transformación completa es $EG$, escrita de derecha a izquierda. Sumar las matrices no compone nada, y $GE$ y $EG$ casi nunca coinciden.',
-      options: [
-        '$GE\\vec{v}$, porque las matrices se escriben en el orden en que actúan',
-        '$EG\\vec{v}$, porque la primera en actuar es la más cercana al vector',
-        '$(G+E)\\vec{v}$, porque dos transformaciones seguidas se suman',
-        'Da igual, porque $GE\\vec{v}$ y $EG\\vec{v}$ siempre coinciden',
+        'Una capa que vale: $\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, 1)$. La primera salida es la primera coordenada cambiada de signo, domesticidad menos tamaño, y separa los seis. También vale $\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$, el doble de la domesticidad. Intercambiar las columnas deja tamaño más domesticidad, y «tigre» y «oso» fallan.',
+      lab: capaLab(
+        { ...ANIMALES, axes: ['tamaño − domesticidad', 'tamaño + domesticidad'] },
+        {
+          range: 5.5,
+          before: { i: [1, 1], j: [-1, 1] },
+          readout: { w: [1, 0], b: 0 },
+        },
+      ),
+      goals: [
+        {
+          metric: 'acc',
+          op: 'gte',
+          target: 1,
+          label: 'Aciertos de la neurona siguiente',
+          format: 'percent',
+        },
       ],
-      correct: 1,
+      solved: { ix: -1 },
     },
   },
   {
     project: 'componer',
     question: {
-      id: 'examen-0.espejo-y-giro',
-      type: 'vector',
+      id: 'examen-0.capa-equivalente',
+      type: 'numero',
       prompt:
-        'Una transformación hace dos pasos seguidos: primero **refleja** el plano respecto del eje $x$, con $F=\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$, y después lo **gira** un cuarto de vuelta en sentido antihorario, con $R=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$. Escribe la matriz de la transformación completa.',
+        'Por un descuido, una red tiene dos capas lineales seguidas sin activación entre ellas: la primera lleva embeddings de $384$ números a $1536$, y la segunda, de $1536$ a $384$. Las dos juntas equivalen a una sola capa.\n\n¿Cuántos pesos tiene la matriz de esa capa única?',
       hints: [
-        'La matriz completa es un producto de $R$ y $F$, con la que actúa primero a la derecha.',
-        'Sigue a $\\hat{\\imath}$ por el espejo y luego por el giro; después haz lo mismo con $\\hat{\\jmath}$. Sus imágenes son las columnas.',
+        'La capa única recibe lo mismo que la primera y devuelve lo mismo que la segunda: ¿cuántas entradas y cuántas salidas tiene?',
+        'Sus pesos son salidas por entradas. El $1536$ de en medio desaparece.',
       ],
       explain:
-        'Las columnas de la matriz completa son las imágenes de $\\hat{\\imath}$ y $\\hat{\\jmath}$ después de los dos pasos, en el orden en que se dan. Si inviertes el orden, sale otra matriz.',
+        'La matriz única es el producto de las dos, $(384\\times 1536)(1536\\times 384)$, y su forma la dan los tamaños de fuera. El de dentro solo cuenta al hacer las sumas.',
       solution:
-        '$\\hat{\\imath}=(1, 0)$ queda quieto en el espejo y el giro lo lleva a $(0, 1)$. $\\hat{\\jmath}=(0, 1)$ pasa a $(0, -1)$ en el espejo y el giro lo lleva a $(1, 0)$. La matriz es $RF=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$. En el orden contrario saldría $FR=\\begin{pmatrix}0&-1\\\\-1&0\\end{pmatrix}$.',
-      shape: [2, 2],
-      answer: [0, 1, 1, 0],
+        'La capa única es de $384\\times 384$: $384\\cdot 384=147\\,456$ pesos. Las dos capas guardan $2\\cdot 1536\\cdot 384=1\\,179\\,648$, ocho veces más, para hacer lo mismo que una.',
+      answer: 147456,
       tol: 0,
     },
   },

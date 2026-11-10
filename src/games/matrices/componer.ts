@@ -1,21 +1,53 @@
-import type { Goal, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { componerWarmup } from './componer.calentamiento';
 import { py } from '../py';
-import { transformPlane } from './plane';
+import { RESENAS, capaLab, type Cloud } from './datos';
 
-/** Metas de un `manipular` de matriz: î y ĵ en el sitio de las columnas de la matriz pedida. */
-const columns = (i: [number, number], j: [number, number]): Goal[] => [
-  { metric: 'x', of: ['i'], target: i[0], tol: 0.01 },
-  { metric: 'y', of: ['i'], target: i[1], tol: 0.01 },
-  { metric: 'x', of: ['j'], target: j[0], tol: 0.01 },
-  { metric: 'y', of: ['j'], target: j[1], tol: 0.01 },
-];
+/**
+ * Las reseñas tal como llegan a la capa del jugador cuando hay otra delante: la tabla de pesos nombra
+ * cada columna por lo que entra en ella, que ya no es un rasgo suelto sino lo que dejó la primera capa.
+ */
+const llegan = (axes: [string, string]): Cloud => ({ ...RESENAS, axes });
 
-/** Primer proyecto de la Órbita 0 de matrices: componer transformaciones y multiplicar matrices. */
+/** Lo que mide la meta de las preguntas con neurona: la que viene detrás de las dos capas. */
+const ACIERTOS = {
+  metric: 'acc',
+  op: 'gte',
+  target: 1,
+  label: 'Aciertos de la neurona siguiente',
+  format: 'percent',
+} as const;
+
+/** Cada palabra llega a la diana a la que la habrían llevado dos capas: la peor distancia es 0. */
+const EN_SU_DIANA = {
+  metric: 'target_err',
+  op: 'lte',
+  target: 0,
+  label: 'Distancia de la palabra más lejana a su diana',
+} as const;
+
+/** La neurona siguiente solo mira la primera salida: responde «positiva» si es mayor que 0. */
+const MIRA_SALIDA_1 = { w: [1, 0] as [number, number], b: 0 };
+
+/** Una primera capa que mezcla: la salida 1 es intensidad + tono, y la 2, intensidad − tono. */
+const MEZCLA = { i: [1, 1] as [number, number], j: [1, -1] as [number, number] };
+
+/** Una primera capa que intercambia los rasgos: el tono pasa a la salida 1 y la intensidad, a la 2. */
+const INTERCAMBIA = { i: [0, 1] as [number, number], j: [1, 0] as [number, number] };
+
+/** Dónde deja cada reseña una capa, dada por lo que hace con sus dos rasgos. */
+const dianas = (f: (x: number, y: number) => [number, number]): Record<string, [number, number]> =>
+  Object.fromEntries(RESENAS.points.map((p) => [p.id, f(p.x, p.y)]));
+
+/**
+ * Tercer proyecto de la Órbita 0: dos capas seguidas. Cada capa prepara el trabajo de la siguiente;
+ * dos capas lineales se funden en una sola matriz (por eso hace falta algo no lineal entre ellas);
+ * lo que una capa destruye no lo recupera la siguiente; las áreas se multiplican y el orden importa.
+ */
 export const componer: Project = {
   id: 'componer',
   name: 'Componer',
-  sub: 'Una transformación tras otra',
+  sub: 'Dos capas seguidas',
   bigPicture: {
     parts: ['linear', 'activation'],
     text: 'Un bloque del modelo encadena varias transformaciones, una tras otra: el orden en que se aplican importa. Dos capas lineales seguidas equivalen a una sola, la matriz producto, y por eso entre ellas se pone una activación que las dobla. Aquí ves cómo se componen dos transformaciones y por qué $AB$ no es $BA$.',
@@ -27,113 +59,149 @@ export const componer: Project = {
       questions: [
         {
           id: 'componer.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Una red neuronal aplica una capa tras otra, y dos capas lineales seguidas se resumen en una sola matriz: su **producto**. Por eso, sin una función no lineal entre capa y capa (como ReLU), apilar diez capas no daría más poder que tener una: todo se reduciría a una matriz. Esa función entre capas es la que permite a una red aprender algo más que una transformación lineal.',
-            aim: 'Vas a seguir a $\\hat{\\imath}$ y a $\\hat{\\jmath}$ por dos transformaciones seguidas y a ver que el resultado final cabe en una sola matriz, con dos columnas como cualquier otra.',
+            why: 'En una red, cada capa recibe lo que deja la anterior, no los datos originales. Si la primera ha mezclado los rasgos, la segunda trabaja con esa mezcla: su tarea es dejarle a la neurona siguiente lo que necesita.',
+            aim: 'Vas a construir la segunda capa de una red cuya primera capa ya ha mezclado los rasgos, hasta que la neurona del final distinga las reseñas.',
             takeaway:
-              '«Gira y después estira» es la matriz $SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$: las columnas del producto son adónde llegan $\\hat{\\imath}$ y $\\hat{\\jmath}$ tras los dos pasos. Dos transformaciones lineales seguidas son siempre una sola, por muchas que encadenes.',
+              'La primera capa dejó «intensidad + tono» y «intensidad − tono». Restar una salida de la otra deja el tono solo, y la neurona acierta. Cada capa prepara el trabajo de la siguiente: la segunda se entrena sobre lo que le da la primera.',
           },
           prompt:
-            'Dos transformaciones seguidas se pueden resumir en **una sola matriz**: el **producto**. Se lee de derecha a izquierda: en $SR$ actúa primero $R$ y después $S$, porque $SR\\vec{v}=S(R\\vec{v})$.\n\n$R$ es el giro de un cuarto de vuelta en sentido antihorario y $S=\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$ estira el plano al doble en horizontal. Construye $C=SR$, la matriz de «gira un cuarto de vuelta y después estira». Sigue a $\\hat{\\imath}$ y a $\\hat{\\jmath}$ por las dos transformaciones, una tras otra, y coloca sus puntas donde terminan.',
+            'Una primera capa, fija, ya ha mezclado los dos rasgos de cada reseña: los cuadraditos marcan dónde las deja. Tu capa va detrás, y la neurona siguiente solo mira tu primera salida. Ahora mismo le llega «intensidad + tono» y solo acierta con la mitad.\n\nConstruye la segunda capa para que la neurona acierte con las seis.',
           hints: [
-            'Empieza por $\\hat{\\imath}$: el giro lo lleva a $(0, 1)$. Estira ahora ese punto al doble en horizontal: ¿dónde queda?',
-            'Haz lo mismo con $\\hat{\\jmath}$: el giro lo lleva a $(-1, 0)$, y después hay que estirarlo.',
+            'Mira los cuadraditos: las reseñas positivas están abajo a la derecha y las negativas, arriba a la izquierda. Lo que las separa es la diferencia entre las dos coordenadas.',
+            'Tu primera salida tiene que restar la segunda coordenada de los cuadraditos a la primera. Lleva $\\hat{\\jmath}$ hacia la izquierda, al otro lado del eje vertical.',
           ],
           explain:
-            'Las columnas del producto son las imágenes de $\\hat{\\imath}$ y $\\hat{\\jmath}$ por la transformación completa: cada flecha pasa por el primer paso y, con lo que sale, por el segundo.',
+            'Tu capa no ve los rasgos originales, sino la mezcla. La primera coordenada de un cuadradito es intensidad más tono, y la segunda, intensidad menos tono. Su diferencia es el doble del tono: la intensidad se cancela.',
           solution:
-            'El giro lleva $\\hat{\\imath}$ a $(0, 1)$, y el estiramiento horizontal lo deja ahí, porque su $x$ es $0$. El giro lleva $\\hat{\\jmath}$ a $(-1, 0)$, y el estiramiento lo duplica: $(-2, 0)$. Así, $C=SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([0, 1], [-2, 0]),
+            'Una capa que vale: $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(-1, 1)$. La primera salida es la primera coordenada menos la segunda, el doble del tono: positiva en las tres buenas y negativa en las tres malas. Valen muchas, siempre que la primera fila reste una coordenada de la otra. Intercambiar las columnas no basta: deja la segunda coordenada, que mezcla los dos rasgos.',
+          lab: capaLab(llegan(['intensidad + tono', 'intensidad − tono']), {
+            range: 5.5,
+            before: MEZCLA,
+            readout: MIRA_SALIDA_1,
+          }),
+          goals: [ACIERTOS],
+          solved: { jx: -1 },
         },
         {
           id: 'componer.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En una cadena de pasos sobre los datos, el **orden** cambia el resultado. Al aumentar datos de imágenes, girar y luego estirar no da la misma foto que estirar y luego girar; en una red, intercambiar dos capas da otra transformación. Por eso el orden de un preprocesado o de las capas forma parte del modelo, igual que sus números.',
-            aim: 'Vas a construir las mismas dos transformaciones en el orden contrario y a comparar la matriz con la de la primera pregunta.',
+            why: 'Dos capas lineales seguidas, sin nada en medio, hacen lo mismo que una sola: la matriz producto. Por eso las redes ponen una función no lineal, como ReLU, entre capa y capa. Sin ella, apilar diez capas no da más que una.',
+            aim: 'Vas a sustituir dos capas seguidas por una sola, llevando cada reseña a la diana donde la dejaban las dos.',
             takeaway:
-              '$RS=\\begin{pmatrix}0&-1\\\\2&0\\end{pmatrix}$ y $SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$ son distintas: el producto de matrices no es conmutativo. Al leer $RS\\vec{v}$, la que actúa primero es la de la derecha.',
+              'Una sola capa, con $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(2, 0)$, hace el trabajo de las dos: es su producto. Lo que puede hacer una cadena de capas lineales lo hace una matriz. Para ganar algo al apilarlas hace falta una activación entre ellas.',
           },
           prompt:
-            'El orden importa. Construye ahora $C=RS$: primero se estira el plano al doble en horizontal ($S$) y después se gira un cuarto de vuelta en sentido antihorario ($R$). Son las mismas dos transformaciones de antes, en el orden contrario. Coloca las puntas de $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde terminan.',
+            'Una red tenía dos capas lineales seguidas: la primera intercambia los rasgos (el tono pasa a la primera salida) y la segunda dobla la primera salida. Las dianas marcan dónde dejaban las dos, juntas, cada reseña.\n\nHaz que una sola capa lleve las seis palabras a sus dianas.',
           hints: [
-            '$\\hat{\\imath}$ empieza en $(1, 0)$: el estiramiento lo deja en $(2, 0)$. Gira ahora ese punto un cuarto de vuelta.',
-            'Para $\\hat{\\jmath}$, el estiramiento horizontal no lo cambia, y solo queda girarlo.',
+            'Fíjate en «genial» y en «horrible»: tienen la misma intensidad y su diana está a la misma altura. La altura de las dianas es la intensidad, y la distancia al eje vertical, el tono.',
+            'La intensidad tiene que acabar en la segunda salida: sube $\\hat{\\imath}$ al eje vertical. El tono, doblado, en la primera: lleva $\\hat{\\jmath}$ sobre el eje horizontal y alárgala.',
           ],
           explain:
-            'La primera en actuar es la transformación de la derecha. Esta vez es el estiramiento, y el giro actúa sobre lo que sale de él, no sobre las flechas originales.',
+            'Sigue cada rasgo por las dos capas. La intensidad: el intercambio la manda a la segunda salida, y la segunda capa no la toca. El tono: el intercambio lo manda a la primera, y la segunda capa lo dobla. Las columnas de la capa única son esos dos recorridos.',
           solution:
-            'El estiramiento deja a $\\hat{\\imath}$ en $(2, 0)$ y el giro lo sube a $(0, 2)$. Deja a $\\hat{\\jmath}$ en $(0, 1)$ y el giro lo lleva a $(-1, 0)$. Así, $RS=\\begin{pmatrix}0&-1\\\\2&0\\end{pmatrix}$, distinta de $SR=\\begin{pmatrix}0&-2\\\\1&0\\end{pmatrix}$: el producto de matrices no es conmutativo.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([0, 2], [-1, 0]),
+            'Con $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(2, 0)$, todas las palabras caen en su diana: la capa es el producto $\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}=\\begin{pmatrix}0&2\\\\1&0\\end{pmatrix}$. Con dos palabras de distinta dirección la capa ya queda fijada. Con $\\hat{\\imath}$ en $(0, 2)$ y $\\hat{\\jmath}$ en $(1, 0)$ se dobla la intensidad: es el otro orden, y no llega.',
+          lab: capaLab(RESENAS, { range: 5, targets: dianas((x, y) => [2 * y, x]) }),
+          goals: [EN_SU_DIANA],
+          solved: { ix: 0, iy: 1, jx: 2, jy: 0 },
         },
         {
           id: 'componer.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Una red recurrente procesa una secuencia aplicando la misma matriz en cada paso, y lo que le pasa a la señal tras muchos pasos depende de las **potencias** de esa matriz. Si crecen, la señal se dispara; si encogen, se apaga, y la red olvida el principio de la secuencia. Aplicar dos veces una inclinación es el primer paso para ver cómo se acumula un efecto que se repite.',
-            aim: 'Vas a aplicar la misma inclinación dos veces seguidas y a ver qué le pasa a $\\hat{\\jmath}$ cuando la segunda inclinación actúa sobre lo que dejó la primera.',
+            why: 'Una capa que aplasta el plano sobre una recta tira información, y ninguna capa posterior la recupera: trabaja con lo que le llega. Por eso, en una red, un cuello de botella mal entrenado limita todo lo que viene detrás.',
+            aim: 'Vas a buscar la segunda capa que más reseñas salva cuando la primera ha borrado el tono, y a entender por qué no se puede pasar de ahí.',
             takeaway:
-              '$H^2=\\begin{pmatrix}1&2\\\\0&1\\end{pmatrix}$: inclinar dos veces es inclinar el doble, y $H^n$ inclina $n$ veces más. El número de arriba a la derecha crece con cada repetición: una matriz que se aplica una y otra vez acumula su efecto.',
+              'La primera capa deja cada reseña según su intensidad. «genial» y «horrible» caen en el mismo punto, y también «bueno» y «malo»: de cada pareja se acierta una como mucho. Cuatro de seis es el techo. Lo que una capa destruye, la siguiente no lo recupera.',
           },
           prompt:
-            'La **inclinación horizontal** $H=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ deja a $\\hat{\\imath}$ quieto y lleva a $\\hat{\\jmath}$ a $(1, 1)$. Aplicarla dos veces seguidas es la matriz $H^2=HH$. Construye $H^2$: sigue a $\\hat{\\jmath}$ por dos inclinaciones.',
+            'Esta primera capa aplasta: lleva cada reseña a la diagonal según su intensidad, y el tono se pierde. Detrás va tu capa, y la neurona siguiente dice «positiva» si tu primera salida pasa de $3{,}5$. Ahora no lo pasa ninguna.\n\n¿Cuántas reseñas puedes salvar? Busca la capa que acierte con el máximo posible.',
           hints: [
-            'La primera inclinación lleva a $\\hat{\\jmath}$ a $(1, 1)$. Inclina ese punto otra vez: la inclinación suma su $y$ a su $x$.',
-            '$\\hat{\\imath}$ está sobre el eje $x$, y la inclinación no lo mueve en ninguna de las dos veces.',
+            'Mira los cuadraditos: hay menos de seis. Las palabras con la misma intensidad han caído en el mismo punto, y a partir de ahí tu capa las mueve juntas.',
+            'Solo cuenta cuánto avanza la diagonal en tu primera salida: suma la primera coordenada de $\\hat{\\imath}$ y la de $\\hat{\\jmath}$. Prueba a que entre las dos sumen $2$.',
           ],
           explain:
-            'Aplicar la misma matriz dos veces es multiplicarla por sí misma. La segunda inclinación actúa sobre el punto al que ya ha llegado la primera, no sobre $\\hat{\\jmath}$.',
+            'Tras la primera capa, cada reseña es un punto de la diagonal, a la altura de su intensidad. Tu primera salida es esa intensidad por un número, y la neurona corta por un umbral. Una palabra positiva y una negativa con la misma intensidad reciben siempre la misma respuesta.',
           solution:
-            'La primera inclinación lleva a $\\hat{\\jmath}$ a $(1, 1)$ y la segunda, a $(1+1,\\ 1)=(2, 1)$. $\\hat{\\imath}$ se queda en $(1, 0)$. Así, $H^2=\\begin{pmatrix}1&2\\\\0&1\\end{pmatrix}$: inclinar dos veces es inclinar el doble.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([1, 0], [2, 1]),
+            'Con $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$ la primera salida es el doble de la intensidad: «genial» y «feliz» pasan de $3{,}5$, «triste» y «malo» no, y se aciertan cuatro. Vale cualquier capa cuyas dos primeras coordenadas sumen $2$. No se puede más: «genial» y «horrible» son el mismo punto, «bueno» y «malo» también, y de cada pareja falla una.',
+          lab: capaLab(llegan(['intensidad', 'intensidad, otra vez']), {
+            range: 5.5,
+            before: { i: [1, 1], j: [0, 0] },
+            readout: { w: [1, 0], b: -3.5 },
+          }),
+          goals: [
+            {
+              metric: 'hits',
+              op: 'gte',
+              target: 4,
+              label: 'Reseñas que acierta la neurona siguiente',
+              format: 'integer',
+            },
+          ],
+          solved: { jx: 1 },
         },
         {
           id: 'componer.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Al preparar un modelo para usarlo, dos operaciones lineales seguidas se pueden **fusionar** en una sola matriz, multiplicándolas de antemano: el resultado es el mismo y se hace una multiplicación en vez de dos. A veces el producto, además, resulta ser algo más sencillo que sus piezas, como aquí: dos espejos seguidos son un giro.',
-            aim: 'Vas a encadenar dos espejos, uno respecto de cada eje, y a reconocer en la matriz final una transformación que no refleja nada.',
+            why: 'Los flujos normalizadores, unos modelos generativos, encadenan capas y necesitan saber cuánto estira o encoge el espacio la cadena entera: es el producto de los determinantes de cada capa. Las áreas no se suman: se multiplican.',
+            aim: 'Vas a construir una segunda capa que compense a una primera que multiplica las áreas por cuatro, para que las dos juntas dejen el espacio con su tamaño.',
             takeaway:
-              'Dos reflexiones en ejes perpendiculares dan $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$, la media vuelta, con determinante $1$. Componer cambia la naturaleza de las piezas: dos inversiones de la orientación se anulan.',
+              'Encoger cada columna a la mitad divide el área entre cuatro: $\\det(AB)=\\det A\\cdot\\det B=\\frac{1}{4}\\cdot 4=1$. Encoger una sola columna la deja en $2$. La escala de una cadena de capas es el producto de la de cada una.',
           },
           prompt:
-            'Reflejar respecto del eje $x$ cambia el signo de la $y$ de cada punto, y reflejar respecto del eje $y$ cambia el de la $x$. Construye la matriz de «primero reflejar respecto del eje $x$ y después respecto del eje $y$». Cuando la tengas, mira qué transformación conocida es.',
+            'La primera capa, fija, estira el plano al doble en las dos direcciones: los cuadraditos quedan lejos del origen y cada área se multiplica por $4$. Detrás va tu capa.\n\nHaz que las dos juntas dejen las áreas como estaban: ni más grandes ni más pequeñas. El medidor lee el determinante de las dos capas juntas.',
           hints: [
-            'Sigue a $\\hat{\\imath}=(1, 0)$: el primer espejo no lo mueve, porque está sobre el eje $x$. El segundo le cambia la $x$.',
-            'Sigue a $\\hat{\\jmath}=(0, 1)$: el primer espejo le cambia la $y$, y el segundo no lo mueve, porque está sobre el eje $y$.',
+            'El medidor empieza en $4$: tu capa no hace nada todavía. Encoge una columna a la mitad y mira cuánto baja.',
+            'Encoger una columna divide el área entre dos. Hace falta dividir entre cuatro: encoge también la otra.',
           ],
           explain:
-            'Cada espejo cambia el signo de una coordenada. Aplicados uno tras otro se cambian las dos, así que mira cada flecha en las dos reflexiones.',
+            'El determinante de las dos capas juntas es el de la primera por el de la segunda. La primera vale $4$, así que la tuya tiene que valer $\\frac{1}{4}$. Encoger una sola columna da $\\frac{1}{2}$, y el total se queda en $2$.',
           solution:
-            'Con el primer espejo, $\\hat{\\imath}$ sigue en $(1, 0)$, y el segundo lo lleva a $(-1, 0)$. $\\hat{\\jmath}$ pasa a $(0, -1)$ con el primero, y el segundo lo deja ahí. La matriz es $\\begin{pmatrix}-1&0\\\\0&-1\\end{pmatrix}$, un giro de media vuelta: dos reflexiones seguidas, en ejes perpendiculares, equivalen a ese giro.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([-1, 0], [0, -1]),
+            'Con $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0;\\ 0{,}5)$ tu capa tiene determinante $\\frac{1}{4}$ y las palabras vuelven a su sitio. Vale cualquier capa de determinante $\\frac{1}{4}$, como $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 0{,}5)$, que además inclina. Con $\\hat{\\imath}$ en $(-0{,}5;\\ 0)$ el determinante total es $-1$: el tamaño está bien, pero el plano queda volteado.',
+          lab: capaLab(llegan(['intensidad × 2', 'tono × 2']), {
+            range: 5.5,
+            before: { i: [2, 0], j: [0, 2] },
+          }),
+          goals: [
+            {
+              metric: 'det_total',
+              op: 'eq',
+              target: 1,
+              tol: 0.1,
+              label: 'Determinante de las dos capas juntas',
+            },
+          ],
+          solved: { ix: 0.5, jy: 0.5 },
         },
         {
           id: 'componer.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Muchos transformers codifican la posición de cada palabra con giros (**RoPE**): las consultas y las claves de la atención se giran, por pares de coordenadas, un ángulo que crece con la posición. La posición tercera es el mismo giro aplicado tres veces, la matriz $R^3$. Como un giro conserva longitudes, la posición se marca sin estropear el vector, y en el producto escalar entre una consulta y una clave la posición solo cuenta por la distancia entre las dos.',
-            aim: 'Vas a aplicar el mismo cuarto de vuelta tres veces seguidas, siguiendo a cada flecha posición a posición, y a ver qué giro sencillo resume los tres.',
+            why: 'Intercambiar dos capas de una red no da error: las formas casan y todo corre, pero sale otra red. El producto de matrices no es conmutativo, y el orden de las capas es parte del modelo, igual que sus pesos.',
+            aim: 'Vas a llevar las reseñas a las dianas de «primero doblar la intensidad, después intercambiar», con el intercambio ya puesto delante.',
             takeaway:
-              '$R^3=\\begin{pmatrix}0&1\\\\-1&0\\end{pmatrix}$: tres cuartos de vuelta antihorarios son un cuarto de vuelta horario. $R^n$ gira $n$ veces el ángulo de $R$, y por eso un giro por posición sirve para contar posiciones.',
+              'Tras el intercambio, la intensidad vive en la segunda salida: doblarla allí es doblar la segunda salida, no la primera. La misma operación es otra matriz según lo que haya delante. Por eso $BA$ y $AB$ casi nunca coinciden.',
           },
           prompt:
-            'Gira el plano un cuarto de vuelta en sentido antihorario, $R=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$, **tres veces seguidas**: es la matriz $R^3=RRR$. Coloca $\\hat{\\imath}$ y $\\hat{\\jmath}$ donde terminan tras los tres giros.',
+            'Las dianas marcan dónde quedan las reseñas si primero se dobla la intensidad y después se intercambian los rasgos. Pero aquí el orden es el contrario: la capa que intercambia ya va delante (los cuadraditos) y la tuya, detrás. Cuidado: poner detrás «doblar la primera salida» no da lo mismo.\n\nLleva las seis palabras a sus dianas.',
           hints: [
-            'Cada giro lleva la punta de $\\hat{\\imath}$ a la siguiente posición: $(1, 0)$, $(0, 1)$, $(-1, 0)$… Sigue contando hasta el tercer giro.',
-            'Haz lo mismo con $\\hat{\\jmath}$, que arranca arriba y recorre su propio círculo.',
+            'Mira los cuadraditos: tras el intercambio, la intensidad está en el eje vertical. Las dianas están el doble de altas.',
+            'Hay que doblar la salida en la que está ahora la intensidad, la segunda: alarga $\\hat{\\jmath}$ hacia arriba y deja $\\hat{\\imath}$ donde está.',
           ],
           explain:
-            'Cada giro actúa sobre la posición a la que ha llegado la flecha con el anterior. Cuenta las posiciones sucesivas de cada punta, sin saltarte ninguna.',
+            'Doblar la intensidad antes del intercambio es doblar la primera coordenada. Después del intercambio, esa intensidad ya está en la segunda. Tu capa actúa sobre los cuadraditos, así que tiene que doblar la coordenada donde está ahora.',
           solution:
-            '$\\hat{\\imath}$ recorre $(1, 0)\\to(0, 1)\\to(-1, 0)\\to(0, -1)$ y acaba en $(0, -1)$. $\\hat{\\jmath}$ recorre $(0, 1)\\to(-1, 0)\\to(0, -1)\\to(1, 0)$ y acaba en $(1, 0)$. Así, $R^3=\\begin{pmatrix}0&1\\\\-1&0\\end{pmatrix}$, un cuarto de vuelta en sentido horario: tres cuartos antihorarios dan lo mismo.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([0, -1], [1, 0]),
+            'Con $\\hat{\\jmath}$ en $(0, 2)$ tu capa dobla la segunda salida y todas las palabras caen en su diana. Con $\\hat{\\imath}$ en $(2, 0)$, que dobla la primera, se dobla el tono: es el orden contrario y las palabras se alejan en horizontal. Las dos capas juntas son $\\begin{pmatrix}1&0\\\\0&2\\end{pmatrix}\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}=\\begin{pmatrix}0&1\\\\2&0\\end{pmatrix}$.',
+          lab: capaLab(llegan(['tono', 'intensidad']), {
+            range: 5.5,
+            before: INTERCAMBIA,
+            targets: dianas((x, y) => [y, 2 * x]),
+          }),
+          goals: [EN_SU_DIANA],
+          solved: { jy: 2 },
         },
       ],
     },
@@ -142,118 +210,132 @@ export const componer: Project = {
       questions: [
         {
           id: 'componer.ex01.1',
-          type: 'vector',
+          type: 'numero',
           purpose: {
-            why: 'Cuando dos pasos lineales van seguidos, como el escalado de una normalización y la capa que viene detrás, al poner un modelo en producción se suelen fundir en una sola matriz: se calcula el producto una vez y cada entrada pasa por una matriz en lugar de dos. Ese producto se arma columna a columna: cada columna de $AB$ es una columna de $B$ ya pasada por $A$.',
-            aim: 'Vas a calcular $AB$ columna a columna, pasando cada columna de $B$ por $A$, y a ver cómo queda una matriz única que hace los dos pasos.',
+            why: 'En cada bloque de un transformer hay dos capas seguidas, el MLP: una ensancha los vectores y otra los devuelve a su tamaño, con una activación en medio. Ahí está buena parte de los parámetros del modelo.',
+            aim: 'Vas a contar los parámetros de las dos capas del MLP de un bloque del GPT-2 pequeño, entre pesos y sesgos.',
             takeaway:
-              '$AB$ tiene por columnas $(4, 6)$ y $(-2, 0)$: cada una es una columna de $B$ transformada por $A$. Por eso el producto actúa como las dos transformaciones seguidas, y por eso los modelos pueden precalcular un producto en vez de repetir los dos pasos.',
+              'Son $4\\,722\\,432$ parámetros por bloque, casi todos pesos de las dos matrices. Con 12 bloques, el MLP pasa de 56 millones: casi la mitad de los 124 millones del GPT-2 pequeño.',
           },
           prompt:
-            'Calcula $AB$ con $A=\\begin{pmatrix}2&1\\\\0&3\\end{pmatrix}$ y $B=\\begin{pmatrix}1&-1\\\\2&0\\end{pmatrix}$. Cada columna de $AB$ es $A$ multiplicada por la columna correspondiente de $B$. Escribe la matriz en las cuatro casillas.',
+            'En cada bloque del GPT-2 pequeño, el MLP son dos capas seguidas: la primera lleva vectores de $768$ números a $3072$, y la segunda los devuelve de $3072$ a $768$. Cada capa tiene un peso por pareja de entrada y salida, y un sesgo por salida.\n\n¿Cuántos parámetros tienen las dos capas juntas?',
           hints: [
-            'La primera columna de $AB$ es $A\\begin{pmatrix}1\\\\2\\end{pmatrix}$: cada componente sale de una fila de $A$ por esa columna.',
-            'La segunda columna de $AB$ es $A\\begin{pmatrix}-1\\\\0\\end{pmatrix}$.',
+            'Cuenta cada capa por separado: pesos (salidas por entradas) más un sesgo por salida.',
+            'Las dos matrices tienen los mismos pesos, $3072\\cdot 768$, pero los sesgos no: la primera tiene $3072$ salidas y la segunda, $768$.',
           ],
           explain:
-            'Para cada columna de $B$ se hace una multiplicación de matriz por vector. Las columnas obtenidas se colocan en el mismo orden: la primera columna de $B$ da la primera de $AB$.',
+            'Los pesos de una capa son salidas por entradas, y los sesgos se cuentan con las salidas. Las dos matrices del MLP guardan los mismos pesos, $3072$ por $768$, pero tienen distinto número de salidas.',
           solution:
-            'Primera columna: $A\\begin{pmatrix}1\\\\2\\end{pmatrix}=\\begin{pmatrix}2\\cdot 1+1\\cdot 2\\\\0\\cdot 1+3\\cdot 2\\end{pmatrix}=\\begin{pmatrix}4\\\\6\\end{pmatrix}$. Segunda: $A\\begin{pmatrix}-1\\\\0\\end{pmatrix}=\\begin{pmatrix}-2\\\\0\\end{pmatrix}$. Luego $AB=\\begin{pmatrix}4&-2\\\\6&0\\end{pmatrix}$. Si colocas las columnas como filas, sale la traspuesta.',
-          shape: [2, 2],
-          answer: [4, -2, 6, 0],
+            'Primera capa: $3072\\cdot 768+3072=2\\,362\\,368$. Segunda: $768\\cdot 3072+768=2\\,360\\,064$. Juntas, $4\\,722\\,432$ parámetros. Contar $3072$ sesgos en las dos daría $2304$ de más.',
+          answer: 4722432,
           tol: 0,
         },
         {
           id: 'componer.ex01.2',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'En un preprocesado, aplicar los pasos en otro orden no da error: las formas casan y el programa corre, pero los datos que salen son distintos. Es un fallo silencioso que solo se detecta comprobando una entrada de la que conoces la salida. Aquí lo ves con dos matrices.',
-            aim: 'Vas a calcular $AB$ y $BA$ con las mismas dos matrices y a decidir si el orden cambia el resultado.',
+            why: 'Para entender qué hace una red con un rasgo hay que seguirlo por todas sus capas: llega a cada salida por varios caminos, y su peso final es la suma de lo que aporta cada uno. Es lo que calcula el producto de matrices.',
+            aim: 'Vas a seguir el tono por dos capas seguidas y a sumar lo que llega a la primera salida por cada camino.',
             takeaway:
-              '$AB$ y $BA$ no coinciden: el producto de matrices no es conmutativo, aunque los dos estén definidos. Si cambias el orden de dos pasos no obtienes un aviso, solo otros datos. Por eso se prueba el preprocesado con una entrada pequeña cuyo resultado se conoce de antemano.',
+              'El tono llega a la salida 1 por dos caminos: directo, con peso $1\\cdot 1$, y pasando por la salida 2, con peso $2\\cdot 1$. Suman $3$: la entrada de la fila 1 y la columna 2 del producto es esa suma de caminos.',
           },
           prompt:
-            'Sean $A=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ y $B=\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$. Calcula $AB$ y $BA$ y compáralas. ¿Qué ocurre?',
+            'Dos capas seguidas. La primera, $B=\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$, suma el tono a la intensidad en la salida 1 y deja el tono en la 2. La segunda, $A=\\begin{pmatrix}1&2\\\\0&1\\end{pmatrix}$, suma a su salida 1 el doble de su salida 2.\n\nEn la capa única que equivale a las dos, ¿cuánto pesa el tono en la salida 1? Puedes construir $A$ en el laboratorio.',
           hints: [
-            'Haz las dos multiplicaciones completas, columna a columna.',
-            'La primera columna de $AB$ es $A$ por $(0, 1)$, y la de $BA$ es $B$ por $(1, 0)$.',
+            'El tono sale de $B$ por dos sitios: con peso $1$ en la salida 1 y con peso $1$ en la salida 2. Sigue cada uno por $A$.',
+            'Lo que está en la salida 1 de $B$ llega a la salida 1 de $A$ por $1$; lo que está en la salida 2, por $2$. Multiplica en cada camino y suma.',
           ],
           explain:
-            'Calcula los dos productos enteros y compáralos entrada a entrada: basta un número distinto para que no sean iguales.',
+            'Cada camino de un rasgo a una salida multiplica los pesos que recorre, y los caminos se suman. Es la cuenta de la fila 1 de $A$ por la columna 2 de $B$.',
           solution:
-            '$AB=\\begin{pmatrix}1&-1\\\\1&0\\end{pmatrix}$ y $BA=\\begin{pmatrix}0&-1\\\\1&1\\end{pmatrix}$, que no coinciden. $AB$ aplica primero $B$ y $BA$ aplica primero $A$, y el resultado depende del orden. Los dos productos están definidos, porque las dos matrices son de $2\\times 2$, pero poder calcular los dos no los hace iguales.',
+            '$(AB)_{12}=1\\cdot 1+2\\cdot 1=3$. La capa única es $AB=\\begin{pmatrix}1&3\\\\0&1\\end{pmatrix}$. Si tomas solo el camino directo sale $1$, y si multiplicas $1\\cdot 2$ sale $2$: el camino que pasa por la salida 2 se suma al otro.',
+          lab: capaLab(llegan(['intensidad + tono', 'tono']), {
+            range: 5.5,
+            before: { i: [1, 0], j: [1, 1] },
+          }),
+          answer: 3,
+          tol: 0,
+        },
+        {
+          id: 'componer.ex01.3',
+          type: 'opcion',
+          purpose: {
+            why: 'Si al montar una red se olvida la activación entre dos capas, el modelo entrena sin quejarse, pero es una sola matriz disfrazada de dos: gasta más memoria y no aprende nada que una capa no pueda.',
+            aim: 'Vas a decidir por qué apilar capas lineales sin nada entre ellas no hace la red más capaz.',
+            takeaway:
+              'Dos capas lineales seguidas son el producto de sus matrices: una capa más. Por mucho que mezclen, la frontera de la neurona sigue siendo una recta. Una activación como ReLU entre ellas es lo que rompe esa cuenta.',
+          },
+          prompt:
+            'Una red tiene dos capas lineales seguidas y nada entre ellas. En el laboratorio, la primera está fija y la segunda es tuya: muévela y mira cómo se mueven las reseñas. ¿Por qué esta red no puede aprender nada que una sola capa lineal no pueda?',
+          hints: [
+            'Cada vez que mueves tu capa, las seis palabras se mueven juntas, como con una sola matriz. ¿Hay alguna colocación que no consiga una capa sola?',
+            'Escribe la salida de las dos capas, $A(B\\vec{x})$, y agrupa las matrices.',
+          ],
+          explain:
+            '$A(B\\vec{x})=(AB)\\vec{x}$: las dos capas actúan como una matriz, su producto. Cualquier cosa que hagan juntas la hace una capa con esa matriz.',
+          solution:
+            'Las dos capas equivalen a una sola, $AB$: cada palabra acaba donde la dejaría esa matriz, y la frontera de la neurona sigue siendo una recta. No es que la segunda deshaga a la primera, ni que haga falta otro tamaño: es que todo producto de matrices es otra matriz. Una función no lineal entre ellas lo evita.',
+          lab: capaLab(llegan(['intensidad + tono', 'intensidad − tono']), {
+            range: 5.5,
+            before: MEZCLA,
+            readout: MIRA_SALIDA_1,
+          }),
           options: [
-            'Son iguales, como al multiplicar números: el orden de los factores no altera el producto',
-            'No son iguales: $AB$ hace primero $B$ y después $A$, y $BA$ lo hace al revés',
-            'Son iguales, porque las dos matrices tienen el mismo tamaño',
-            'Solo se puede calcular $AB$: $BA$ no está definido',
+            'Porque la segunda capa siempre deshace lo que hace la primera',
+            'Porque dos capas lineales seguidas equivalen a una sola matriz, su producto',
+            'Porque las dos capas tienen el mismo tamaño; con tamaños distintos sí ganaría',
+            'Porque una red solo aprende si tiene más de dos capas',
           ],
           correct: 1,
         },
         {
-          id: 'componer.ex01.3',
-          type: 'vector',
-          purpose: {
-            why: 'Las filas de una matriz de datos son los ejemplos, y las columnas, sus rasgos. Multiplicarla por la matriz de pesos de una capa procesa **todo el lote** de una vez, en lugar de ejemplo a ejemplo. Prever el tamaño del resultado permite saber de antemano qué sale de la capa.',
-            aim: 'Vas a deducir el tamaño de un producto de una matriz de $3\\times 5$ por otra de $5\\times 2$, mirando qué se conserva y qué desaparece de los tamaños.',
-            takeaway:
-              'El resultado es de $3\\times 2$: una fila por ejemplo del lote y una columna por salida de la capa. El 5 interior se gasta en las sumas: cada entrada cuesta 5 multiplicaciones, así que el producto entero cuesta $6\\cdot 5=30$ multiplicaciones.',
-          },
-          prompt:
-            'Una matriz $A$ de $3\\times 5$ se multiplica por una matriz $B$ de $5\\times 2$. El producto $AB$ está definido, porque los tamaños interiores coinciden (5 y 5). ¿Qué tamaño tiene $AB$? Escribe primero las filas y después las columnas.',
-          hints: [
-            'Cada entrada de $AB$ sale de una fila de $A$ y una columna de $B$.',
-            'El resultado tiene tantas filas como $A$ y tantas columnas como $B$.',
-          ],
-          explain:
-            'En el producto, los tamaños interiores se cancelan y los exteriores quedan. Piensa cuántas filas aporta $A$ y cuántas columnas aporta $B$.',
-          solution:
-            '$AB$ es de $3\\times 2$: las 3 filas de $A$ y las 2 columnas de $B$. El 5 de en medio desaparece: es la cantidad de números que se multiplican y suman para calcular cada entrada.',
-          answer: [3, 2],
-          tol: 0,
-        },
-        {
           id: 'componer.ex01.4',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Al encadenar capas, o un preprocesado seguido de un modelo, la salida de cada paso tiene que encajar con la entrada del siguiente. En un framework, un producto mal encadenado se detiene con un error de formas. Aprender a verlo en los tamaños evita probar combinaciones a ciegas.',
-            aim: 'Vas a revisar cuatro productos de tres matrices mirando solo los tamaños interiores, y a encontrar el único que no se puede calcular.',
+            why: 'Un modelo generativo que encadena capas, como un flujo normalizador, lleva la cuenta de cuánto estira el espacio la cadena entera. No multiplica las matrices: multiplica sus determinantes, que es más barato.',
+            aim: 'Vas a calcular cuánto multiplican las áreas dos capas seguidas a partir del determinante de cada una.',
             takeaway:
-              '$AC$ no está definido, y sin embargo $CA$ sí lo está: el orden también decide si un producto existe. En una red, la solución es ajustar el tamaño de una de las capas, no cambiar de orden a la fuerza.',
+              'La primera capa multiplica las áreas por $2$ y la segunda por $0{,}75$: juntas, por $1{,}5$. $\\det(AB)=\\det A\\cdot\\det B$, y no hace falta calcular el producto.',
           },
           prompt:
-            'Tres matrices tienen estos tamaños: $A$ es de $2\\times 3$, $B$ de $3\\times 4$ y $C$ de $4\\times 2$. Un producto solo está definido si las columnas de la primera matriz son tantas como las filas de la segunda. ¿Cuál de estos productos NO está definido?',
+            'La primera capa es $B=\\begin{pmatrix}1&1\\\\-1&1\\end{pmatrix}$ y la segunda, $A=\\begin{pmatrix}0{,}5&0{,}5\\\\-0{,}5&1\\end{pmatrix}$. En el laboratorio están puestas las dos.\n\n¿Por cuánto multiplican las dos juntas el área de cualquier figura? Es el determinante de $AB$.',
           hints: [
-            'Para cada producto, compara el segundo número del tamaño de la primera matriz con el primero del tamaño de la segunda.',
-            'En $AB$, por ejemplo, se compara 3 con 3, y coinciden.',
+            'Calcula el determinante de cada capa por separado: $ad-bc$ con sus cuatro números.',
+            'Las áreas se multiplican al encadenar capas: multiplica los dos determinantes.',
           ],
           explain:
-            'Revisa los cuatro productos uno por uno, mirando solo los dos tamaños interiores.',
+            'Cada capa multiplica las áreas por su determinante, y la segunda actúa sobre lo que deja la primera: los factores se multiplican. $\\det(AB)=\\det A\\cdot\\det B$.',
           solution:
-            '$AB$ es $(2\\times 3)(3\\times 4)$ y da $2\\times 4$. $BC$ es $(3\\times 4)(4\\times 2)$ y da $3\\times 2$. $CA$ es $(4\\times 2)(2\\times 3)$ y da $4\\times 3$. En $AC$, $(2\\times 3)(4\\times 2)$, los tamaños interiores son 3 y 4: no coinciden, y el producto no está definido.',
-          options: ['$AB$', '$BC$', '$CA$', '$AC$'],
-          correct: 3,
+            '$\\det B=1\\cdot 1-1\\cdot(-1)=2$ y $\\det A=0{,}5\\cdot 1+0{,}5\\cdot 0{,}5=0{,}75$. Juntas: $0{,}75\\cdot 2=1{,}5$. Sumarlos daría $2{,}75$, que no es nada: las escalas se componen multiplicando.',
+          lab: capaLab(llegan(['intensidad + tono', 'tono − intensidad']), {
+            range: 5.5,
+            before: { i: [1, -1], j: [1, 1] },
+            i: [0.5, -0.5],
+            j: [0.5, 1],
+          }),
+          answer: 1.5,
+          tol: 0,
         },
         {
           id: 'componer.ex01.5',
           type: 'vector',
           purpose: {
-            why: 'Si al construir una red se olvida la función de activación entre dos capas lineales, el modelo entrena sin quejarse, pero es una sola matriz disfrazada de dos. Calcular el tamaño de esa matriz única ayuda a ver cuánto ocupa en realidad y qué ha ganado, que es nada, con la segunda capa.',
-            aim: 'Vas a calcular el tamaño de la matriz única que equivale a dos capas seguidas, usando la entrada de la primera y la salida de la segunda.',
+            why: 'En una red de verdad, entre dos capas va una activación: ReLU deja pasar lo positivo y pone a cero lo negativo. Esa cuenta tan corta es la que impide que las dos capas se fundan en una sola matriz.',
+            aim: 'Vas a pasar una palabra por dos capas con ReLU en medio, paso a paso, y a ver qué cambia el corte de lo negativo.',
             takeaway:
-              'La matriz equivalente es de $3\\times 4$ y tiene 12 pesos, frente a los 56 de las dos capas juntas ($8\\cdot 4+3\\cdot 8$). La red con dos capas gasta más y no representa nada más. Por eso se añade una activación como ReLU entre capas.',
+              'Con ReLU, «feliz» acaba en $(3{,}5;\\ 0)$; sin ella, en $(2{,}5;\\ -0{,}5)$. El corte de un valor negativo cambia la salida, y ninguna matriz sola reproduce ese corte para todas las palabras.',
           },
           prompt:
-            'Una red tiene dos capas lineales seguidas, sin función de activación en medio. La primera, $W_1$, es de $8\\times 4$: lleva una entrada de 4 componentes a 8. La segunda, $W_2$, es de $3\\times 8$: lleva esas 8 a 3. La salida es $\\vec{y}=W_2(W_1\\vec{x})$. Dos capas así equivalen a **una sola** matriz $W$ con $\\vec{y}=W\\vec{x}$. Escribe su tamaño: primero las filas y después las columnas.',
+            '«feliz» tiene intensidad $2$ y tono $1{,}5$. La primera capa es $B=\\begin{pmatrix}1&1\\\\-1&1\\end{pmatrix}$; después, ReLU pone a cero cada número negativo; al final, la segunda capa, $A=\\begin{pmatrix}1&2\\\\0&1\\end{pmatrix}$.\n\n¿Qué dos números salen de la red para «feliz»?',
           hints: [
-            '$W$ lleva el mismo $\\vec{x}$ de 4 componentes a la misma $\\vec{y}$ de 3: ¿cuántas columnas y cuántas filas hacen falta?',
-            'También puedes pensar en el producto $W_2W_1$ y quitar los tamaños interiores.',
+            'Primero $B$ por la palabra: cada salida es una fila de $B$ por $(2;\\ 1{,}5)$. Una de las dos sale negativa.',
+            'ReLU cambia la negativa por $0$ y deja la otra. Después multiplica $A$ por ese vector.',
           ],
           explain:
-            'La matriz única tiene que aceptar la misma entrada y dar la misma salida que las dos capas juntas. De ahí salen sus dos tamaños.',
+            'Se hace en orden: la primera capa, la activación sobre cada número y la segunda capa. ReLU actúa entre las dos, así que no se puede saltar multiplicando $AB$ de antemano.',
           solution:
-            '$W=W_2W_1$ es el producto $(3\\times 8)(8\\times 4)$, de tamaño $3\\times 4$: el 8 intermedio desaparece. Es la clave de por qué entre capas hace falta una función no lineal: sin ella, apilar capas lineales no añade capacidad, porque todas se funden en una sola matriz.',
-          answer: [3, 4],
+            '$B$ da $(2+1{,}5;\\ -2+1{,}5)=(3{,}5;\\ -0{,}5)$. ReLU lo deja en $(3{,}5;\\ 0)$. $A$ da $(3{,}5+2\\cdot 0;\\ 0)=(3{,}5;\\ 0)$. Sin ReLU saldría $AB$ por la palabra: $(3{,}5-1;\\ -0{,}5)=(2{,}5;\\ -0{,}5)$.',
+          answer: [3.5, 0],
           tol: 0,
         },
       ],
