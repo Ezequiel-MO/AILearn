@@ -58,6 +58,7 @@ export function VectorQuestion({ question, locked, onSubmit }: QuestionProps<Vec
         prompt={question.prompt}
         plane={question.plane}
         graph={question.graph}
+        lab={question.lab}
         purpose={question.purpose}
       />
       <div className="question__answer">

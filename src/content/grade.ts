@@ -1,6 +1,7 @@
 import { curveAt, measureCurve } from '../engine/curves';
+import { labSolved, type LabState } from '../engine/labs';
 import { measure, type Vec } from '../engine/vectors';
-import type { CodigoQ, CurvaQ, GraphSpec, ManipularQ, Question } from './schema';
+import type { CodigoQ, CurvaQ, GraphSpec, LabQ, ManipularQ, Question } from './schema';
 
 export type ParsedNumber = { ok: true; value: number } | { ok: false };
 
@@ -19,6 +20,7 @@ export const parseNumber = (text: string): ParsedNumber => {
 export type Answer =
   | { type: 'manipular'; vectors: Record<string, [number, number]> }
   | { type: 'curva'; points: Record<string, [number, number]> }
+  | { type: 'laboratorio'; state: LabState }
   | { type: 'numero'; value: number }
   | { type: 'vector'; value: number[] }
   | { type: 'opcion'; index: number }
@@ -61,6 +63,9 @@ const gradeCurva = (q: CurvaQ, a: Extract<Answer, { type: 'curva' }>): boolean =
   );
 };
 
+const gradeLab = (q: LabQ, a: Extract<Answer, { type: 'laboratorio' }>): boolean =>
+  labSolved(q.lab, q.goals, a.state);
+
 /** Las preguntas de código no pasan por aquí: las corrige Python. */
 export const grade = (q: Exclude<Question, CodigoQ>, a: Answer): boolean => {
   switch (q.type) {
@@ -68,6 +73,8 @@ export const grade = (q: Exclude<Question, CodigoQ>, a: Answer): boolean => {
       return a.type === 'manipular' && gradeManipular(q, a);
     case 'curva':
       return a.type === 'curva' && gradeCurva(q, a);
+    case 'laboratorio':
+      return a.type === 'laboratorio' && gradeLab(q, a);
     case 'numero':
       return a.type === 'numero' && within(a.value, q.answer, q.tol);
     case 'vector':

@@ -35,6 +35,9 @@ export const proseTexts = (q: Question): ProseText[] => [
   ...(q.type === 'codigo'
     ? q.requirements.map((text, i) => ({ field: `requirement[${i}]`, text }))
     : []),
+  ...(q.type === 'laboratorio'
+    ? q.goals.map((g, i) => ({ field: `goal[${i}].label`, text: g.label }))
+    : []),
   ...('purpose' in q && q.purpose
     ? [
         { field: 'purpose.why', text: q.purpose.why },

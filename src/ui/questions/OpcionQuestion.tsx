@@ -21,6 +21,7 @@ export function OpcionQuestion({ question, locked, onSubmit }: QuestionProps<Opc
         prompt={question.prompt}
         plane={question.plane}
         graph={question.graph}
+        lab={question.lab}
         purpose={question.purpose}
       />
       <fieldset className="question__options" disabled={locked}>

@@ -1,0 +1,264 @@
+/* === Laboratorio «capa»: una nube de palabras pasa por una capa lineal === */
+
+.capa__image-grid line {
+  stroke: var(--plane-image);
+  stroke-opacity: 0.32;
+  stroke-width: 1;
+}
+
+.capa__unit {
+  fill: var(--plane-image);
+  fill-opacity: 0.12;
+  stroke: var(--plane-image);
+  stroke-opacity: 0.5;
+}
+
+.capa__unit--flipped {
+  fill: var(--plane-flip);
+  stroke: var(--plane-flip);
+}
+
+/* El lado de la neurona siguiente que responde «grupo 1». */
+.capa__zone {
+  fill: var(--lab-g1);
+  fill-opacity: 0.1;
+}
+
+.capa__boundary {
+  stroke: var(--lab-g1);
+  stroke-width: 2;
+  stroke-dasharray: 7 5;
+}
+
+.capa__circle {
+  fill: none;
+  stroke: var(--lab-neutral);
+  stroke-dasharray: 3 4;
+}
+
+.capa__ellipse {
+  fill: none;
+  stroke: var(--plane-image);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+
+.capa__probe-line {
+  stroke: var(--lab-t2);
+  stroke-opacity: 0.55;
+  stroke-width: 1.5;
+}
+
+/* Grupos: el color de cada palabra y de lo que se dibuja de ella. */
+.capa__points circle,
+.capa__labels text,
+.capa__trails g,
+.capa__foot,
+.capa__target,
+.capa__legend li {
+  --group: var(--lab-g3);
+}
+
+.capa__points circle[data-group='0'],
+.capa__labels text[data-group='0'],
+.capa__trails g[data-group='0'],
+.capa__foot[data-group='0'],
+.capa__target[data-group='0'],
+.capa__legend li[data-group='0'] {
+  --group: var(--lab-g0);
+}
+
+.capa__points circle[data-group='1'],
+.capa__labels text[data-group='1'],
+.capa__trails g[data-group='1'],
+.capa__foot[data-group='1'],
+.capa__target[data-group='1'],
+.capa__legend li[data-group='1'] {
+  --group: var(--lab-g1);
+}
+
+.capa__points circle[data-group='2'],
+.capa__labels text[data-group='2'],
+.capa__trails g[data-group='2'],
+.capa__foot[data-group='2'],
+.capa__target[data-group='2'],
+.capa__legend li[data-group='2'] {
+  --group: var(--lab-g2);
+}
+
+.capa__trails polyline {
+  fill: none;
+  stroke: var(--group);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.capa__ghost {
+  fill: none;
+  stroke: var(--group);
+  stroke-opacity: 0.6;
+}
+
+.capa__mid {
+  fill: var(--group);
+  fill-opacity: 0.45;
+}
+
+.capa__target line {
+  stroke: var(--group);
+  stroke-opacity: 0.5;
+  stroke-dasharray: 4 3;
+}
+
+.capa__target circle {
+  fill: none;
+  stroke: var(--group);
+  stroke-width: 1.5;
+}
+
+.capa__foot line {
+  stroke: var(--group);
+  stroke-opacity: 0.45;
+}
+
+.capa__foot circle {
+  fill: var(--group);
+  stroke: var(--plane-area);
+}
+
+.capa__path polyline {
+  fill: none;
+  stroke: var(--lab-t2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 4;
+}
+
+.capa__path circle {
+  fill: var(--lab-t2);
+}
+
+.capa__points circle {
+  fill: var(--group);
+  stroke: var(--plane-area);
+  stroke-width: 1.5;
+  transition:
+    cx 90ms linear,
+    cy 90ms linear;
+}
+
+.capa__labels text {
+  fill: var(--group);
+  font-size: 14px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+/* Las columnas de la capa: î, ĵ y la dirección v. */
+.capa__column {
+  --tone: var(--lab-t0);
+}
+
+.capa__column[data-tone='1'] {
+  --tone: var(--lab-t1);
+}
+
+.capa__column[data-tone='2'] {
+  --tone: var(--lab-t2);
+}
+
+.capa__column line {
+  stroke: var(--tone);
+  stroke-width: 3;
+  stroke-linecap: round;
+}
+
+.capa__column polygon {
+  fill: var(--tone);
+}
+
+.capa__column text {
+  fill: var(--tone);
+  font-size: 17px;
+  font-weight: 500;
+  paint-order: stroke;
+  stroke: var(--plane-area);
+  stroke-width: 4px;
+}
+
+/* --- Panel --- */
+.capa__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.capa__legend li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--group);
+}
+
+.capa__legend-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background: var(--group);
+}
+
+.capa__matrix {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.capa__matrix-title {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.capa__matrix table {
+  border-collapse: separate;
+  border-spacing: var(--space-2) var(--space-1);
+  font-family: var(--font-mono);
+}
+
+.capa__matrix th {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  text-align: center;
+}
+
+.capa__matrix td {
+  min-width: 4.5rem;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  font-size: var(--text-lg);
+  text-align: center;
+}
+
+.capa__matrix [data-tone='0'] {
+  color: var(--lab-t0);
+}
+
+.capa__matrix [data-tone='1'] {
+  color: var(--lab-t1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capa__points circle {
+    transition: none;
+  }
+}

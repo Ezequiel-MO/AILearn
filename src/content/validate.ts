@@ -1,5 +1,6 @@
 import { drawExam, sameExam, type ExamQuestion } from './exam';
 import { generators, resolve } from './generators';
+import { labControls, labMeasure, labStart, stateProblems } from '../engine/labs';
 import { grade, parseNumber } from './grade';
 import {
   gameSchema,
@@ -9,6 +10,7 @@ import {
   type CurvaQ,
   type Game,
   type GeneradaQ,
+  type LabQ,
   type ManipularQ,
   type Project,
   type Question,
@@ -128,11 +130,48 @@ export const checkStartNotSolved = (q: ManipularQ | CurvaQ): string[] =>
     ? [`${q.id}: la posición inicial ya cumple todas las metas`]
     : [];
 
-/** Alcanzable y no resuelta al empezar: lo que se exige a toda `manipular` y toda `curva`. */
+/**
+ * Un laboratorio se puede resolver y no nace resuelto: su estado `solved` es válido para sus mandos y
+ * cumple las metas, el estado inicial no, y cada meta nombra una métrica que el laboratorio mide.
+ */
+export const checkLab = (q: LabQ): string[] => {
+  const out: string[] = [];
+  const controls = labControls(q.lab);
+  const start = labStart(q.lab);
+  const values = labMeasure(q.lab, start);
+  for (const g of q.goals) {
+    if (!Object.hasOwn(values, g.metric)) {
+      out.push(`${q.id}: la meta nombra una métrica que este laboratorio no mide: ${g.metric}`);
+    }
+  }
+  if (controls.length === 0) out.push(`${q.id}: el laboratorio no tiene ningún mando`);
+  out.push(...stateProblems(controls, q.solved).map((p) => `${q.id}: solved: ${p}`));
+  if (out.length > 0) return out;
+  if (!grade(q, { type: 'laboratorio', state: { ...start, ...q.solved } })) {
+    out.push(`${q.id}: el estado solved no cumple todas las metas`);
+  }
+  if (grade(q, { type: 'laboratorio', state: start })) {
+    out.push(`${q.id}: el estado inicial ya cumple todas las metas`);
+  }
+  return out;
+};
+
+/** Una figura de laboratorio en «Calcular»: sus lecturas nombran métricas que existen. */
+const checkLabFigure = (q: Question | GeneradaQ): string[] => {
+  if (q.type === 'generada' || !('lab' in q) || !q.lab) return [];
+  const values = labMeasure(q.lab, labStart(q.lab));
+  const readouts = 'readouts' in q.lab ? (q.lab.readouts ?? []) : [];
+  return readouts
+    .filter((r) => !Object.hasOwn(values, r))
+    .map((r) => `${q.id}: el laboratorio no mide la lectura ${r}`);
+};
+
+/** Alcanzable y no resuelta al empezar: lo que se exige a toda `manipular`, `curva` y `laboratorio`. */
 const checkPlayable = (q: Question | GeneradaQ): string[] => {
   if (q.type === 'manipular') return [...checkReachable(q), ...checkStartNotSolved(q)];
   if (q.type === 'curva') return [...checkReachableCurva(q), ...checkStartNotSolved(q)];
-  return [];
+  if (q.type === 'laboratorio') return [...checkLab(q), ...checkLabFigure(q)];
+  return checkLabFigure(q);
 };
 
 export const checkExamBank = (orbit: Orbit): string[] => {
@@ -203,6 +242,7 @@ const answerProblems = (q: Exclude<Question, CodigoQ>): string[] => {
         : [`${q.id}: la línea defectuosa declarada no se corrige como correcta`];
     case 'manipular':
     case 'curva':
+    case 'laboratorio':
       return []; // sin respuesta declarada: lo vigilan checkReachable(Curva) y checkStartNotSolved
   }
 };

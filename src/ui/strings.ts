@@ -1,4 +1,5 @@
 import { fmt } from './format';
+import { capaStrings } from './labs/capa.strings';
 
 // Todos los textos fijos de la interfaz, en castellano.
 //
@@ -66,6 +67,18 @@ export const t = {
     handleLabel: (name: string, position: string) => `Punto ${name}, en ${position}`,
     // repite la entrada animada de una figura fija: la curva se traza y los puntos bajan por ella
     replay: 'Ver cómo se dibuja',
+  },
+
+  // --- Laboratorios: escenas con datos de IA, mandos y metas medidas en vivo ---
+  // Los textos propios de cada laboratorio viven junto a su dibujo (`labs/<kind>.strings.ts`) y se publican aquí.
+  labs: {
+    goalsLabel: 'Metas',
+    goalOp: { gte: 'al menos', lte: 'como mucho', eq: 'objetivo' },
+    goalMet: 'conseguida',
+    goalPending: 'pendiente',
+    solve: 'Ver una solución',
+    explore: 'Mueve los mandos para explorar: aquí no puntúan.',
+    capa: capaStrings,
   },
 
   // --- Preguntas (tarea 10) ---

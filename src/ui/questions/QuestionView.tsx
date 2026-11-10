@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import type { Question } from '../../content/schema';
 import { t } from '../strings';
 import { CurvaQuestion } from './CurvaQuestion';
+import { LabQuestion } from './LabQuestion';
 import { ManipularQuestion } from './ManipularQuestion';
 import { NumeroQuestion } from './NumeroQuestion';
 import { OpcionQuestion } from './OpcionQuestion';
@@ -47,6 +48,16 @@ export function QuestionView({
     case 'curva':
       return (
         <CurvaQuestion key={question.id} question={question} locked={locked} onSubmit={onSubmit} />
+      );
+    case 'laboratorio':
+      return (
+        <LabQuestion
+          key={question.id}
+          question={question}
+          locked={locked}
+          onSubmit={onSubmit}
+          hideChecks={hideChecks}
+        />
       );
     case 'numero':
       return (

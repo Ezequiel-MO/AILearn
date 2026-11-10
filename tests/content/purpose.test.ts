@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type {
   CurvaQ,
+  LabQ,
   ManipularQ,
   NumeroQ,
   OpcionQ,
@@ -37,9 +38,12 @@ const MAX_CHARS = 700;
 
 type CalcQ = NumeroQ | VectorQ | OpcionQ;
 
-/** Las del ejercicio «Manipular»: en el plano de vectores (`manipular`) o en el de curvas (`curva`). */
-const manipulars = (qs: readonly Question[]): (ManipularQ | CurvaQ)[] =>
-  qs.filter((q): q is ManipularQ | CurvaQ => q.type === 'manipular' || q.type === 'curva');
+/** Las del ejercicio «Manipular»: en el plano de vectores (`manipular`), en el de curvas (`curva`) o en un laboratorio. */
+const manipulars = (qs: readonly Question[]): (ManipularQ | CurvaQ | LabQ)[] =>
+  qs.filter(
+    (q): q is ManipularQ | CurvaQ | LabQ =>
+      q.type === 'manipular' || q.type === 'curva' || q.type === 'laboratorio',
+  );
 
 const calcs = (qs: readonly Question[]): CalcQ[] =>
   qs.filter((q): q is CalcQ => q.type === 'numero' || q.type === 'vector' || q.type === 'opcion');

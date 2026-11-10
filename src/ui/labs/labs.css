@@ -1,0 +1,344 @@
+/*
+ * === Laboratorios ===
+ * Lo común a todos los laboratorios (.lab__…): marco, figura SVG, tiradores, mandos, lecturas y los
+ * medidores de meta. Cada laboratorio tiene además su hoja (`<kind>.css`) con su prefijo (.capa__…).
+ * Los colores salen de los tokens de theme.css; los de grupo (--lab-g0…g3) y de tono (--lab-t0…t3)
+ * se definen aquí.
+ */
+:root {
+  /* Grupos de datos (clases): verde, coral, azul y gris claro. */
+  --lab-g0: #5fcf8a;
+  --lab-g1: #f08a6c;
+  --lab-g2: #7aa2f7;
+  --lab-g3: #c9d1dc;
+  /* Tonos de lo que mueve el jugador: ámbar, cian, violeta y rosa. */
+  --lab-t0: #f2b84b;
+  --lab-t1: #4fc3d9;
+  --lab-t2: #b79cf2;
+  --lab-t3: #e58ac0;
+  --lab-neutral: #8795a8;
+  --lab-good: #5fcf8a;
+  --lab-bad: #ef6f6c;
+}
+
+.lab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-4) var(--space-5);
+  min-width: 0;
+}
+
+.lab__figure {
+  flex: 1 1 20rem;
+  min-width: 0;
+  max-width: var(--plane-max);
+}
+
+.lab__side {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: var(--space-3);
+  min-width: 0;
+  align-content: start;
+}
+
+.lab__svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  font-family: var(--font-mono);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Arrastrar con el dedo no debe desplazar la página. */
+.lab__svg--interactive {
+  touch-action: none;
+}
+
+.lab__area {
+  fill: var(--plane-area);
+  stroke: var(--color-border);
+}
+
+.lab__grid line {
+  stroke: var(--color-grid);
+  stroke-width: 1;
+}
+
+.lab__axes line {
+  stroke: var(--plane-axis);
+  stroke-width: 1.5;
+}
+
+.lab__ticks text {
+  fill: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.lab__ticks .lab__axis-name {
+  fill: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* --- Tiradores --- */
+.lab__handle {
+  --tone: var(--lab-t0);
+  cursor: grab;
+  outline: none;
+}
+
+.lab__handle[data-tone='1'] {
+  --tone: var(--lab-t1);
+}
+
+.lab__handle[data-tone='2'] {
+  --tone: var(--lab-t2);
+}
+
+.lab__handle[data-tone='3'] {
+  --tone: var(--lab-t3);
+}
+
+.lab__handle--dragging {
+  cursor: grabbing;
+}
+
+.lab__handle-hit {
+  fill: transparent;
+}
+
+.lab__handle-ring {
+  fill: none;
+  stroke: var(--tone);
+  stroke-opacity: 0.45;
+  stroke-width: 2;
+}
+
+.lab__handle-dot {
+  fill: var(--plane-area);
+  stroke: var(--tone);
+  stroke-width: 3;
+}
+
+.lab__handle:hover .lab__handle-ring,
+.lab__handle--dragging .lab__handle-ring {
+  stroke-opacity: 1;
+}
+
+.lab__handle:focus-visible .lab__handle-ring {
+  stroke: var(--color-focus);
+  stroke-opacity: 1;
+  stroke-width: 3;
+}
+
+/* --- Mandos --- */
+.lab__slider {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+}
+
+.lab__slider-label {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab__slider-value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  text-align: right;
+}
+
+.lab__slider-input {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--color-accent);
+}
+
+.lab__choice {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.lab__choice-legend {
+  flex: 1 0 100%;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab__choice-option {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.lab__choice-option--on {
+  border-color: var(--color-accent);
+  background: var(--color-surface-raised);
+  color: var(--color-accent-strong);
+}
+
+.lab__choice-option:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.lab__button {
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.lab__button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* --- Lecturas --- */
+.lab__readouts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.lab__readout {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.lab__readout dt {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab__readout dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lab__note {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.lab__caption {
+  margin: 0 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+
+.lab__explore {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* --- Medidores de meta --- */
+.lab__goals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lab__goal {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-border);
+  border-left: 4px solid var(--lab-neutral);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease;
+}
+
+.lab__goal--met {
+  border-color: var(--lab-good);
+  background: color-mix(in srgb, var(--lab-good) 10%, var(--color-surface));
+}
+
+.lab__goal-mark {
+  color: var(--lab-neutral);
+  font-weight: 600;
+}
+
+.lab__goal--met .lab__goal-mark {
+  color: var(--lab-good);
+}
+
+.lab__goal-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.lab__goal--met .lab__goal-value {
+  color: var(--lab-good);
+}
+
+.lab__goal-target {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* Texto solo para el lector de pantalla. */
+.lab__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 30rem) {
+  .lab__goal {
+    grid-template-columns: auto 1fr auto;
+  }
+
+  .lab__goal-target {
+    grid-column: 2 / -1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lab__goal {
+    transition: none;
+  }
+}

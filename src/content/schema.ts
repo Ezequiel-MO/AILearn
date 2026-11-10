@@ -7,6 +7,7 @@ import {
   type CurveMetric,
 } from '../engine/curves';
 import { METRIC_ARITY, type Metric } from '../engine/vectors';
+import { labGoalSchema, labSpecSchema, labStateSchema } from './labs';
 
 /** Markdown; fórmulas entre $...$ y $$...$$ */
 const md = z.string();
@@ -442,6 +443,20 @@ export const curvaQSchema = z
     });
   });
 
+/**
+ * Pregunta del ejercicio «Manipular» sobre un laboratorio: se mueven sus mandos hasta cumplir las metas,
+ * que se miden en vivo. `solved` es un estado que las cumple (los mandos que no nombra quedan como
+ * empiezan): prueba que la pregunta tiene solución y es lo que enseña «Ver una solución».
+ */
+export const labQSchema = z.strictObject({
+  ...baseShape,
+  type: z.literal('laboratorio'),
+  lab: labSpecSchema,
+  goals: z.array(labGoalSchema).min(1).max(3),
+  solved: labStateSchema,
+  purpose: purposeSchema.optional(),
+});
+
 export const numeroQSchema = z.strictObject({
   ...baseShape,
   type: z.literal('numero'),
@@ -450,6 +465,8 @@ export const numeroQSchema = z.strictObject({
   plane: planeSpecSchema.optional(),
   /** Figura estática del plano de curvas (juego 3). */
   graph: graphSpecSchema.optional(),
+  /** Laboratorio para explorar antes de responder: sus mandos se mueven, pero no puntúan. */
+  lab: labSpecSchema.optional(),
   purpose: purposeSchema.optional(),
 });
 
@@ -463,6 +480,8 @@ export const vectorQSchema = z
     plane: planeSpecSchema.optional(),
     /** Figura estática del plano de curvas (juego 3). */
     graph: graphSpecSchema.optional(),
+    /** Laboratorio para explorar antes de responder: sus mandos se mueven, pero no puntúan. */
+    lab: labSpecSchema.optional(),
     /** [filas, columnas]: la respuesta se teclea como matriz. La corrección no cambia. */
     shape: z.tuple([z.number().int().positive(), z.number().int().positive()]).optional(),
     purpose: purposeSchema.optional(),
@@ -486,6 +505,8 @@ export const opcionQSchema = z
     plane: planeSpecSchema.optional(),
     /** Figura estática del plano de curvas (juego 3). */
     graph: graphSpecSchema.optional(),
+    /** Laboratorio para explorar antes de responder: sus mandos se mueven, pero no puntúan. */
+    lab: labSpecSchema.optional(),
     purpose: purposeSchema.optional(),
   })
   .superRefine((q, ctx) => {
@@ -532,6 +553,7 @@ export const revisionQSchema = z
 export const questionSchema = z.discriminatedUnion('type', [
   manipularQSchema,
   curvaQSchema,
+  labQSchema,
   numeroQSchema,
   vectorQSchema,
   opcionQSchema,
@@ -551,7 +573,7 @@ const KIND_ORDER = ['manipular', 'calcular', 'programar'] as const;
 
 /** Tipos de pregunta que admite cada tipo de ejercicio. */
 const KIND_QUESTIONS: Record<(typeof KIND_ORDER)[number], readonly string[]> = {
-  manipular: ['manipular', 'curva'],
+  manipular: ['manipular', 'curva', 'laboratorio'],
   calcular: ['numero', 'vector', 'opcion'],
   programar: ['codigo'],
 };
@@ -672,6 +694,7 @@ export const bankEntrySchema = z.strictObject({
   question: z.discriminatedUnion('type', [
     manipularQSchema,
     curvaQSchema,
+    labQSchema,
     numeroQSchema,
     vectorQSchema,
     opcionQSchema,
@@ -728,6 +751,8 @@ export type GraphPoint = z.infer<typeof graphPointSchema>;
 export type GraphSpec = z.infer<typeof graphSpecSchema>;
 export type CurveGoal = z.infer<typeof curveGoalSchema>;
 export type CurvaQ = z.infer<typeof curvaQSchema>;
+export type LabQ = z.infer<typeof labQSchema>;
+export type LabSpecQ = z.infer<typeof labSpecSchema>;
 export type BigPicture = z.infer<typeof bigPictureSchema>;
 export type Purpose = z.infer<typeof purposeSchema>;
 export type NumeroQ = z.infer<typeof numeroQSchema>;

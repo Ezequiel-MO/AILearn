@@ -1,6 +1,7 @@
 import { Route, Routes } from 'react-router';
 import CodigoDev from './CodigoDev';
 import CurvasDev from './CurvasDev';
+import LabsDev from './LabsDev';
 import PlanoDev from './PlanoDev';
 import PreguntasDev from './PreguntasDev';
 import TandaDev from './TandaDev';
@@ -12,6 +13,7 @@ export default function DevRoutes() {
     <Routes>
       <Route path="plano" element={<PlanoDev />} />
       <Route path="curvas" element={<CurvasDev />} />
+      <Route path="labs" element={<LabsDev />} />
       <Route path="codigo" element={<CodigoDev />} />
       <Route path="preguntas" element={<PreguntasDev />} />
       <Route path="tanda" element={<TandaDev />} />
