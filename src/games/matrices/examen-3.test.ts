@@ -22,7 +22,7 @@ describe('matrices: banco examen-3', () => {
     expect(orbit.projects.map((p) => p.id)).toEqual(['svd', 'rango-bajo', 'atencion']);
   });
 
-  it('tiene 12 entradas: por proyecto, tres fijas (opción, número, código) y una generada', () => {
+  it('tiene 12 entradas: por proyecto, tres fijas (laboratorio, cuenta, código) y una generada', () => {
     // contract: encargo común de la Órbita 3 de matrices: 3 fijas por proyecto más 1 generada, 12 en total
     expect(examen3).toHaveLength(12);
     const generated = examen3.flatMap((e) =>
@@ -36,14 +36,14 @@ describe('matrices: banco examen-3', () => {
     ]);
     for (const p of orbit.projects) {
       const types = examen3.filter((e) => e.project === p.id).map((e) => e.question.type);
-      // contract: encargo común de la Órbita 3 de matrices: un `opcion`, un `numero` o `vector`, un `codigo` y la generada
+      // contract: petición de Oliver del 2026-11-10 (brief-proyecto-comun.md, sustituye al encargo de la Órbita 3 «un `opcion`, un `numero` o `vector`»): un `laboratorio`, una cuenta (`numero`, `vector` u `opcion`), un `codigo` y la generada
       expect(types, p.id).toHaveLength(4);
       expect(
-        types.filter((t) => t === 'opcion'),
+        types.filter((t) => t === 'laboratorio'),
         p.id,
       ).toHaveLength(1);
       expect(
-        types.filter((t) => t === 'numero' || t === 'vector'),
+        types.filter((t) => t === 'numero' || t === 'vector' || t === 'opcion'),
         p.id,
       ).toHaveLength(1);
       expect(
