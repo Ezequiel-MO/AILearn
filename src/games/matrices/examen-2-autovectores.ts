@@ -1,46 +1,64 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «Autovectores». La entrada
- * generada la añade otro paso. Ids: `examen-2.<tema>`, únicos en todo el juego (también frente a las
- * preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «Autovectores»: un laboratorio
+ * (otra capa recurrente, con otros datos: la dirección que ni crece ni se olvida), una cuenta de cuántas
+ * palabras tarda en apagarse un rasgo y una de código. La entrada generada la añade otro paso. Ids:
+ * `examen-2.<tema>`, únicos en todo el juego (también frente a las preguntas de proyecto).
  */
 export const examen2Autovectores: BankEntry[] = [
   {
     project: 'autovectores',
     question: {
-      id: 'examen-2.cual-es-autovector',
-      type: 'opcion',
+      id: 'examen-2.memoria-estable',
+      type: 'laboratorio',
       prompt:
-        '¿Cuál de estos vectores es un autovector de $A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$?',
+        'Una red recurrente lee nombres de animales y guarda en su memoria $\\vec{v}$ dos rasgos: **tamaño** y **domesticidad**. En cada paso aplica la misma capa; el camino enseña cinco pasos. Desde este estado, la memoria se desboca.\n\nElige un estado de partida de tamaño $1{,}5$ o más que llegue al quinto paso sin pasar de $3$.',
       hints: [
-        'Calcula $A\\vec{v}$ para cada opción y mira si el resultado es un múltiplo del vector de partida.',
-        'Un vector solo es autovector si $A\\vec{v}=\\lambda\\vec{v}$ con el mismo $\\lambda$ en sus dos componentes.',
+        'Busca la recta en la que los puntos del camino se quedan quietos, uno encima de otro.',
+        'La capa deja igual la domesticidad: prueba estados sin tamaño, sobre el eje vertical, hacia arriba o hacia abajo.',
       ],
       explain:
-        'Un autovector no cambia de recta al aplicarle la matriz. Que la imagen sea más larga o más corta no basta: hay que mirar hacia dónde apunta $A\\vec{v}$.',
+        'Un estado que la capa ni gira ni estira es un autovector de autovalor $1$: tras cinco pasos sigue igual. Cualquier trozo en la otra dirección propia se multiplica por $1{,}5$ en cada paso y acaba mandando.',
       solution:
-        '$A(0, 1)=(1, 2)$, $A(1, 1)=(4, 2)$, $A(1, -1)=(2, -2)$ y $A(1, 2)=(5, 4)$. Solo $(2, -2)=2\\cdot(1, -1)$ es un múltiplo del vector de partida: $(1, -1)$ es un autovector de autovalor $2$. En las otras tres, la imagen sale de la recta del vector.',
-      options: ['$(0, 1)$', '$(1, 1)$', '$(1, -1)$', '$(1, 2)$'],
-      correct: 2,
+        'Con $\\vec{v}=(0, 2)$, $A\\vec{v}=(0, 2)$: autovalor $1$, y tras cinco pasos sigue midiendo $2$. Vale cualquier estado del eje vertical entre $1{,}5$ y $3$ de largo, arriba o abajo. La otra dirección propia es $(1, 1)$, con autovalor $1{,}5$: desde $(1, 0)$, que tiene un trozo en ella, la memoria llega a unos $10$.',
+      lab: capaLab(ANIMALES, {
+        range: 5,
+        i: [1.5, 0.5],
+        j: [0, 1],
+        movable: 'none',
+        probe: { x: 1, y: 0, movable: true },
+        iterate: 5,
+      }),
+      goals: [
+        {
+          metric: 'iter_norm',
+          op: 'lte',
+          target: 3,
+          label: 'Tamaño de la memoria tras cinco pasos',
+        },
+        { metric: 'v_norm', op: 'gte', target: 1.5, label: 'Tamaño del estado de partida' },
+      ],
+      solved: { vx: 0, vy: 2 },
     },
   },
   {
     project: 'autovectores',
     question: {
-      id: 'examen-2.autovalor-potencia',
+      id: 'examen-2.pasos-hasta-olvidar',
       type: 'numero',
       prompt:
-        'El vector $\\vec{v}$ es un autovector de $A$ con autovalor $\\lambda=-2$. ¿Cuál es el autovalor de $A^3$ para ese mismo vector $\\vec{v}$?',
+        'En una red recurrente, un rasgo de la memoria va en una dirección que la capa encoge por $0{,}5$ en cada paso: cada palabra nueva deja la mitad de lo que había. ¿Tras cuántas palabras queda, por primera vez, menos del $1$ % de su valor inicial?',
       hints: [
-        'Aplica $A$ tres veces seguidas a $\\vec{v}$: $A^3\\vec{v}=A(A(A\\vec{v}))$. ¿Qué le hace cada $A$?',
-        'Cada paso multiplica por $-2$. Cuida el signo del resultado.',
+        'Tras $n$ palabras queda $0{,}5^n$ del valor inicial.',
+        'Ve dividiendo entre $2$: $0{,}5$, $0{,}25$, $0{,}125$… y cuenta cuántas veces hasta bajar de $0{,}01$.',
       ],
       explain:
-        'Cada vez que se aplica $A$ a $\\vec{v}$ aparece un factor $\\lambda$, y el vector sigue siendo el mismo, salvo el factor. Al aplicarla tres veces, los factores se multiplican entre sí, no se suman ni se multiplican por $3$.',
+        'Sobre una dirección propia, cada paso multiplica por el autovalor lo que queda. Tras $n$ palabras queda $0{,}5^n$ del valor inicial: hay que buscar el primer $n$ con $0{,}5^n<0{,}01$.',
       solution:
-        '$A^3\\vec{v}=A^2(-2\\vec{v})=A(4\\vec{v})=-8\\vec{v}$, luego el autovalor de $A^3$ es $\\lambda^3=(-2)^3=-8$. Si te sale $8$, has perdido el signo: un número negativo elevado a un exponente impar sigue siendo negativo. Si te sale $-6$, has multiplicado $\\lambda$ por $3$ en vez de elevarlo.',
-      answer: -8,
+        '$0{,}5^6=1/64\\approx 0{,}016$, todavía por encima del $1$ %, y $0{,}5^7=1/128\\approx 0{,}008$, ya por debajo: $7$ palabras. Si te sale $2$, has restado la mitad del valor inicial en cada paso en vez de quedarte con la mitad de lo que había.',
+      answer: 7,
       tol: 0,
     },
   },

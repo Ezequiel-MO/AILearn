@@ -1,30 +1,32 @@
-import type { Goal, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
+import type { CapaSpec } from '../../engine/labs/capa';
 import { py } from '../py';
 import { autovectoresWarmup } from './autovectores.calentamiento';
-import { transformPlane } from './plane';
+import { RESENAS, capaLab, type CapaOptions } from './datos';
 
-/** El vector suelto `v` que se transforma con `apply`. */
-const vec = (x: number, y: number, movable: boolean): PlaneVector => ({
-  id: 'v',
-  label: 'v',
-  x,
-  y,
-  movable,
-});
+/**
+ * La capa recurrente de la escena, la misma en cada paso: estira por 1,5 la diagonal (1, 1) y encoge
+ * por 0,5 la (1, −1). Sus dos direcciones propias caen en la rejilla de 0,5 por la que se arrastra v.
+ */
+const RECURRENTE: CapaOptions = { i: [1, 0.5], j: [0.5, 1], movable: 'none' };
 
-/** Meta sobre el ángulo (en grados) entre v y su imagen A·v. */
-const angleGoal = (target: number): Goal => ({
-  metric: 'img_angle',
-  of: ['i', 'j', 'v'],
-  target,
-  tol: 0.5,
-});
+/** El estado de memoria v de una red recurrente que lee reseñas, y la capa aplicada `iterate` veces. */
+const memoria = (probe: NonNullable<CapaSpec['probe']>, iterate: number, extra: CapaOptions = {}) =>
+  capaLab(RESENAS, { ...RECURRENTE, probe, iterate, ...extra });
 
-/** Primer proyecto de la Órbita 2 «Direcciones propias»: las flechas que A deja en su recta. */
+/** Lo que miden las metas de las preguntas de iterar. */
+const TRAS_CINCO = 'Tamaño de la memoria tras cinco pasos';
+const PARTIDA = 'Tamaño del estado de partida';
+
+/**
+ * Primer proyecto de la Órbita 2 «Direcciones propias»: una red recurrente aplica la misma capa a su
+ * memoria en cada paso. Hay direcciones que la capa no gira, solo estira; sobre ellas la señal explota
+ * o se apaga según el autovalor, y cualquier otra acaba alineada con la dominante.
+ */
 export const autovectores: Project = {
   id: 'autovectores',
   name: 'Autovectores',
-  sub: 'Las flechas que no giran',
+  sub: 'Direcciones que la capa solo estira',
   bigPicture: {
     parts: ['linear', 'inspect'],
     text: 'Cada matriz tiene unas direcciones especiales, sus autovectores, que solo estira sin girarlas. Mirar una matriz por esas direcciones es entender qué hace en lo esencial. Es el primer paso para ver dentro de una capa lineal: en vez de una tabla de números, un par de ejes y cuánto estira cada uno.',
@@ -36,161 +38,158 @@ export const autovectores: Project = {
       questions: [
         {
           id: 'autovectores.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'El algoritmo **PageRank**, con el que Google empezó a ordenar páginas web, multiplica un vector de puntuaciones por la misma matriz una y otra vez. Tras muchas vueltas el vector deja de cambiar de dirección: ha caído en un autovector, y ese autovector es la clasificación. El mismo truco, la iteración de potencias, calcula la primera componente de un PCA sin resolver ninguna ecuación.',
-            aim: 'Vas a buscar a mano las flechas que $A$ no saca de su recta y a ver que son muy pocas: casi todas giran, y solo unas direcciones concretas se limitan a estirarse.',
+            why: 'Una red recurrente lee un texto palabra a palabra y guarda lo leído en un estado, su memoria. En cada paso, la misma capa transforma ese estado. Casi todo estado sale girado, con sus rasgos mezclados. Unas pocas direcciones, no.',
+            aim: 'Vas a buscar un estado de memoria que la capa recurrente no gire: que salga apuntando hacia donde entró, solo más largo o más corto.',
             takeaway:
-              'Esta matriz tiene dos rectas propias: la de $(1, 1)$, con $\\lambda=3$, y la de $(1, -1)$, con $\\lambda=1$. Al aplicar $A$ muchas veces, la recta del autovalor mayor arrastra hacia ella a casi cualquier vector: por eso repetir una matriz revela su autovector dominante.',
+              'Esta capa deja dos rectas sin girar: la de $(1, 1)$, que estira por $1{,}5$, y la de $(1, -1)$, que encoge a la mitad. Son sus **autovectores**, y cuánto estira cada una, su **autovalor**. Vale cualquier punto de esas rectas, en los dos sentidos.',
           },
           prompt:
-            'Casi todo vector cambia de dirección cuando se le aplica una matriz. Aquí $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$: $\\hat{\\imath}$ va a $(2, 1)$ y $\\hat{\\jmath}$ va a $(1, 2)$. La flecha continua es $\\vec{v}$ y la discontinua, su imagen $A\\vec{v}$. Un **autovector** de $A$ es un vector no nulo que la matriz deja en su propia recta, $A\\vec{v}=\\lambda\\vec{v}$, y el número $\\lambda$ es su **autovalor**.\n\nMueve $\\vec{v}$ hasta que la lectura del ángulo entre $\\vec{v}$ y $A\\vec{v}$ sea de $0$ grados, con la coordenada $x$ de $\\vec{v}$ igual a $1$.',
+            'Una red recurrente guarda lo que ha leído de una reseña en un estado $\\vec{v}$ con dos rasgos, **intensidad** y **tono**. En cada paso le aplica la misma capa: las reseñas enseñan cómo recoloca la capa todo el plano, y el punto al final del camino es $A\\vec{v}$. Casi todo estado sale girado.\n\nMueve $\\vec{v}$ hasta que la capa no lo gire.',
           hints: [
-            'Un ángulo de $0$ grados significa que $A\\vec{v}$ apunta exactamente donde apunta $\\vec{v}$. Prueba vectores con $x=1$ y mira cuáles dejan la lectura en $0$.',
-            'Con $\\vec{v}=(1, y)$ la imagen es $A\\vec{v}=(2+y,\\ 1+2y)$. Para que sea un múltiplo de $(1, y)$, su segunda componente tiene que ser $y$ veces la primera: $1+2y=y(2+y)$.',
+            'Compara la recta de $\\vec{v}$ con el punto $A\\vec{v}$: si el punto se sale de la recta, la capa ha girado el estado. Fíjate también hacia dónde se tuercen las reseñas.',
+            'Prueba estados con los dos rasgos iguales, o con los dos opuestos: sobre esas diagonales, $A\\vec{v}$ se queda en la recta de $\\vec{v}$.',
           ],
           explain:
-            'Que $A\\vec{v}$ sea más largo o más corto que $\\vec{v}$ no importa: lo que decide si $\\vec{v}$ es un autovector es hacia dónde apunta su imagen. Si el ángulo no es $0$, la matriz ha girado el vector y ya no está en su recta.',
+            'La capa manda el estado a $A\\vec{v}$, la intensidad por $\\hat{\\imath}$ más el tono por $\\hat{\\jmath}$. Sale en la misma recta solo si esa suma es un múltiplo del estado, $A\\vec{v}=\\lambda\\vec{v}$: un **autovector**, con su **autovalor** $\\lambda$. La lectura de cuánto estira A a v da $\\lambda$ cuando el ángulo es $0$.',
           solution:
-            'La ecuación $1+2y=y(2+y)$ se reduce a $y^2=1$, así que hay dos soluciones. Con $\\vec{v}=(1, 1)$, $A\\vec{v}=(3, 3)=3\\vec{v}$: autovalor $\\lambda=3$. Con $\\vec{v}=(1, -1)$, $A\\vec{v}=(1, -1)=1\\cdot\\vec{v}$: autovalor $\\lambda=1$. Cualquiera de las dos vale. Los demás vectores, como el $(1, 0)$ de partida, cuya imagen es $(2, 1)$, cambian de dirección.',
-          plane: transformPlane({
-            i: [2, 1],
-            j: [1, 2],
-            extra: [vec(1, 0, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'image', 'img_angle'],
-            range: 4,
-            snap: 1,
-          }),
-          goals: [angleGoal(0), { metric: 'x', of: ['v'], target: 1, tol: 0.01 }],
+            'Con $\\vec{v}=(1, 1)$, $A\\vec{v}=(1{,}5;\\ 1{,}5)=1{,}5\\,\\vec{v}$: autovalor $1{,}5$. Con $\\vec{v}=(1, -1)$, $A\\vec{v}=(0{,}5;\\ -0{,}5)=0{,}5\\,\\vec{v}$: autovalor $0{,}5$. Vale cualquier punto de esas dos rectas, largo o corto, en un sentido o en el otro, como $(-2, -2)$. El $(0, 1)$, tentador, sale a $(0{,}5;\\ 1)$: girado unos $27$ grados.',
+          lab: memoria({ x: 1, y: 0, movable: true }, 1, { readouts: ['stretch'] }),
+          goals: [
+            {
+              metric: 'img_angle',
+              op: 'lte',
+              target: 1,
+              label: 'Ángulo que gira la capa el estado',
+            },
+          ],
+          solved: { vx: 1, vy: 1 },
         },
         {
           id: 'autovectores.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En la versión más simple de una red recurrente, sin activación, el estado se multiplica por la misma matriz en cada paso de la secuencia. La parte del estado que va en la dirección de un autovector de autovalor $\\lambda$ queda multiplicada por $\\lambda^{n}$ tras $n$ pasos: si $\\lambda$ vale más que $1$, explota; si está entre $-1$ y $1$, se apaga. Es la raíz de la explosión y el desvanecimiento del gradiente.',
-            aim: 'Vas a encontrar la segunda dirección propia de una matriz que ya enseña una, y a usar el cociente para leer cuánto estira cada dirección.',
+            why: 'Al entrenar una red recurrente, la señal recorre la secuencia pasando una y otra vez por la misma capa. Lo que la capa estira en un paso, en veinte pasos lo estira veinte veces seguidas: es la explosión del gradiente, un problema clásico de estas redes.',
+            aim: 'Vas a elegir un estado de partida pequeño que crezca lo más posible al pasar cinco veces por la misma capa, y a ver que hay un tope.',
             takeaway:
-              'Cada autovector tiene su propio factor: aquí $3$ en el eje $x$ y $2$ en la recta de $(1, -1)$. El cociente solo da ese factor cuando el ángulo es $0$; en otra dirección puede coincidir con un autovalor sin que la flecha sea un autovector, como le pasa a $(0, 1)$.',
+              'Lo máximo es $1{,}5^5\\approx 7{,}6$ veces el tamaño de partida, y solo lo da la recta que la capa estira por $1{,}5$. Cualquier otra dirección mezcla una parte que crece con otra que se apaga, y crece menos. El autovalor mayor marca el tope.',
           },
           prompt:
-            'Ahora $A=\\begin{pmatrix}3&1\\\\0&2\\end{pmatrix}$: $\\hat{\\imath}$ va a $(3, 0)$ y $\\hat{\\jmath}$ va a $(1, 2)$. El vector de partida, $\\vec{v}=(1, 0)$, **ya es** un autovector: $A\\vec{v}=(3, 0)=3\\vec{v}$. Busca el otro, el que $A$ estira por $2$.\n\nLa tercera lectura es el cociente $\\dfrac{\\vec{v}^{T}A\\vec{v}}{\\vec{v}^{T}\\vec{v}}$, que vale $\\lambda$ cuando $\\vec{v}$ es un autovector. Deja el ángulo en $0$ grados y esa lectura en $2$.',
+            'Ahora la capa se aplica cinco veces seguidas, como en cinco palabras: el camino de puntos va de $\\vec{v}$ a $A^5\\vec{v}$. El estado de partida tiene que ser pequeño, de tamaño $1{,}5$ como mucho. Desde el de ahora, la memoria llega a algo más de $5$.\n\n¿Hasta dónde puede crecer? Consigue que pase de $10$ tras los cinco pasos.',
           hints: [
-            'Mueve $\\vec{v}$ y mira el ángulo: solo vale $0$ en dos rectas. Una es el eje $x$, donde la lectura marca $3$; en la otra, la lectura es distinta.',
-            'La otra recta tiene una coordenada $y$ negativa. Prueba $\\vec{v}=(1, -1)$ y calcula $A\\vec{v}$ a mano.',
+            'Mira qué tramo del camino se alarga más en cada paso. Al final, todos los pasos van en la misma dirección: es la que más crece.',
+            'Pon $\\vec{v}$ sobre la diagonal que la capa estira, con los dos rasgos iguales y tan largo como deje el límite de partida.',
           ],
           explain:
-            'La lectura del cociente puede valer $2$ en direcciones que no son autovectores, así que sola no basta: tiene que cumplirse a la vez que el ángulo sea $0$. Y el ángulo $0$ también se cumple en el autovector de $\\lambda=3$, donde la lectura vale otra cosa.',
+            'Un estado sobre un autovector se multiplica por $\\lambda$ en cada paso: tras cinco, por $\\lambda^5$. Cualquier otro estado es la suma de un trozo en cada recta propia, y cada trozo crece con su propio $\\lambda$. Para crecer lo más posible, todo el estado tiene que ir en la recta del autovalor mayor.',
           solution:
-            '$A(1, -1)=(3\\cdot 1+1\\cdot(-1),\\ 0\\cdot 1+2\\cdot(-1))=(2, -2)=2\\cdot(1, -1)$: es un autovector de autovalor $\\lambda=2$. Sirve cualquier múltiplo, como $(2, -2)$ o $(3, -3)$, y también el opuesto $(-1, 1)$. En cambio, el vector $(0, 1)$ tiene la lectura en $2$, pero su imagen es $(1, 2)$ y el ángulo no es $0$: no es un autovector.',
-          plane: transformPlane({
-            i: [3, 0],
-            j: [1, 2],
-            extra: [vec(1, 0, true)],
-            apply: ['v'],
-            readouts: ['image', 'img_angle', 'rayleigh'],
-            range: 3,
-            snap: 1,
-          }),
-          goals: [angleGoal(0), { metric: 'rayleigh', of: ['i', 'j', 'v'], target: 2, tol: 0.01 }],
+            'Con $\\vec{v}=(1, 1)$, de tamaño $\\sqrt2\\approx 1{,}41$, cada paso multiplica por $1{,}5$: tras cinco, por $1{,}5^5\\approx 7{,}59$, y la memoria llega a $10{,}74$. También vale $(-1, -1)$. Un estado más largo de esa recta, como $(1{,}5;\\ 1{,}5)$, se pasa del límite de partida. El $(1{,}5;\\ 0)$, con el tamaño máximo, solo llega a $8{,}05$: parte de él va en la recta que se apaga.',
+          lab: memoria({ x: 1, y: 0, movable: true }, 5),
+          goals: [
+            { metric: 'iter_norm', op: 'gte', target: 10, label: TRAS_CINCO },
+            { metric: 'v_norm', op: 'lte', target: 1.5, label: PARTIDA },
+          ],
+          solved: { vx: 1, vy: 1 },
         },
         {
           id: 'autovectores.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'El descenso de gradiente sobre una pérdida cuadrática multiplica el error por la misma matriz en cada paso. Si en una dirección propia el autovalor de esa matriz es negativo, el error cambia de signo a cada paso y el entrenamiento salta de un lado a otro del mínimo; si además es menor que $-1$, los saltos crecen y diverge. Es lo que ocurre cuando la tasa de aprendizaje es demasiado alta.',
-            aim: 'Vas a encontrar una flecha a la que el espejo da la vuelta sin sacarla de su recta: un autovector de autovalor negativo, con la imagen apuntando al lado contrario.',
+            why: 'Lo contrario también pasa: en las direcciones que la capa encoge, lo leído al principio se apaga paso a paso. Es el desvanecimiento del gradiente, y por él una red recurrente sencilla aprende mal lo que depende del principio de un texto largo.',
+            aim: 'Vas a buscar un estado de partida de buen tamaño que, tras cinco pasos por la misma capa, casi desaparezca de la memoria.',
             takeaway:
-              'Un ángulo de $180$ grados entre $\\vec{v}$ y $A\\vec{v}$ es un autovalor negativo, aquí $\\lambda=-1$: la recta se conserva y el sentido se invierte. Al repetir la matriz, esa componente alterna de signo: en el descenso de gradiente, es el parámetro que salta de un lado a otro del mínimo en cada paso.',
+              'Sobre la recta de autovalor $0{,}5$, cada paso deja la mitad: tras cinco, $0{,}5^5\\approx 0{,}03$ del estado. Pero hay que estar justo en ella: la menor parte en otra dirección crece con $1{,}5$ y acaba mandando. Olvidar una dirección del todo es frágil.',
           },
           prompt:
-            '$A=\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}$ es el espejo en la diagonal: $\\hat{\\imath}$ y $\\hat{\\jmath}$ se intercambian, $\\hat{\\imath}$ va a $(0, 1)$ y $\\hat{\\jmath}$ va a $(1, 0)$. Un autovector también puede salir **al revés**: si $\\lambda$ es negativo, $A\\vec{v}$ apunta justo al lado opuesto de $\\vec{v}$, pero en la misma recta.\n\nMueve $\\vec{v}$ hasta que la lectura del ángulo entre $\\vec{v}$ y $A\\vec{v}$ sea de $180$ grados.',
+            'La misma capa, cinco pasos. Ahora se busca lo contrario: un estado de partida de tamaño $1$ o más que, al cabo de los cinco pasos, se haya casi borrado de la memoria.\n\nMueve $\\vec{v}$ hasta que la memoria se apague.',
           hints: [
-            'El espejo intercambia las dos coordenadas: la imagen de $(x, y)$ es $(y, x)$. Para que apunte al lado opuesto de $(x, y)$ hace falta $(y, x)=-k\\cdot(x, y)$, con $k$ positivo.',
-            'Prueba con vectores que tengan las dos coordenadas del mismo tamaño y de signo contrario.',
+            'Busca la recta en la que los puntos del camino se acercan al origen en vez de alejarse. Cerca de ella no basta: mira adónde va el último punto.',
+            'Pon $\\vec{v}$ con los dos rasgos del mismo tamaño y de signo contrario: es la dirección que la capa encoge.',
           ],
           explain:
-            'Un ángulo de $180$ grados no es un vector que ha girado: es un vector que ha dado la vuelta sin salir de su recta. Eso es un autovector con autovalor negativo. Fíjate en la lectura del cociente, que dice cuál es.',
+            'En la recta que la capa encoge, el estado se multiplica por $0{,}5$ en cada paso. Si $\\vec{v}$ se sale un poco de ella, tiene un trozo en la recta que se estira por $1{,}5$: ese trozo crece cinco veces seguidas y la memoria no se apaga.',
           solution:
-            'Sirve $\\vec{v}=(1, -1)$: $A\\vec{v}=(-1, 1)=-1\\cdot\\vec{v}$, con autovalor $\\lambda=-1$ (la lectura del cociente marca $-1$). Valen también $(2, -2)$, $(3, -3)$ y sus opuestos. Los múltiplos de $(1, 1)$ son el otro autovector del espejo: $A(1, 1)=(1, 1)$, con $\\lambda=1$ y un ángulo de $0$ grados. El espejo deja en su sitio la diagonal y le da la vuelta a la otra.',
-          plane: transformPlane({
-            i: [0, 1],
-            j: [1, 0],
-            extra: [vec(2, 1, true)],
-            apply: ['v'],
-            readouts: ['image', 'img_angle', 'rayleigh'],
-            range: 3,
-            snap: 1,
-          }),
-          goals: [angleGoal(180)],
+            'Con $\\vec{v}=(1, -1)$, tras cinco pasos queda $\\sqrt2\\cdot 0{,}5^5\\approx 0{,}044$. Valen $(-1{,}5;\\ 1{,}5)$ y cualquier punto de esa recta, en los dos sentidos, hasta $(2, -2)$: el $(2{,}5;\\ -2{,}5)$ ya deja $0{,}11$. El $(1;\\ -0{,}5)$, casi en la recta, acaba en $2{,}7$: lo poco que tenía en la otra dirección ha crecido.',
+          lab: memoria({ x: 1, y: 0, movable: true }, 5),
+          goals: [
+            { metric: 'iter_norm', op: 'lte', target: 0.1, label: TRAS_CINCO },
+            { metric: 'v_norm', op: 'gte', target: 1, label: PARTIDA },
+          ],
+          solved: { vx: 1, vy: -1 },
         },
         {
           id: 'autovectores.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Si una capa de una red neuronal tiene dos columnas en la misma recta, los dos rasgos de entrada que las mueven producen el mismo efecto, y hay una dirección de entrada que la capa manda al origen. Esa información se pierde y ninguna capa posterior la recupera. Lo mismo delata una matriz de covarianza con un autovalor $0$: dos rasgos de los datos son redundantes.',
-            aim: 'Vas a buscar la flecha que $A$ aplasta hasta el origen y a ver que, aunque su imagen no tiene dirección, cumple la definición de autovector con $\\lambda=0$.',
+            why: 'Antes de entrenar, los pesos de una red se eligen al azar, pero no de cualquier manera. Si una capa recurrente estira la señal, explota; si la encoge, se apaga. Por eso hay inicializaciones pensadas para conservar su tamaño, como las matrices ortogonales, que solo giran.',
+            aim: 'Vas a cambiar las columnas de la capa que hacía explotar la memoria para que el estado llegue al quinto paso con su tamaño de partida, sin aplastar el plano.',
             takeaway:
-              'El vector $(1, -2)$ y sus múltiplos forman el **núcleo** de $A$: son autovectores de autovalor $0$. Una matriz tiene un $\\lambda=0$ exactamente cuando su determinante es $0$, y entonces no tiene inversa: lo que se aplastó no se puede deshacer.',
+              'Basta con que la capa deje el estado con su tamaño: con $A\\vec{v}=\\vec{v}$, un autovalor $1$, o con una capa que solo gira. Lo que no vale es aplastar: una capa sin área conserva esa dirección y borra las demás.',
           },
           prompt:
-            '$A=\\begin{pmatrix}2&1\\\\4&2\\end{pmatrix}$ lleva $\\hat{\\imath}$ a $(2, 4)$ y $\\hat{\\jmath}$ a $(1, 2)$: las dos columnas están en la misma recta y el plano entero se aplasta sobre ella. Un autovector puede tener $\\lambda=0$: es un vector al que $A$ aplasta en el origen, $A\\vec{v}=\\vec{0}=0\\cdot\\vec{v}$.\n\nMueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(0, 0)$, con la coordenada $x$ de $\\vec{v}$ igual a $1$. Cuando lo consigas, la lectura del ángulo dirá «sin ángulo»: el vector nulo no tiene dirección.',
+            'Esta es la capa que hacía explotar la memoria: con el estado $\\vec{v}$ fijo, tras cinco pasos pasa de $1{,}41$ a más de $10$. Ahora lo que se mueve es la capa.\n\nCambia sus columnas para que la memoria llegue al quinto paso con un tamaño parecido al de partida, sin que la capa aplaste el plano.',
           hints: [
-            'Con $\\vec{v}=(1, y)$, la imagen es $A\\vec{v}=(2+y,\\ 4+2y)=(2+y)\\cdot(1, 2)$. Solo hace falta que el número $2+y$ valga $0$.',
-            'Mira la lectura de $A\\vec{v}$ mientras mueves $\\vec{v}$: los dos números tienen que ser cero a la vez.',
+            'El estado tiene los dos rasgos iguales a $1$, así que $A\\vec{v}$ es la suma de las dos columnas. Mira dónde cae ahora el primer punto del camino.',
+            'Acorta $\\hat{\\imath}$ hasta que la suma de las dos columnas vuelva a ser el propio estado. Vigila que el cuadrado unidad no se quede sin área.',
           ],
           explain:
-            'Cuando la matriz aplasta el plano sobre una recta, los vectores que caen en el origen forman una recta entera: el núcleo. Sus vectores cumplen $A\\vec{v}=0\\cdot\\vec{v}$, así que son autovectores de autovalor $0$.',
+            'Tras cinco pasos, el estado ha pasado cinco veces por la capa. Si $A\\vec{v}=\\vec{v}$, cada paso lo deja igual. También vale que la capa lo gire sin cambiarle el tamaño. Con área $0$ se conserva $\\vec{v}$, pero el plano entero cae en una recta.',
           solution:
-            '$\\vec{v}=(1, -2)$ da $A\\vec{v}=(2\\cdot 1+1\\cdot(-2),\\ 4\\cdot 1+2\\cdot(-2))=(0, 0)$. Con $x=1$ es la única posición, y sin la condición $x=1$ valdría cualquier múltiplo. Un autovector de autovalor $0$ es un vector del núcleo, y una matriz tiene un $\\lambda=0$ cuando su determinante es $0$.',
-          plane: transformPlane({
-            i: [2, 4],
-            j: [1, 2],
-            extra: [vec(1, 0, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'image', 'img_angle'],
-            range: 5,
-            snap: 1,
+            'Con $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 1)$, $A\\vec{v}=(1, 1)=\\vec{v}$: autovalor $1$, y el área es $0{,}5$. Valen muchas más: la identidad, o $\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(-1, 0)$, un giro de un cuarto de vuelta. Con las dos columnas en $(0{,}5;\\ 0{,}5)$ también $A\\vec{v}=\\vec{v}$, pero el área es $0$: todo el plano cae sobre la diagonal.',
+          lab: capaLab(RESENAS, {
+            i: [1, 0.5],
+            j: [0.5, 1],
+            probe: { x: 1, y: 1, movable: false },
+            iterate: 5,
           }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['v'], target: 1, tol: 0.01 },
+            { metric: 'iter_norm', op: 'gte', target: 1.2, label: TRAS_CINCO },
+            { metric: 'iter_norm', op: 'lte', target: 1.6, label: TRAS_CINCO },
+            {
+              metric: 'area',
+              op: 'gte',
+              target: 0.5,
+              label: 'Área que deja la capa al cuadrado unidad',
+            },
           ],
+          solved: { ix: 0.5, iy: 0 },
         },
         {
           id: 'autovectores.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Decir qué direcciones conserva una matriz y cuánto estira cada una basta para fijarla entera. Así se diseña un **filtro**: unas direcciones se mantienen y otras se atenúan o se refuerzan. Las redes neuronales de grafos con filtros espectrales trabajan así, y PCA hace lo mismo cuando conserva unas componentes y descarta las demás.',
-            aim: 'Vas a montar la matriz a partir de lo que debe hacer con dos flechas fijas, moviendo sus columnas, y a ver cuántas matrices cumplen las dos condiciones.',
+            why: 'PageRank, el algoritmo con el que Google empezó a ordenar la web, aplica la misma matriz a un vector de puntuaciones una y otra vez. Da igual por dónde empiece: el vector acaba apuntando al autovector dominante, y esa dirección es la clasificación.',
+            aim: 'Vas a elegir un estado de partida que la capa sí gire y a mirar adónde apunta su camino después de seis pasos.',
             takeaway:
-              'Con $\\vec{v}$ estirado por $2$ y $\\vec{w}$ quieto sale $A=\\begin{pmatrix}3&-1\\\\2&0\\end{pmatrix}$, cuyos cuatro números no dejan ver nada de eso. Los autovectores y autovalores son la descripción legible de una matriz; sus números, la que guarda el ordenador.',
+              'Desde casi cualquier estado, el camino acaba en la recta de autovalor $1{,}5$: lo que crece tapa a lo que se apaga. Es la **iteración de potencias**. La otra recta propia tampoco se tuerce, pero su camino se apaga.',
           },
           prompt:
-            'Ahora se construye la matriz a partir de sus autovectores. Los vectores $\\vec{v}=(1, 1)$ y $\\vec{w}=(1, 2)$ están fijos, y lo que se mueve son $\\hat{\\imath}$ y $\\hat{\\jmath}$, que son las columnas de $A$. Coloca las columnas para que $A\\vec{v}=(2, 2)$ y $A\\vec{w}=(1, 2)$: así $\\vec{v}$ es un autovector de autovalor $2$ y $\\vec{w}$ lo es de autovalor $1$.\n\nAl empezar, con la identidad, $\\vec{w}$ ya cumple su meta porque la identidad deja quieto cualquier vector. Cuando muevas las columnas dejará de cumplirla, y tendrás que recuperarla.',
+            'La misma capa, ahora seis pasos. Este estado de partida está en una recta que la capa no gira, y su camino no se tuerce nunca.\n\nElige uno que la capa sí gire en el primer paso y mira el camino: consigue que, al final, el último paso ya casi no gire.',
           hints: [
-            'La matriz lleva $(x, y)$ a $x\\cdot\\hat{\\imath}+y\\cdot\\hat{\\jmath}$. Por tanto $A\\vec{v}=\\hat{\\imath}+\\hat{\\jmath}$ y $A\\vec{w}=\\hat{\\imath}+2\\hat{\\jmath}$.',
-            'Resta las dos ecuaciones para despejar $\\hat{\\jmath}$ y después despeja $\\hat{\\imath}$.',
+            'Mira los primeros tramos del camino: se tuercen. Los últimos van todos en la misma dirección. ¿Cuál es?',
+            'Saca $\\vec{v}$ de las dos diagonales: casi cualquier estado vale. Si el giro del primer paso se queda corto, aléjalo más de ellas.',
           ],
           explain:
-            'Las condiciones $A\\vec{v}=(2, 2)$ y $A\\vec{w}=(1, 2)$ son dos ecuaciones con vectores, y sus incógnitas son las dos columnas. Cada una combina $\\hat{\\imath}$ y $\\hat{\\jmath}$ con las coordenadas del vector al que se aplica.',
+            'Un estado cualquiera es un trozo en la recta que la capa estira por $1{,}5$ más otro en la que encoge por $0{,}5$. Tras seis pasos, el primer trozo se ha multiplicado por $11{,}4$ y el segundo por $0{,}016$: lo que queda apunta casi solo en la dirección dominante.',
           solution:
-            'De $\\hat{\\imath}+\\hat{\\jmath}=(2, 2)$ y $\\hat{\\imath}+2\\hat{\\jmath}=(1, 2)$, restando, $\\hat{\\jmath}=(-1, 0)$, y entonces $\\hat{\\imath}=(2, 2)-(-1, 0)=(3, 2)$. La matriz es $A=\\begin{pmatrix}3&-1\\\\2&0\\end{pmatrix}$ y es la única que cumple las dos condiciones. Comprobación: $A\\vec{v}=(3-1,\\ 2+0)=(2, 2)=2\\vec{v}$ y $A\\vec{w}=(3-2,\\ 2+0)=(1, 2)=\\vec{w}$.',
-          plane: transformPlane({
-            movable: true,
-            extra: [vec(1, 1, false), { id: 'w', label: 'w', x: 1, y: 2, movable: false }],
-            apply: ['v', 'w'],
-            readouts: ['matrix', 'image'],
-            range: 3,
-            snap: 1,
-          }),
+            'Con $\\vec{v}=(1, 0)$, la capa lo gira $27$ grados en el primer paso, y el último paso gira menos de medio grado: el camino ya va por la diagonal $(1, 1)$. Vale casi cualquier estado fuera de las diagonales, como $(-2, 1)$ o $(0, 3)$. En $(-1, 1)$, el de partida, el camino no gira nunca, pero se apaga: no es la dirección dominante.',
+          lab: memoria({ x: -1, y: 1, movable: true }, 6),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 2, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 2, tol: 0.01 },
-            { metric: 'img_x', of: ['i', 'j', 'w'], target: 1, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'w'], target: 2, tol: 0.01 },
+            {
+              metric: 'iter_turn',
+              op: 'lte',
+              target: 1,
+              label: 'Ángulo que gira el último paso',
+            },
+            {
+              metric: 'img_angle',
+              op: 'gte',
+              target: 20,
+              label: 'Ángulo que gira la capa el estado de partida',
+            },
           ],
+          solved: { vx: 1, vy: 0 },
         },
       ],
     },
@@ -201,115 +200,133 @@ export const autovectores: Project = {
           id: 'autovectores.ex01.1',
           type: 'numero',
           purpose: {
-            why: 'Muchos sistemas repiten un paso de transición: un navegante que salta entre pantallas de una aplicación, un recomendador que pasa de un producto a otro. La proporción de tiempo que se pasa en cada sitio a largo plazo es un autovector de la matriz de transición, con autovalor $1$. Comprobar que un candidato lo es se hace con $A\\vec{v}=\\lambda\\vec{v}$.',
-            aim: 'Vas a calcular $A\\vec{v}$ para una flecha concreta y a decidir si sale un múltiplo de ella. Verás que la comprobación de un autovector es una sola multiplicación, y que además te da el factor.',
+            why: 'Para saber si una red recurrente va a explotar o a olvidar no hace falta seguirla cientos de pasos: basta con saber cuánto estira la capa sus direcciones propias. Ese número, el autovalor, sale de multiplicar una vez.',
+            aim: 'Vas a calcular por cuánto multiplica una capa recurrente un estado que no gira, a partir de sus pesos y del estado.',
             takeaway:
-              'Cuando $A\\vec{v}$ sale paralelo a $\\vec{v}$, el factor es el autovalor y la flecha es una dirección propia. Es la prueba que se usa para validar lo que devuelve una biblioteca, como `np.linalg.eig`: si $A\\vec{v}$ y $\\lambda\\vec{v}$ no coinciden, algo falla en el cálculo.',
+              'La capa lleva $(1, 1)$ a $(1{,}6;\\ 1{,}6)$: autovalor $1{,}6$. Tras diez pasos, ese estado sería $1{,}6^{10}\\approx 110$ veces más grande. Un autovalor algo mayor que $1$ ya basta para que la memoria explote.',
           },
           prompt:
-            'Sea $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$ y $\\vec{v}=(1, -2)$. Comprueba que $\\vec{v}$ es un autovector de $A$ calculando $A\\vec{v}$, y escribe su autovalor $\\lambda$, el número con $A\\vec{v}=\\lambda\\vec{v}$.',
+            'Una capa recurrente tiene estos pesos:\n\n$$A=\\begin{pmatrix}1{,}2&0{,}4\\\\0{,}2&1{,}4\\end{pmatrix}$$\n\nEl estado $\\vec{v}=(1, 1)$ es una dirección que la capa no gira. ¿Por cuánto lo multiplica en cada paso? En el laboratorio puedes mover $\\vec{v}$ y mirar el camino.',
           hints: [
-            'Calcula $A\\vec{v}$: cada componente es una fila de $A$ por $\\vec{v}$.',
-            'Compara $A\\vec{v}$ con $\\vec{v}$: ¿por qué número hay que multiplicar $(1, -2)$ para obtener $A\\vec{v}$? Tiene que ser el mismo en las dos componentes.',
+            'Calcula $A\\vec{v}$: cada rasgo de la salida es una fila de $A$ por el estado.',
+            'Compara $A\\vec{v}$ con $(1, 1)$: el número por el que hay que multiplicar es el mismo en los dos rasgos.',
           ],
           explain:
-            'Un autovector conserva su recta: la matriz solo lo estira, lo encoge o le da la vuelta. El factor es el autovalor, y tiene que salir igual en las dos componentes; si saliesen dos factores distintos, el vector no sería un autovector.',
+            'Si $\\vec{v}$ no gira, $A\\vec{v}=\\lambda\\vec{v}$, y $\\lambda$ se lee comparando cualquier rasgo de $A\\vec{v}$ con el de $\\vec{v}$. Tiene que salir el mismo en los dos; si no, el estado sí gira.',
           solution:
-            '$A\\vec{v}=(4\\cdot 1+1\\cdot(-2),\\ 2\\cdot 1+3\\cdot(-2))=(2, -4)=2\\cdot(1, -2)$. El factor $2$ sale en las dos componentes, así que $\\vec{v}$ es un autovector y $\\lambda=2$. Si te sale $4$, has leído una entrada de la matriz en vez de comparar $A\\vec{v}$ con $\\vec{v}$.',
-          answer: 2,
+            '$A\\vec{v}=(1{,}2+0{,}4;\\ 0{,}2+1{,}4)=(1{,}6;\\ 1{,}6)=1{,}6\\cdot(1, 1)$: el autovalor es $1{,}6$. La otra dirección propia de esta capa es $(2, -1)$, con autovalor $1$: la deja igual. Si te sale $1{,}2$ o $1{,}4$, has leído un peso de la diagonal en vez de multiplicar.',
+          lab: capaLab(RESENAS, {
+            i: [1.2, 0.2],
+            j: [0.4, 1.4],
+            movable: 'none',
+            probe: { x: 1, y: 1, movable: true },
+            iterate: 1,
+          }),
+          answer: 1.6,
           tol: 0,
         },
         {
           id: 'autovectores.ex01.2',
           type: 'vector',
           purpose: {
-            why: 'Al depurar código que usa `np.linalg.eig`, o al estudiar si un sistema que se repite en bucle se mantiene estable, conviene tener una forma rápida de saber cuánto estira la matriz. En $2\\times 2$ la traza y el determinante bastan para obtener los dos autovalores a mano y contrastarlos con lo que devuelve la máquina.',
-            aim: 'Vas a plantear la ecuación de segundo grado con la traza y el determinante y a resolverla. Verás que dos números de la matriz resumen los dos factores de estiramiento.',
+            why: 'Una capa recurrente con autovalores de $1{,}1$ y $0{,}9$ parece casi neutra: un $10$ % de más y un $10$ % de menos. Pero una frase tiene decenas de palabras, y la señal pasa por la capa una vez por palabra.',
+            aim: 'Vas a calcular por cuánto queda multiplicado, tras diez pasos, un estado en cada una de las dos direcciones propias de una capa.',
             takeaway:
-              'La traza es la suma de los autovalores y el determinante, su producto: con eso se pueden comprobar de un vistazo los resultados de cualquier biblioteca. Los autovalores dicen cuánto estira la matriz en cada dirección, y de su tamaño depende si repetirla acaba en una explosión, en un olvido o en algo estable.',
+              'Tras diez pasos, una dirección ha crecido a $2{,}59$ veces y la otra ha bajado a $0{,}35$. Tras cien, serían unas $13\\,800$ veces y $0{,}00003$: en un texto largo, una se desboca y la otra se olvida.',
           },
           prompt:
-            'Los autovalores de $A$ son las soluciones de $\\det(A-\\lambda I)=0$. Para una matriz de $2\\times 2$ esa ecuación es $\\lambda^2-t\\lambda+d=0$, con $t$ la traza (la suma de los dos números de la diagonal) y $d=\\det A$. Con la misma $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$, escribe sus dos autovalores, de menor a mayor.',
+            'Una capa recurrente tiene dos direcciones propias: en una estira por $1{,}1$ y en la otra encoge por $0{,}9$. Un estado de tamaño $1$ sobre cada una pasa por la capa diez veces, una por palabra.\n\n¿Por cuánto queda multiplicado en cada dirección? Escribe los dos factores, primero el de $1{,}1$, con dos decimales.',
           hints: [
-            'La traza es la suma de los dos números de la diagonal, y el determinante es $ad-bc$.',
-            'Resuelve $\\lambda^2-t\\lambda+d=0$: busca dos números que sumen $t$ y que multipliquen $d$.',
+            'Cada paso multiplica por el mismo autovalor. Diez pasos son diez multiplicaciones seguidas: una potencia.',
+            'Calcula $1{,}1^{10}$ y $0{,}9^{10}$. No es $1+10\\cdot 0{,}1$: el factor se aplica sobre lo que ya ha crecido.',
           ],
           explain:
-            'Un autovalor hace que $A-\\lambda I$ aplaste el plano, y eso ocurre justo cuando su determinante vale $0$. Al desarrollarlo sale una ecuación de segundo grado con dos soluciones; cuida el orden pedido.',
+            'Sobre un autovector, cada paso multiplica por $\\lambda$ lo que hay, no lo que había al principio. Tras $n$ pasos, el factor es $\\lambda^n$. Por encima de $1$ crece cada vez más deprisa, y por debajo se acerca a $0$.',
           solution:
-            'La traza es $4+3=7$ y el determinante es $4\\cdot 3-1\\cdot 2=10$, luego $\\lambda^2-7\\lambda+10=(\\lambda-2)(\\lambda-5)=0$ y los autovalores son $2$ y $5$. Comprobación: $2+5=7$ es la traza y $2\\cdot 5=10$ es el determinante.',
-          answer: [2, 5],
-          tol: 0,
+            '$1{,}1^{10}\\approx 2{,}59$ y $0{,}9^{10}\\approx 0{,}35$. Si te sale $2$ y $0$, has sumado y restado el $10$ % del principio diez veces en vez de multiplicar. Con cien pasos, $1{,}1^{100}\\approx 13\\,781$ y $0{,}9^{100}\\approx 0{,}00003$.',
+          answer: [2.59, 0.35],
+          tol: 0.01,
         },
         {
           id: 'autovectores.ex01.3',
-          type: 'vector',
+          type: 'opcion',
           purpose: {
-            why: 'En el agrupamiento espectral, los puntos o los documentos se unen en una red según lo parecidos que son, y los grupos se leen en los autovectores de una matriz de esa red. Sacar el autovector de un autovalor dado, resolviendo $(A-\\lambda I)\\vec{v}=\\vec{0}$, es el paso que hace cualquier biblioteca por dentro.',
-            aim: 'Vas a resolver el sistema de ecuaciones de $(A-5I)\\vec{v}=\\vec{0}$ y a dar la flecha que sale. Verás que el autovector no es un número único, sino una recta entera, y que se fija con la primera componente.',
+            why: 'Una dirección con autovalor $1$ es una memoria perfecta: la capa la deja igual paso tras paso, ni crece ni se olvida. Encontrar esas direcciones dice qué puede recordar una red recurrente sin desbocarse.',
+            aim: 'Vas a decidir cuál de cuatro estados es una dirección que esta capa no gira, probándolos en el laboratorio o multiplicando.',
             takeaway:
-              'Un autovector está definido salvo escala: cualquier múltiplo de $(1, 1)$ sirve, y por eso las bibliotecas lo devuelven con norma $1$. En el agrupamiento espectral lo que importa de un autovector no es su tamaño, sino cómo se reparten sus componentes entre los puntos, porque esa repartición decide a qué grupo va cada uno.',
+              'Solo $(2, 1)$ sale igual: $A(2, 1)=(2, 1)$, autovalor $1$. Los otros tres giran, aunque alguno, como $(0, 1)$, conserve su tamaño: no girar y no cambiar de tamaño son cosas distintas.',
           },
           prompt:
-            'Con la misma $A=\\begin{pmatrix}4&1\\\\2&3\\end{pmatrix}$, un autovector de autovalor $\\lambda=5$ cumple $(A-5I)\\vec{v}=\\vec{0}$. Escribe el autovector de $\\lambda=5$ cuya primera componente es $1$.',
+            'Una capa recurrente tiene estos pesos:\n\n$$A=\\begin{pmatrix}0{,}5&1\\\\0{,}5&0\\end{pmatrix}$$\n\n¿Cuál de estos estados es una dirección que la capa no gira? Puedes poner $\\vec{v}$ en cada uno y mirar el camino.',
           hints: [
-            'Escribe $A-5I$, restando $5$ a cada número de la diagonal, y plantea las dos ecuaciones de $(A-5I)\\vec{v}=\\vec{0}$ con $\\vec{v}=(1, y)$.',
-            'Las dos ecuaciones dicen lo mismo. Despeja $y$ en cualquiera de ellas.',
+            'Un estado que no gira tiene el punto $A\\vec{v}$ sobre su propia recta.',
+            'Calcula $A\\vec{v}$ para cada opción: cada rasgo de la salida es una fila de $A$ por el estado. Compáralo con el estado.',
           ],
           explain:
-            'Al restar $\\lambda I$ con un autovalor, las dos filas de la matriz quedan alineadas, y por eso las dos ecuaciones son la misma. Queda una recta de soluciones, no un solo vector; la primera componente fija cuál se pide.',
+            'No girar es salir en la misma recta: $A\\vec{v}=\\lambda\\vec{v}$, con el mismo $\\lambda$ en los dos rasgos. Que la salida tenga el mismo tamaño que el estado no basta.',
           solution:
-            '$A-5I=\\begin{pmatrix}-1&1\\\\2&-2\\end{pmatrix}$. Con $\\vec{v}=(1, y)$ la primera fila da $-1+y=0$, o sea $y=1$, y la segunda da $2-2y=0$, el mismo resultado. El autovector es $(1, 1)$, y se comprueba con $A(1, 1)=(5, 5)=5\\cdot(1, 1)$. El $(1, -2)$ de antes no vale: es el autovector de $\\lambda=2$.',
-          answer: [1, 1],
-          tol: 0,
+            '$A(1, 0)=(0{,}5;\\ 0{,}5)$, girado $45$ grados. $A(1, 1)=(1{,}5;\\ 0{,}5)$, girado. $A(2, 1)=(2, 1)$: no gira, con autovalor $1$. $A(0, 1)=(1, 0)$: mismo tamaño, pero girado un cuarto de vuelta. La otra dirección propia de esta capa es $(1, -1)$, con autovalor $-0{,}5$: le da la vuelta y la encoge.',
+          lab: capaLab(RESENAS, {
+            i: [0.5, 0.5],
+            j: [1, 0],
+            movable: 'none',
+            probe: { x: 1, y: 0, movable: true },
+            iterate: 1,
+          }),
+          options: ['$(1, 0)$', '$(1, 1)$', '$(2, 1)$', '$(0, 1)$'],
+          correct: 2,
         },
         {
           id: 'autovectores.ex01.4',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Algunos modelos de lenguaje codifican la posición de cada palabra girando pares de componentes de su vector. Una transformación así no estira nada, solo gira, y por eso no deja ninguna dirección en su sitio. Saber detectar a ojo qué matrices no tienen autovectores reales evita buscar direcciones propias donde no las hay.',
-            aim: 'Vas a revisar cuatro matrices, cada una con su efecto sobre el plano, y a decidir cuál no conserva ninguna recta. Verás que la ecuación de segundo grado de los autovalores lo anuncia sin dibujar nada.',
+            why: 'Hay redes que no entrenan su capa recurrente: la eligen al azar y la reescalan para que su autovalor de mayor tamaño quede por debajo de $1$. Son las redes de estado de eco. Reescalar es multiplicar todos los pesos por un mismo número.',
+            aim: 'Vas a calcular por cuánto hay que multiplicar los pesos de una capa para que su autovalor mayor pase a valer $1$.',
             takeaway:
-              'Un giro tiene autovalores complejos: ninguna recta se conserva, porque todas las flechas giran el mismo ángulo. En un proceso que se repite paso a paso, como la parte lineal de una red recurrente, autovalores complejos de módulo cercano a $1$ dan oscilación: el estado gira sin crecer ni apagarse. Cuando $\\lambda^2-t\\lambda+d=0$ no tiene solución real, hay que mirar los autovalores complejos.',
+              'Multiplicar la capa por $c$ multiplica por $c$ todos sus autovalores, y las direcciones propias no cambian. Con $c=0{,}5$, el $2$ pasa a $1$ y el $1$, a $0{,}5$: la memoria ya no explota, aunque una dirección se va olvidando.',
           },
           prompt:
-            'Un autovector real es un vector que la matriz deja en su recta. ¿Cuál de estas matrices **no deja ninguna recta en su sitio**, es decir, no tiene autovectores reales?',
+            'Esta capa recurrente estira la diagonal $(1, 1)$ por $2$ y deja igual la $(1, -1)$:\n\n$$A=\\begin{pmatrix}1{,}5&0{,}5\\\\0{,}5&1{,}5\\end{pmatrix}$$\n\n¿Por qué número hay que multiplicar todos sus pesos para que el autovalor mayor pase a ser $1$? En el laboratorio puedes acortar las columnas y mirar el camino.',
           hints: [
-            'Piensa en cada matriz como una transformación del plano: las columnas dicen adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$. Busca para cada una una recta que se quede donde estaba.',
-            'Una de las cuatro cambia la dirección de todos los vectores. Escribe su ecuación $\\lambda^2-t\\lambda+d=0$ y mira si tiene solución real.',
+            'Si todos los pesos se multiplican por $c$, también $A\\vec{v}$ se multiplica por $c$: el autovalor pasa de $\\lambda$ a $c\\lambda$.',
+            'Busca el $c$ con $c\\cdot 2=1$. Comprueba en el laboratorio que, con las columnas a ese tamaño, el camino de $(1, 1)$ no crece.',
           ],
           explain:
-            'Los autovalores reales son las soluciones reales de $\\lambda^2-t\\lambda+d=0$. Si esa ecuación no tiene solución real, no hay ningún vector que la matriz deje en su recta. Revisa las cuatro.',
+            'Escalar la capa no cambia qué direcciones no gira: solo cuánto las estira. Cada autovalor queda multiplicado por el mismo número, así que basta con mirar el mayor.',
           solution:
-            'El giro $\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$ tiene traza $0$ y determinante $1$, así que $\\lambda^2+1=0$, que no tiene solución real: gira todos los vectores un cuarto de vuelta y ninguno se queda en su recta. La cizalla $\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$ deja el eje $x$ en su sitio, con $\\lambda=1$. El espejo $\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$ deja los dos ejes, con $\\lambda=1$ y $\\lambda=-1$. La escala $\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$ también deja los dos ejes, con $\\lambda=2$ y $\\lambda=3$.',
-          options: [
-            '$\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$',
-            '$\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$',
-            '$\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$',
-            '$\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$',
-          ],
-          correct: 2,
+            '$c=0{,}5$: los pesos pasan a $\\begin{pmatrix}0{,}75&0{,}25\\\\0{,}25&0{,}75\\end{pmatrix}$, el autovalor $2$ pasa a $1$ y el $1$, a $0{,}5$. Si te sale $2$, has dividido al revés. Las redes de estado de eco suelen dejarlo algo por debajo de $1$, para que la memoria se apague despacio.',
+          lab: capaLab(RESENAS, {
+            range: 5,
+            snap: 0.25,
+            i: [1.5, 0.5],
+            j: [0.5, 1.5],
+            probe: { x: 1, y: 1, movable: false },
+            iterate: 3,
+          }),
+          answer: 0.5,
+          tol: 0,
         },
         {
           id: 'autovectores.ex01.5',
           type: 'numero',
           purpose: {
-            why: 'Al entrenar una red recurrente, el gradiente vuelve hacia atrás por la secuencia y en cada paso se multiplica otra vez por la misma matriz. Si en una dirección el factor es mayor que $1$, el gradiente crece como una potencia con el número de pasos, y el entrenamiento se desboca.',
-            aim: 'Vas a aplicar $W$ diez veces a un autovector, en lugar de hacer diez multiplicaciones de matrices, y a calcular cuánto mide el resultado. Verás qué ocurre con un factor aparentemente pequeño cuando se repite.',
+            why: 'La iteración de potencias, la de PageRank, encuentra el autovector dominante aplicando la matriz una y otra vez. Cuántas vueltas necesita depende de un cociente: el segundo autovalor entre el primero. Cuanto más pequeño, antes se borra lo que sobra.',
+            aim: 'Vas a contar cuántos pasos de una capa hacen falta para que la parte de un estado fuera de la dirección dominante quede por debajo del $1$ %.',
             takeaway:
-              'Un autovector de autovalor $\\lambda=2$ queda con longitud $2^{10}=1024$ tras diez pasos: con $\\lambda$ mayor que $1$, la señal crece como una potencia. Por eso, en secuencias largas, se recorta el gradiente cuando supera un tope, o se usan arquitecturas que controlan este factor para que no explote ni se apague.',
+              'Cada paso divide entre $3$ la parte que sobra, comparada con la dominante: tras cinco, queda menos del $0{,}5$ %. Con dos autovalores parecidos, el mismo trabajo pide muchos más pasos.',
           },
           prompt:
-            'Una red recurrente aplica la misma matriz $W$ en cada paso: el estado $\\vec{h}$ pasa a $W\\vec{h}$, después a $W^2\\vec{h}$, y así sucesivamente. Si el estado inicial $\\vec{v}$ es un autovector de $W$ con autovalor $\\lambda=2$ y mide $1$, ¿cuánto mide el estado tras $10$ pasos, $W^{10}\\vec{v}$?',
+            'La capa recurrente de las reseñas estira la diagonal $(1, 1)$ por $1{,}5$ y encoge la $(1, -1)$ por $0{,}5$. El estado $\\vec{v}=(1, 0)$ lleva lo mismo de cada una: $\\tfrac12(1, 1)+\\tfrac12(1, -1)$.\n\n¿Tras cuántos pasos es la parte de $(1, -1)$ menos del $1$ % de la de $(1, 1)$?',
           hints: [
-            'Calcula $W^2\\vec{v}=W(W\\vec{v})$ y fíjate en qué le pasa al factor $\\lambda$.',
-            'Cada paso multiplica el vector por el mismo número. ¿Cuántas veces se multiplica en $10$ pasos?',
+            'En cada paso, la parte de $(1, 1)$ se multiplica por $1{,}5$ y la de $(1, -1)$ por $0{,}5$: su cociente se multiplica por $1/3$.',
+            'Busca el primer $n$ con $(1/3)^n<0{,}01$. Puedes contar los pasos en el camino del laboratorio.',
           ],
           explain:
-            'Aplicar $W$ a un autovector solo lo multiplica por $\\lambda$, y el resultado sigue siendo un autovector con el mismo $\\lambda$. Así, cada paso añade un factor: se elevan los autovalores a una potencia, no se suman ni se multiplican por el número de pasos.',
+            'Las dos partes empiezan iguales. Tras $n$ pasos, la que sobra es $(0{,}5/1{,}5)^n=(1/3)^n$ veces la dominante. Hay que ver cuándo baja del $1$ %, es decir, de $0{,}01$.',
           solution:
-            '$W\\vec{v}=2\\vec{v}$, $W^2\\vec{v}=4\\vec{v}$, y en general $W^{10}\\vec{v}=2^{10}\\vec{v}$, que mide $1024$. Si fuera $\\lambda=0{,}5$, el estado se apagaría: $0{,}5^{10}\\approx 0{,}001$. Es la razón por la que los gradientes de una red recurrente explotan cuando $\\lvert\\lambda\\rvert>1$ y se desvanecen cuando $\\lvert\\lambda\\rvert<1$. Si te sale $20$, has multiplicado $10$ por $2$ en vez de elevar.',
-          answer: 1024,
+            '$(1/3)^4=1/81\\approx 0{,}012$, todavía por encima del $1$ %, y $(1/3)^5=1/243\\approx 0{,}004$, ya por debajo: hacen falta $5$ pasos. Con autovalores $1{,}5$ y $1{,}2$, el cociente sería $0{,}8$ y harían falta $21$.',
+          lab: memoria({ x: 1, y: 0, movable: true }, 6),
+          answer: 5,
           tol: 0,
         },
       ],

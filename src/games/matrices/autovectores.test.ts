@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { checkProject } from '../../content/validate';
-import { grade } from '../../content/grade';
 import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import {
+  defineLabProjectTests,
+  labAt,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -17,6 +22,7 @@ const bankQuestions = examen2Autovectores
 
 defineProseTests('proyecto autovectores', projectQuestions(autovectores));
 defineProseTests('banco examen-2 autovectores', bankQuestions);
+defineLabProjectTests(autovectores, examen2Autovectores);
 
 type V = [number, number];
 type M = [[number, number], [number, number]];
@@ -25,9 +31,6 @@ const img = (i: V, j: V, v: V): V => [i[0] * v[0] + j[0] * v[1], i[1] * v[0] + j
 /** Producto cruzado v × w: 0 si los dos están en la misma recta. */
 const cross = (v: V, w: V): number => v[0] * w[1] - v[1] * w[0];
 const dot = (v: V, w: V): number => v[0] * w[0] + v[1] * w[1];
-/** Ángulo en grados entre v y w. */
-const angleDeg = (v: V, w: V): number =>
-  (Math.atan2(Math.abs(cross(v, w)), dot(v, w)) * 180) / Math.PI;
 /** Cociente de Rayleigh vᵀAv / vᵀv. */
 const rayleigh = (i: V, j: V, v: V): number => dot(v, img(i, j, v)) / dot(v, v);
 const trace = (m: M): number => m[0][0] + m[1][1];
@@ -60,11 +63,11 @@ describe('proyecto autovectores', () => {
   });
 
   it('se identifica como pide el encargo', () => {
-    // contract: encargo de la Órbita 2 de matrices: id autovectores, nombre «Autovectores», subtítulo «Las flechas que no giran»
+    // contract: brief-juego-2.md (petición de Oliver 2026-11-10, cambia el subtítulo): Autovectores, «direcciones que la capa solo estira»; el id no cambia
     expect([autovectores.id, autovectores.name, autovectores.sub]).toEqual([
       'autovectores',
       'Autovectores',
-      'Las flechas que no giran',
+      'Direcciones que la capa solo estira',
     ]);
   });
 
@@ -98,11 +101,6 @@ describe('proyecto autovectores', () => {
   });
 });
 
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -110,236 +108,238 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-describe('valores de la tabla del proyecto autovectores', () => {
-  const [ex00, ex01, ex02] = autovectores.exercises;
+describe('autovectores, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(autovectores);
+  const lab = (k: number) => labQuestion(all, `autovectores.ex00.${k}`);
 
-  it('ex00: metas de cada manipular', () => {
-    // contract: encargo de la Órbita 2 de matrices: ángulo 0 y x = 1; ángulo 0 y Rayleigh 2; ángulo 180; imagen (0, 0) y x = 1; A·v = (2, 2) y A·w = (1, 2)
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['img_angle(i,j,v)=0±0.5', 'x(v)=1±0.01'],
-      ['img_angle(i,j,v)=0±0.5', 'rayleigh(i,j,v)=2±0.01'],
-      ['img_angle(i,j,v)=180±0.5'],
-      ['img_x(i,j,v)=0±0.01', 'img_y(i,j,v)=0±0.01', 'x(v)=1±0.01'],
-      ['img_x(i,j,v)=2±0.01', 'img_y(i,j,v)=2±0.01', 'img_x(i,j,w)=1±0.01', 'img_y(i,j,w)=2±0.01'],
-    ]);
-  });
-
-  it('ex00: planos con la matriz, los vectores móviles y las lecturas del encargo', () => {
-    const shape = ex00!.questions.map((q) => {
-      if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      return [
-        q.plane.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        q.plane.readouts,
-        q.plane.range,
-        q.plane.snap,
-        q.plane.transform?.apply,
-      ];
-    });
-    // contract: encargo de la Órbita 2 de matrices: A fija y v móvil en las cuatro primeras (rangos 4, 3, 3, 5, rejilla 1); en la quinta î y ĵ móviles desde la identidad y v, w fijos
-    expect(shape).toEqual([
-      [
-        ['i=(2, 1) false', 'j=(1, 2) false', 'v=(1, 0) true'],
-        ['matrix', 'image', 'img_angle'],
-        4,
-        1,
-        ['v'],
-      ],
-      [
-        ['i=(3, 0) false', 'j=(1, 2) false', 'v=(1, 0) true'],
-        ['image', 'img_angle', 'rayleigh'],
-        3,
-        1,
-        ['v'],
-      ],
-      [
-        ['i=(0, 1) false', 'j=(1, 0) false', 'v=(2, 1) true'],
-        ['image', 'img_angle', 'rayleigh'],
-        3,
-        1,
-        ['v'],
-      ],
-      [
-        ['i=(2, 4) false', 'j=(1, 2) false', 'v=(1, 0) true'],
-        ['matrix', 'image', 'img_angle'],
-        5,
-        1,
-        ['v'],
-      ],
-      [
-        ['i=(1, 0) true', 'j=(0, 1) true', 'v=(1, 1) false', 'w=(1, 2) false'],
-        ['matrix', 'image'],
-        3,
-        1,
-        ['v', 'w'],
-      ],
-    ]);
-  });
-
-  it('ex00: las posiciones de las soluciones cumplen las metas y se recalculan a mano', () => {
-    const q = (k: number): Question => ex00!.questions[k]!;
-    const ok = (k: number, vectors: Record<string, V>): boolean =>
-      grade(q(k) as Exclude<Question, CodigoQ>, { type: 'manipular', vectors });
-    // contract: solution de ex00.1: A = (2 1; 1 2); v = (1, 1) da A·v = (3, 3) = 3v y v = (1, −1) da A·v = (1, −1) = 1v
-    const A1: [V, V] = [
-      [2, 1],
-      [1, 2],
-    ];
-    expect(img(...A1, [1, 1])).toEqual([3, 3]);
-    expect(img(...A1, [1, -1])).toEqual([1, -1]);
-    expect(ok(0, { v: [1, 1] })).toBe(true);
-    expect(ok(0, { v: [1, -1] })).toBe(true);
-    // contract: solution de ex00.1: con v = (1, y) hace falta y² = 1: ninguna otra y entera del plano sirve
-    for (const y of [-4, -3, -2, 0, 2, 3, 4]) {
-      expect(cross([1, y], img(...A1, [1, y])), `y=${y}`).not.toBe(0);
-      expect(ok(0, { v: [1, y] }), `y=${y}`).toBe(false);
-    }
-    // contract: error didáctico de ex00.1: el vector paralelo con x ≠ 1, (−1, −1), cumple el ángulo pero no la x
-    expect(ok(0, { v: [-1, -1] })).toBe(false);
-
-    // contract: solution de ex00.2: A = (3 1; 0 2); v = (1, −1) da A·v = (2, −2) = 2v, múltiplos incluidos
-    const A2: [V, V] = [
-      [3, 0],
-      [1, 2],
-    ];
-    for (const v of [
-      [1, -1],
+  it('ex00.1: al empezar la capa gira el estado; las dos diagonales, de cualquier largo y en los dos sentidos, no', () => {
+    const start = labAt(lab(1));
+    // contract: enunciado de ex00.1: «casi todo estado sale girado»: (1, 0) sale a (1; 0,5), unos 27 grados
+    expect(start.img_angle).toBeCloseTo(26.565, 2);
+    expect(solves(lab(1))).toBe(false);
+    // contract: solution de ex00.1: (1, 1) con autovalor 1,5 y (1, −1) con autovalor 0,5
+    expect(solves(lab(1), { vx: 1, vy: 1 })).toBe(true);
+    expect(labAt(lab(1), { vx: 1, vy: 1 }).stretch).toBeCloseTo(1.5, 12);
+    expect(solves(lab(1), { vx: 1, vy: -1 })).toBe(true);
+    expect(labAt(lab(1), { vx: 1, vy: -1 }).stretch).toBeCloseTo(0.5, 12);
+    // contract: regla 3 de la guía (varias soluciones) y solution de ex00.1: «largo o corto, en un sentido o en el otro, como (−2, −2)»
+    for (const [vx, vy] of [
+      [-2, -2],
+      [0.5, 0.5],
+      [3, 3],
+      [-1.5, 1.5],
       [2, -2],
-      [3, -3],
-      [-1, 1],
-    ] as V[]) {
-      const w = img(...A2, v);
-      expect(cross(v, w), String(v)).toBe(0);
-      expect(rayleigh(...A2, v), String(v)).toBeCloseTo(2, 12);
-      expect(ok(1, { v }), String(v)).toBe(true);
+    ] as const) {
+      expect(solves(lab(1), { vx, vy }), `(${vx}, ${vy})`).toBe(true);
     }
-    // contract: enunciado de ex00.2: el vector de partida (1, 0) ya es autovector de λ = 3, y el (0, 1) tiene el cociente 2 sin ser autovector
-    expect(img(...A2, [1, 0])).toEqual([3, 0]);
-    expect(rayleigh(...A2, [1, 0])).toBe(3);
-    expect(rayleigh(...A2, [0, 1])).toBe(2);
-    expect(cross([0, 1], img(...A2, [0, 1]))).not.toBe(0);
-    expect(ok(1, { v: [1, 0] })).toBe(false);
-    expect(ok(1, { v: [0, 1] })).toBe(false);
-    expect(ok(1, { v: [1, 1] })).toBe(false);
+    // contract: tentadora y mala (solution de ex00.1): (0, 1) sale a (0,5; 1), girado unos 27 grados
+    expect(labAt(lab(1), { vx: 0, vy: 1 }).img_angle).toBeCloseTo(26.565, 2);
+    expect(solves(lab(1), { vx: 0, vy: 1 })).toBe(false);
+    // contract: encargo de autovectores: v = (0, 0) no tiene dirección y no cumple ninguna meta
+    expect(solves(lab(1), { vx: 0, vy: 0 })).toBe(false);
+  });
 
-    // contract: solution de ex00.3: A = (0 1; 1 0); v = (1, −1) da A·v = (−1, 1) = −v (180 grados); (1, 1) es el otro autovector, con λ = 1
-    const A3: [V, V] = [
-      [0, 1],
-      [1, 0],
-    ];
-    for (const v of [
+  it('ex00.2: el tope de crecimiento desde un estado pequeño solo lo da la recta de autovalor 1,5', () => {
+    const start = labAt(lab(2));
+    // contract: enunciado de ex00.2: «desde el de ahora, la memoria llega a algo más de 5»
+    expect(start.iter_norm).toBeGreaterThan(5);
+    expect(start.iter_norm).toBeLessThan(5.5);
+    // contract: solution de ex00.2: (1, 1) llega a 1,41·1,5⁵ ≈ 10,74; también (−1, −1)
+    expect(labAt(lab(2), { vx: 1, vy: 1 }).iter_norm).toBeCloseTo(Math.SQRT2 * 1.5 ** 5, 9);
+    expect(Math.SQRT2 * 1.5 ** 5).toBeCloseTo(10.74, 2);
+    expect(solves(lab(2), { vx: 1, vy: 1 })).toBe(true);
+    expect(solves(lab(2), { vx: -1, vy: -1 })).toBe(true);
+    // contract: regla 4 de la guía (un límite): ningún otro estado de la rejilla de tamaño 1,5 o menos pasa de 10
+    const others: string[] = [];
+    for (let vx = -1.5; vx <= 1.5; vx += 0.5)
+      for (let vy = -1.5; vy <= 1.5; vy += 0.5)
+        if (Math.abs(vx) !== 1 || vx !== vy) {
+          if (solves(lab(2), { vx, vy })) others.push(`(${vx}, ${vy})`);
+        }
+    expect(others).toEqual([]);
+    // contract: solution de ex00.2: (1,5; 1,5) se pasa del límite de partida; (1,5; 0) solo llega a 8,05
+    expect(solves(lab(2), { vx: 1.5, vy: 1.5 })).toBe(false);
+    expect(labAt(lab(2), { vx: 1.5, vy: 1.5 }).v_norm).toBeGreaterThan(1.5);
+    expect(labAt(lab(2), { vx: 1.5, vy: 0 }).iter_norm).toBeCloseTo(8.05, 2);
+    // contract: tentadora y mala: la otra recta propia, (1, −1), se apaga
+    expect(labAt(lab(2), { vx: 1, vy: -1 }).iter_norm).toBeLessThan(0.1);
+  });
+
+  it('ex00.3: solo la recta de autovalor 0,5 apaga la memoria, y no si el estado es demasiado largo', () => {
+    // contract: enunciado de ex00.3: el estado de partida no se apaga
+    expect(solves(lab(3))).toBe(false);
+    // contract: solution de ex00.3: (1, −1) deja √2·0,5⁵ ≈ 0,044
+    expect(labAt(lab(3), { vx: 1, vy: -1 }).iter_norm).toBeCloseTo(Math.SQRT2 * 0.5 ** 5, 12);
+    expect(Math.SQRT2 * 0.5 ** 5).toBeCloseTo(0.044, 3);
+    // contract: regla 3 de la guía y solution de ex00.3: valen (−1,5; 1,5) y cualquier punto de la recta hasta (2, −2), en los dos sentidos
+    for (const [vx, vy] of [
       [1, -1],
+      [-1, 1],
+      [-1.5, 1.5],
+      [1.5, -1.5],
       [2, -2],
       [-2, 2],
-    ] as V[]) {
-      expect(angleDeg(v, img(...A3, v)), String(v)).toBeCloseTo(180, 9);
-      expect(rayleigh(...A3, v), String(v)).toBe(-1);
-      expect(ok(2, { v }), String(v)).toBe(true);
+    ] as const) {
+      expect(solves(lab(3), { vx, vy }), `(${vx}, ${vy})`).toBe(true);
     }
-    expect(img(...A3, [1, 1])).toEqual([1, 1]);
-    expect(ok(2, { v: [1, 1] })).toBe(false);
-    // contract: enunciado de ex00.3: v = (2, 1) de partida; A·v = (1, 2), a 36,87 grados de v; (1, −2) da A·v = (−2, 1), a unos 143 grados
-    expect(img(...A3, [2, 1])).toEqual([1, 2]);
-    expect(angleDeg([2, 1], [1, 2])).toBeCloseTo(36.8699, 3);
-    expect(angleDeg([1, -2], img(...A3, [1, -2]))).toBeCloseTo(143.13, 2);
-    expect(ok(2, { v: [2, 1] })).toBe(false);
-    expect(ok(2, { v: [1, -2] })).toBe(false);
-
-    // contract: solution de ex00.4: A = (2 1; 4 2) y v = (1, −2) da A·v = (0, 0): autovalor 0
-    const A4: [V, V] = [
-      [2, 4],
-      [1, 2],
-    ];
-    expect(img(...A4, [1, -2])).toEqual([0, 0]);
-    expect(ok(3, { v: [1, -2] })).toBe(true);
-    // contract: con x = 1 es la única posición de la rejilla: para (1, y), A·v = (2 + y)·(1, 2), nulo solo con y = −2
-    for (const y of [-5, -4, -3, -1, 0, 1, 5]) expect(ok(3, { v: [1, y] }), `y=${y}`).toBe(false);
-    expect(ok(3, { v: [0, 0] })).toBe(false);
-
-    // contract: solution de ex00.5: î = (3, 2) y ĵ = (−1, 0) dan A·v = (2, 2) y A·w = (1, 2)
-    expect(img([3, 2], [-1, 0], [1, 1])).toEqual([2, 2]);
-    expect(img([3, 2], [-1, 0], [1, 2])).toEqual([1, 2]);
-    expect(ok(4, { i: [3, 2], j: [-1, 0] })).toBe(true);
-    // contract: enunciado de ex00.5: con la identidad (posición inicial) w cumple sus metas y v no
-    expect(img([1, 0], [0, 1], [1, 2])).toEqual([1, 2]);
-    expect(img([1, 0], [0, 1], [1, 1])).toEqual([1, 1]);
-    expect(ok(4, { i: [1, 0], j: [0, 1] })).toBe(false);
-    // contract: errores didácticos de ex00.5: acertar solo v, o solo w, o cambiar una columna por una unidad
-    expect(img([2, 2], [0, 0], [1, 1])).toEqual([2, 2]);
-    expect(ok(4, { i: [2, 2], j: [0, 0] })).toBe(false);
-    expect(ok(4, { i: [3, 2], j: [-1, 1] })).toBe(false);
-    expect(ok(4, { i: [1, 1], j: [1, 1] })).toBe(false);
+    // contract: solution de ex00.3: (2,5; −2,5) ya deja 0,11 y (1; −0,5) acaba en 2,7
+    expect(labAt(lab(3), { vx: 2.5, vy: -2.5 }).iter_norm).toBeCloseTo(0.11, 2);
+    expect(solves(lab(3), { vx: 2.5, vy: -2.5 })).toBe(false);
+    expect(labAt(lab(3), { vx: 1, vy: -0.5 }).iter_norm).toBeCloseTo(2.7, 1);
+    expect(solves(lab(3), { vx: 1, vy: -0.5 })).toBe(false);
+    // contract: encargo de autovectores: v = (0, 0) apagaría la memoria sin ser un estado; la meta de tamaño lo impide
+    expect(labAt(lab(3), { vx: 0, vy: 0 }).iter_norm).toBe(0);
+    expect(solves(lab(3), { vx: 0, vy: 0 })).toBe(false);
   });
 
-  it('ex00: la solución de ex00.5 es la única (sistema 2×2 con solución única)', () => {
-    // contract: solution de ex00.5: î + ĵ = (2, 2) e î + 2ĵ = (1, 2) restando dan ĵ = (−1, 0) y î = (3, 2)
-    const jv: V = [1 - 2, 2 - 2];
-    const iv: V = [2 - jv[0], 2 - jv[1]];
-    expect([jv, iv]).toEqual([
-      [-1, 0],
-      [3, 2],
+  it('ex00.4: la capa que explotaba; autovalor 1 o un giro conservan el tamaño, aplastar no vale', () => {
+    const start = labAt(lab(4));
+    // contract: enunciado de ex00.4: «pasa de 1,41 a más de 10»
+    expect(start.v_norm).toBeCloseTo(1.41, 2);
+    expect(start.iter_norm).toBeGreaterThan(10);
+    // contract: solution de ex00.4: î en (0,5; 0) y ĵ en (0,5; 1): A·v = v y área 0,5
+    expect(solves(lab(4), { ix: 0.5, iy: 0 })).toBe(true);
+    expect(labAt(lab(4), { ix: 0.5, iy: 0 }).area).toBe(0.5);
+    // contract: regla 3 de la guía y solution de ex00.4: la identidad y el giro de un cuarto de vuelta también valen
+    expect(solves(lab(4), { ix: 1, iy: 0, jx: 0, jy: 1 })).toBe(true);
+    expect(solves(lab(4), { ix: 0, iy: 1, jx: -1, jy: 0 })).toBe(true);
+    // contract: tentadora y mala (solution de ex00.4): las dos columnas en (0,5; 0,5) conservan v con área 0
+    const flat = labAt(lab(4), { ix: 0.5, iy: 0.5, jx: 0.5, jy: 0.5 });
+    expect([flat.iter_norm, flat.area]).toEqual([Math.SQRT2, 0]);
+    expect(solves(lab(4), { ix: 0.5, iy: 0.5, jx: 0.5, jy: 0.5 })).toBe(false);
+    // contract: tentadora y mala: encoger toda la capa a la mitad apaga la memoria
+    expect(solves(lab(4), { ix: 0.5, iy: 0, jx: 0, jy: 0.5 })).toBe(false);
+  });
+
+  it('ex00.5: desde casi cualquier estado el camino se alinea; las rectas propias no cuentan', () => {
+    const start = labAt(lab(5));
+    // contract: enunciado de ex00.5: el estado de partida está en una recta que no gira y su camino no se tuerce
+    expect(start.img_angle).toBeLessThan(1e-4);
+    expect(start.iter_turn).toBeLessThan(1e-4);
+    expect(solves(lab(5))).toBe(false);
+    // contract: solution de ex00.5: (1, 0) gira 27 grados el primer paso y menos de medio grado el último
+    const from = labAt(lab(5), { vx: 1, vy: 0 });
+    expect(from.img_angle).toBeCloseTo(26.565, 2);
+    expect(from.iter_turn).toBeLessThan(0.5);
+    // contract: regla 3 de la guía y solution de ex00.5: también (−2, 1) y (0, 3)
+    expect(solves(lab(5), { vx: 1, vy: 0 })).toBe(true);
+    expect(solves(lab(5), { vx: -2, vy: 1 })).toBe(true);
+    expect(solves(lab(5), { vx: 0, vy: 3 })).toBe(true);
+    // contract: takeaway de ex00.5 («desde casi cualquier estado»): todo estado de la rejilla que la capa gira 20 grados o más se alinea en seis pasos
+    for (let vx = -4; vx <= 4; vx += 0.5)
+      for (let vy = -4; vy <= 4; vy += 0.5) {
+        const m = labAt(lab(5), { vx, vy });
+        if (m.img_angle! >= 20) expect(m.iter_turn, `(${vx}, ${vy})`).toBeLessThanOrEqual(1);
+      }
+    // contract: tentadora y mala: las diagonales no giran, así que no cumplen el giro de partida; v = (0, 0) tampoco
+    expect(solves(lab(5), { vx: 1, vy: 1 })).toBe(false);
+    expect(solves(lab(5), { vx: -2, vy: 2 })).toBe(false);
+    expect(solves(lab(5), { vx: 0, vy: 0 })).toBe(false);
+  });
+
+  it('las cinco comparten las reseñas y la capa recurrente, y cambian una cosa cada vez', () => {
+    const scenes = [1, 2, 3, 4, 5].map((k) => {
+      const spec = lab(k).lab;
+      if (spec.kind !== 'capa') throw new Error('ex00 usa el laboratorio capa');
+      return [spec.axes, spec.i, spec.j, spec.movable ?? 'ij', spec.probe?.movable, spec.iterate];
+    });
+    // contract: brief-juego-2.md, Autovectores: con probe e iterate; v móvil salvo en la 4, que mueve las columnas; 1, 5, 5, 5 y 6 pasos
+    const capa = [
+      ['intensidad', 'tono'],
+      [1, 0.5],
+      [0.5, 1],
+    ];
+    expect(scenes).toEqual([
+      [...capa, 'none', true, 1],
+      [...capa, 'none', true, 5],
+      [...capa, 'none', true, 5],
+      [...capa, 'ij', false, 5],
+      [...capa, 'none', true, 6],
     ]);
   });
+});
 
-  it('ex01: respuestas de calcular', () => {
-    // contract: encargo de la Órbita 2 de matrices: λ = 2; autovalores [2, 5]; autovector [1, 1]; opción 2 (el giro); 1024
-    expect(ex01!.questions.map(answerOf)).toEqual([[2, 0], [[2, 5], 0], [[1, 1], 0], 2, [1024, 0]]);
-    expect(ex01!.questions.map((q) => q.type)).toEqual([
-      'numero',
-      'vector',
-      'vector',
-      'opcion',
-      'numero',
+describe('autovectores, «Calcular»: las respuestas se recalculan', () => {
+  const ex01 = autovectores.exercises[1]!;
+  const ex02 = autovectores.exercises[2];
+  const q = (k: number): Question => ex01.questions[k - 1]!;
+  /** Las métricas del laboratorio de una pregunta de «Calcular» con los mandos de `state`. */
+  const measure = (k: number, state: Record<string, number> = {}) => {
+    const x = q(k);
+    if (!('lab' in x) || !x.lab) throw new Error(`ex01.${k} lleva laboratorio`);
+    return labAt(
+      { ...labQuestion(projectQuestions(autovectores), 'autovectores.ex00.1'), lab: x.lab },
+      state,
+    );
+  };
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 2): λ = 1,6; 1,1¹⁰ y 0,9¹⁰ con dos decimales; (2, 1) (índice 2); c = 0,5; 5 pasos
+    expect(ex01.questions.map(answerOf)).toEqual([
+      [1.6, 0],
+      [[2.59, 0.35], 0.01],
+      2,
+      [0.5, 0],
+      [5, 0],
     ]);
+    // contract: ex01.2: 1,1¹⁰ ≈ 2,5937 y 0,9¹⁰ ≈ 0,3487, dentro de la tolerancia; con cien pasos, 13 781 y 0,00003
+    expect(Math.abs(1.1 ** 10 - 2.59)).toBeLessThan(0.01);
+    expect(Math.abs(0.9 ** 10 - 0.35)).toBeLessThan(0.01);
+    expect(Math.round(1.1 ** 100)).toBe(13781);
+    expect(0.9 ** 100).toBeCloseTo(0.00003, 5);
+    // contract: ex01.5: (1/3)⁴ ≈ 0,012 aún pasa del 1 % y (1/3)⁵ ≈ 0,004 no; con cociente 0,8 hacen falta 21
+    expect((1 / 3) ** 4).toBeGreaterThan(0.01);
+    expect((1 / 3) ** 5).toBeLessThan(0.01);
+    expect(0.8 ** 20).toBeGreaterThan(0.01);
+    expect(0.8 ** 21).toBeLessThan(0.01);
   });
 
-  it('ex01: las respuestas se recalculan', () => {
-    const A: M = [
-      [4, 1],
-      [2, 3],
-    ];
-    // contract: ex01.1: A·(1, −2) = (4 − 2, 2 − 6) = (2, −4) = 2·(1, −2)
-    expect(img([4, 2], [1, 3], [1, -2])).toEqual([2, -4]);
-    // contract: ex01.2: traza 7, determinante 10, raíces de λ² − 7λ + 10: 2 y 5
-    expect([trace(A), det(A)]).toEqual([7, 10]);
-    expect(eigen(A).values).toEqual([2, 5]);
-    // contract: ex01.3: (A − 5I)(1, 1) = (−1 + 1, 2 − 2) = (0, 0), así que (1, 1) es el autovector de λ = 5
-    expect(img([4 - 5, 2], [1, 3 - 5], [1, 1])).toEqual([0, 0]);
-    expect(img([4, 2], [1, 3], [1, 1])).toEqual([5, 5]);
-    // contract: ex01.4: giro (traza 0, det 1): discriminante −4 < 0, sin autovalores reales; los otros tres tienen discriminante ≥ 0
-    const opts: M[] = [
-      [
-        [1, 1],
-        [0, 1],
-      ],
-      [
-        [2, 0],
-        [0, 3],
-      ],
-      [
-        [0, -1],
-        [1, 0],
-      ],
-      [
-        [1, 0],
-        [0, -1],
-      ],
-    ];
-    expect(opts.map((m) => eigen(m).real)).toEqual([true, true, false, true]);
-    expect(opts.findIndex((m) => !eigen(m).real)).toBe(2);
-    // contract: ex01.5: cada paso multiplica por λ = 2; tras 10 pasos, 2^10 = 1024, y con λ = 0,5 queda 0,5^10 ≈ 0,001
-    expect(2 ** 10).toBe(1024);
-    expect(0.5 ** 10).toBeCloseTo(0.001, 3);
+  it('ex01.1: en su laboratorio, (1, 1) no gira y se estira por 1,6; (2, −1) es la otra dirección propia', () => {
+    const one = measure(1);
+    // contract: solution de ex01.1: A·(1, 1) = (1,6; 1,6)
+    expect(one.img_angle).toBe(0);
+    expect(one.stretch).toBeCloseTo(1.6, 12);
+    expect([one.m11, one.m12, one.m21, one.m22]).toEqual([1.2, 0.4, 0.2, 1.4]);
+    // contract: solution de ex01.1: (2, −1) tiene autovalor 1; takeaway: 1,6¹⁰ ≈ 110
+    const other = measure(1, { vx: 2, vy: -1 });
+    expect(other.img_angle).toBeLessThan(1e-4);
+    expect(other.stretch).toBeCloseTo(1, 12);
+    expect(Math.round(1.6 ** 10)).toBe(110);
   });
 
-  it('ex01.4: las cuatro opciones son las matrices del cálculo', () => {
-    const q = ex01!.questions[3]!;
-    // contract: solution de ex01.4: las opciones son (1 1; 0 1), (2 0; 0 3), (0 −1; 1 0) y (1 0; 0 −1)
-    expect(q.type === 'opcion' ? q.options : []).toEqual([
-      '$\\begin{pmatrix}1&1\\\\0&1\\end{pmatrix}$',
-      '$\\begin{pmatrix}2&0\\\\0&3\\end{pmatrix}$',
-      '$\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$',
-      '$\\begin{pmatrix}1&0\\\\0&-1\\end{pmatrix}$',
-    ]);
+  it('ex01.3: de las cuatro opciones solo (2, 1) no gira; (0, 1) conserva el tamaño y gira 90 grados', () => {
+    const x = q(3);
+    if (x.type !== 'opcion') throw new Error('ex01.3 es opcion');
+    // contract: solution de ex01.3: A(1, 0) gira 45 grados, A(1, 1) gira, A(2, 1) = (2, 1), A(0, 1) = (1, 0)
+    const angles = [
+      [1, 0],
+      [1, 1],
+      [2, 1],
+      [0, 1],
+    ].map(([vx, vy]) => measure(3, { vx: vx!, vy: vy! }));
+    expect(angles.map((m) => Math.round(m.img_angle!))).toEqual([45, 27, 0, 90]);
+    expect(angles[2]!.stretch).toBeCloseTo(1, 12);
+    expect(angles[3]!.stretch).toBeCloseTo(1, 12);
+    expect(x.options[x.correct]).toBe('$(2, 1)$');
+    // contract: solution de ex01.3: (1, −1) es la otra dirección propia, con autovalor −0,5
+    expect(measure(3, { vx: 1, vy: -1 }).rayleigh).toBeCloseTo(-0.5, 12);
+  });
+
+  it('ex01.4: con las columnas a la mitad, el autovalor 2 pasa a 1 y el camino de (1, 1) no crece', () => {
+    // contract: enunciado de ex01.4: la capa estira (1, 1) por 2 y deja igual (1, −1)
+    expect(measure(4).stretch).toBeCloseTo(2, 12);
+    expect(measure(4).img_angle).toBeLessThan(1e-4);
+    // contract: solution de ex01.4: con c = 0,5 los pesos pasan a (0,75 0,25; 0,25 0,75) y (1, 1) ni crece ni se apaga
+    const half = measure(4, { ix: 0.75, iy: 0.25, jx: 0.25, jy: 0.75 });
+    expect(half.stretch).toBeCloseTo(1, 12);
+    expect(half.iter_norm).toBeCloseTo(Math.SQRT2, 12);
+  });
+
+  it('ex01.5: el estado (1, 0) es mitad de cada recta propia en la capa de las reseñas', () => {
+    // contract: enunciado de ex01.5: ½(1, 1) + ½(1, −1) = (1, 0); la capa estira (1, 1) por 1,5 y encoge (1, −1) por 0,5
+    expect([0.5 + 0.5, 0.5 - 0.5]).toEqual([1, 0]);
+    expect(measure(5, { vx: 1, vy: 1 }).stretch).toBeCloseTo(1.5, 12);
+    expect(measure(5, { vx: 1, vy: -1 }).stretch).toBeCloseTo(0.5, 12);
   });
 
   it('ex02: cinco preguntas de código', () => {
@@ -478,15 +478,15 @@ describe('valores de la tabla del proyecto autovectores', () => {
 
 describe('banco de examen 2 del proyecto autovectores', () => {
   it('tiene tres entradas fijas del proyecto autovectores, con ids examen-2.*', () => {
-    // contract: encargo de la Órbita 2 de matrices: 3 entradas `{ project: 'autovectores', question }` con ids `examen-2.<tema>`
+    // contract: guía de contenido 2026-11-10 (petición de Oliver, sustituye las dos primeras): un laboratorio y una cuenta del estilo nuevo; la de código se conserva («Programar» no se toca)
     expect(examen2Autovectores.map((e) => e.project)).toEqual([
       'autovectores',
       'autovectores',
       'autovectores',
     ]);
     expect(examen2Autovectores.map((e) => e.question.id)).toEqual([
-      'examen-2.cual-es-autovector',
-      'examen-2.autovalor-potencia',
+      'examen-2.memoria-estable',
+      'examen-2.pasos-hasta-olvidar',
       'examen-2.capas-que-explotan',
     ]);
   });
@@ -499,40 +499,36 @@ describe('banco de examen 2 del proyecto autovectores', () => {
   });
 
   it('ninguna entrada es generada, hay variedad de tipos y los ids no chocan con los del proyecto', () => {
-    // contract: encargo de la Órbita 2 de matrices: tres fijas, una opción, un número y un código; ids únicos en el juego
+    // contract: guía de contenido 2026-11-10: un laboratorio, un numero y un codigo; la generada la añade el ensamblado
     expect(examen2Autovectores.some((e) => e.question.type === 'generada')).toBe(false);
-    expect(examen2Autovectores.map((e) => e.question.type)).toEqual(['opcion', 'numero', 'codigo']);
+    expect(examen2Autovectores.map((e) => e.question.type)).toEqual([
+      'laboratorio',
+      'numero',
+      'codigo',
+    ]);
     const projectIds = new Set(projectQuestions(autovectores).map((q) => q.id));
     expect(examen2Autovectores.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
   it('respuestas del banco', () => {
-    const [cual, potencia] = examen2Autovectores.map((e) => e.question);
-    // contract: examen-2.cual-es-autovector: A·(0, 1) = (1, 2), A·(1, 1) = (4, 2), A·(1, −1) = (2, −2) = 2v, A·(1, 2) = (5, 4); solo la tercera
-    const opts: V[] = [
-      [0, 1],
-      [1, 1],
-      [1, -1],
-      [1, 2],
-    ];
-    const A: [V, V] = [
-      [3, 0],
-      [1, 2],
-    ];
-    expect(opts.map((v) => img(...A, v))).toEqual([
-      [1, 2],
-      [4, 2],
-      [2, -2],
-      [5, 4],
-    ]);
-    expect(opts.map((v) => cross(v, img(...A, v)) === 0)).toEqual([false, false, true, false]);
-    expect(cual!.type === 'opcion' ? [cual!.correct, cual!.options] : []).toEqual([
-      2,
-      ['$(0, 1)$', '$(1, 1)$', '$(1, -1)$', '$(1, 2)$'],
-    ]);
-    // contract: examen-2.autovalor-potencia: (−2)³ = −8
-    expect(potencia!.type === 'numero' ? [potencia!.answer, potencia!.tol] : []).toEqual([-8, 0]);
-    expect((-2) ** 3).toBe(-8);
+    const memoria = labQuestion(bankQuestions, 'examen-2.memoria-estable');
+    // contract: examen-2.memoria-estable: desde (1, 0) la memoria se desboca, hasta unos 10
+    expect(labAt(memoria).iter_norm).toBeCloseTo(10, 0);
+    expect(solves(memoria)).toBe(false);
+    // contract: solution: (0, 2) no gira ni crece (autovalor 1); vale cualquier estado del eje vertical entre 1,5 y 3, arriba o abajo
+    expect(labAt(memoria, { vx: 0, vy: 2 }).stretch).toBe(1);
+    for (const vy of [1.5, 2, 2.5, 3, -1.5, -2, -3])
+      expect(solves(memoria, { vx: 0, vy }), `(0, ${vy})`).toBe(true);
+    // contract: tentadora y mala: (1, 1) no gira, pero es la otra dirección propia, con autovalor 1,5
+    expect(labAt(memoria, { vx: 1, vy: 1 }).stretch).toBeCloseTo(1.5, 12);
+    expect(solves(memoria, { vx: 1, vy: 1 })).toBe(false);
+    // contract: encargo de autovectores: v = (0, 0) no cumple la meta de tamaño
+    expect(solves(memoria, { vx: 0, vy: 0 })).toBe(false);
+    // contract: examen-2.pasos-hasta-olvidar: 0,5⁶ ≈ 0,016 aún pasa del 1 % y 0,5⁷ ≈ 0,008 no: 7 palabras
+    const pasos = bankQuestions[1]!;
+    expect(answerOf(pasos)).toEqual([7, 0]);
+    expect(0.5 ** 6).toBeGreaterThan(0.01);
+    expect(0.5 ** 7).toBeLessThan(0.01);
   });
 
   it('capas-que-explotan: tres capas explotan, y las dos trampas dan 1 y 2', () => {
