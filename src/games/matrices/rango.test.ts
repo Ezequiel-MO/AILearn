@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { checkProject } from '../../content/validate';
-import { grade } from '../../content/grade';
 import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import { labMeasure } from '../../engine/labs';
+import {
+  labAt,
+  defineLabProjectTests,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -17,6 +23,7 @@ const bankQuestions = examen1Rango
 
 defineProseTests('proyecto rango', projectQuestions(rango));
 defineProseTests('banco examen-1 rango', bankQuestions);
+defineLabProjectTests(rango, examen1Rango);
 
 type Mat = number[][];
 /** Rango por eliminación gaussiana (las matrices del proyecto son enteras y pequeñas). */
@@ -40,14 +47,17 @@ const apply = (m: Mat, v: number[]): number[] =>
 const cols = (m: Mat): Mat => m[0]!.map((_, c) => m.map((row) => row[c]!));
 const without = (m: Mat, k: number): Mat => m.map((row) => row.filter((_, c) => c !== k));
 
+/** Los valores de la rejilla de 0,5 entre −r y r. */
+const grid = (r: number): number[] => Array.from({ length: 4 * r + 1 }, (_, k) => -r + k * 0.5);
+
 describe('proyecto rango', () => {
   it('pasa checkProject sin problemas', () => {
-    // contract: encargo de la Órbita 1 de matrices: checkProject(rango) devuelve la lista vacía
+    // contract: encargo común de la Órbita 1 de matrices: checkProject(rango) devuelve la lista vacía (incluye checkLab en cada laboratorio)
     expect(checkProject(rango)).toEqual([]);
   });
 
   it('se identifica como pide el encargo', () => {
-    // contract: encargo de la Órbita 1 de matrices: id rango, nombre «Rango», subtítulo «Cuántas direcciones sobreviven»
+    // contract: encargo de la Órbita 1 de matrices: id rango, nombre «Rango», subtítulo «Cuántas direcciones sobreviven» (sigue describiendo el proyecto tras la reescritura de 2026-11-10)
     expect([rango.id, rango.name, rango.sub]).toEqual([
       'rango',
       'Rango',
@@ -63,7 +73,7 @@ describe('proyecto rango', () => {
   });
 
   it('los ids siguen el patrón rango.exNN.k y rango.hoja.k', () => {
-    // contract: encargo de la Órbita 1 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
+    // contract: traspaso 2026-11-10: los ids se conservan al reescribir (el progreso guardado los nombra)
     expect(projectQuestions(rango).map((q) => q.id)).toEqual([
       ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `rango.ex0${e}.${k}`)),
       'rango.hoja.1',
@@ -73,11 +83,6 @@ describe('proyecto rango', () => {
   });
 });
 
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -85,197 +90,224 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-describe('valores de la tabla del proyecto rango', () => {
-  const [ex00, ex01, ex02] = rango.exercises;
-  const manip = (k: number) => {
-    const q = ex00!.questions[k]!;
-    if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-    return q;
-  };
+describe('rango, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(rango);
+  const lab = (k: number) => labQuestion(all, `rango.ex00.${k}`);
+  const ALL_AT_ORIGIN = { ix: 0, iy: 0, jx: 0, jy: 0 };
 
-  it('ex00: metas de cada pregunta', () => {
-    // contract: encargo de la Órbita 1 de matrices: ex00.1 det=0 con x(ĵ)=−2; ex00.2 A·v=0 con x(v)=2; ex00.3 A·v=(3, −3); ex00.4 î=(−1, −2), x(ĵ)=2 y det=0; ex00.5 las dos columnas en el origen
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['det(i,j)=0±0.01', 'x(j)=-2±0.01'],
-      ['img_x(i,j,v)=0±0.01', 'img_y(i,j,v)=0±0.01', 'x(v)=2±0.01'],
-      ['img_x(i,j,v)=3±0.01', 'img_y(i,j,v)=-3±0.01'],
-      ['x(i)=-1±0.01', 'y(i)=-2±0.01', 'x(j)=2±0.01', 'det(i,j)=0±0.01'],
-      ['x(i)=0±0.01', 'y(i)=0±0.01', 'x(j)=0±0.01', 'y(j)=0±0.01'],
-    ]);
+  it('ex00.1: aplastar quedándose con el tono acierta; con la intensidad, o todo al origen, no', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 1): la identidad no aplasta y acierta 3 de 6
+    expect([labAt(lab(1)).det, labAt(lab(1)).hits]).toEqual([1, 3]);
+    // contract: solution de ex00.1: î en (0, 0) y ĵ en (1, 0)
+    expect(solves(lab(1), { ix: 0, iy: 0, jx: 1, jy: 0 })).toBe(true);
+    // contract: regla 3 de la guía (varias soluciones), solution de ex00.1: ĵ en (1, 1) con î en el origen, o î en (0,5; 0) con ĵ en (1, 0)
+    expect(solves(lab(1), { ix: 0, iy: 0, jx: 1, jy: 1 })).toBe(true);
+    expect(solves(lab(1), { ix: 0.5, iy: 0, jx: 1, jy: 0 })).toBe(true);
+    // contract: solution de ex00.1: «quedarse con la intensidad deja la neurona en 3 de 6», aunque aplaste
+    const intensidad = labAt(lab(1), { jx: 0, jy: 0 });
+    expect([intensidad.det, intensidad.hits]).toEqual([0, 3]);
+    // contract: aviso del encargo: la capa nula cumple «det = 0», pero la neurona no acierta ninguna
+    expect(labAt(lab(1), ALL_AT_ORIGIN).det).toBe(0);
+    expect(solves(lab(1), ALL_AT_ORIGIN)).toBe(false);
   });
 
-  it('ex00: las soluciones de la tabla cumplen las metas y los errores típicos no', () => {
-    const ok = (k: number, vectors: Record<string, [number, number]>): boolean =>
-      grade(manip(k), { type: 'manipular', vectors });
-    // contract: solution de ex00.1: ĵ = (−2, −1), el opuesto de î = (2, 1)
-    expect(ok(0, { j: [-2, -1] })).toBe(true);
-    // contract: ex00.1: ĵ con la x pedida pero fuera de la recta de î (det = 2·1 + 2 = 4) no vale
-    expect(ok(0, { j: [-2, 1] })).toBe(false);
-    // contract: solution de ex00.2: v = (2, 1) está en el núcleo de A = (1, −2; −1, 2)
-    expect(ok(1, { v: [2, 1] })).toBe(true);
-    // contract: ex00.2: el vector nulo anula A·v pero no cumple x(v)=2; (2, 2) no está en el núcleo
-    expect(ok(1, { v: [0, 0] })).toBe(false);
-    expect(ok(1, { v: [2, 2] })).toBe(false);
-    // contract: solution de ex00.3: (3, 0), (1, −1) y (−1, −2) llegan los tres a (3, −3)
-    for (const v of [
-      [3, 0],
-      [1, -1],
-      [-1, -2],
-    ] as [number, number][])
-      expect(ok(2, { v })).toBe(true);
-    // contract: ex00.3: v = (3, −3) da A·v = (9, −9) y no vale
-    expect(ok(2, { v: [3, -3] })).toBe(false);
-    // contract: solution de ex00.4: î = (−1, −2) y ĵ = (2, 4), los dos sobre la recta de (1, 2)
-    expect(ok(3, { i: [-1, -2], j: [2, 4] })).toBe(true);
-    // contract: ex00.4: ĵ = (2, 3) no está en la recta (det = −3 + 4 = 1)
-    expect(ok(3, { i: [-1, -2], j: [2, 3] })).toBe(false);
-    // contract: solution de ex00.5: la matriz nula
-    expect(ok(4, { i: [0, 0], j: [0, 0] })).toBe(true);
-    // contract: ex00.5: una sola columna en el origen deja rango 1, no 0
-    expect(ok(4, { i: [0, 0], j: [0, 1] })).toBe(false);
-  });
-
-  it('ex00: los rangos de las soluciones se recalculan', () => {
-    // contract: solution de ex00.1, ex00.2/3 y ex00.4: matrices de columnas (2, 1)(−2, −1), (1, −1)(−2, 2) y (−1, −2)(2, 4): rango 1; ex00.5: la nula, rango 0
-    expect(
-      rank(
-        cols([
-          [2, 1],
-          [-2, -1],
-        ]),
-      ),
-    ).toBe(1);
-    expect(
-      rank(
-        cols([
-          [1, -1],
-          [-2, 2],
-        ]),
-      ),
-    ).toBe(1);
-    expect(
-      rank(
-        cols([
-          [-1, -2],
-          [2, 4],
-        ]),
-      ),
-    ).toBe(1);
-    expect(
-      rank([
-        [0, 0],
-        [0, 0],
-      ]),
-    ).toBe(0);
-    // contract: ex00.2 y ex00.3: A·(2, 1) = (0, 0) y A·(3, 0) = A·(1, −1) = A·(−1, −2) = (3, −3), con A = (1, −2; −1, 2)
-    const A = [
-      [1, -2],
+  it('ex00.2: borrar el tono confunde «genial» con «horrible» y también «bueno» con «malo»', () => {
+    const start = labAt(lab(2));
+    // contract: enunciado de ex00.2: misma intensidad y tonos opuestos (2 y −2): distancia 4 al empezar, sin parejas confundidas
+    expect([start.pair_dist, start.merged]).toEqual([4, 0]);
+    // contract: solution de ex00.2: ĵ en (0, 0), con î en cualquier sitio menos el origen; siempre dos parejas confundidas
+    for (const [ix, iy] of [
+      [1, 0],
+      [0, 1],
       [-1, 2],
-    ];
-    expect(apply(A, [2, 1])).toEqual([0, 0]);
-    expect(apply(A, [3, 0])).toEqual([3, -3]);
-    expect(apply(A, [1, -1])).toEqual([3, -3]);
-    expect(apply(A, [-1, -2])).toEqual([3, -3]);
-    expect(apply(A, [5, 1])).toEqual([3, -3]);
+    ] as [number, number][]) {
+      expect(solves(lab(2), { ix, iy, jx: 0, jy: 0 }), `î = (${ix}, ${iy})`).toBe(true);
+      expect(labAt(lab(2), { ix, iy, jx: 0, jy: 0 }).merged).toBe(2);
+    }
+    // contract: solution de ex00.2: con î también en el origen las seis caen juntas, quince parejas, y no vale
+    expect(labAt(lab(2), ALL_AT_ORIGIN).merged).toBe(15);
+    expect(solves(lab(2), ALL_AT_ORIGIN)).toBe(false);
+    // contract: tentadora y mala: borrar la intensidad no acerca a «genial» y «horrible»
+    expect(labAt(lab(2), { ix: 0, iy: 0 }).pair_dist).toBe(4);
+    // contract: solution de ex00.2: «no se puede confundir una sola pareja»: ninguna capa de la rejilla deja la distancia en 0 con menos de dos parejas
+    const g = grid(4);
+    let fewer = 0;
+    for (const ix of g)
+      for (const iy of g)
+        for (const jx of g)
+          for (const jy of g) {
+            const v = labAt(lab(2), { ix, iy, jx, jy });
+            if (v.pair_dist < 1e-9 && v.merged < 2) fewer++;
+          }
+    expect(fewer).toBe(0);
   });
 
-  it('ex00: planos, vectores móviles, lecturas y rango', () => {
-    const shape = (k: number): unknown => {
-      const q = manip(k);
+  it('ex00.3: tras el cuello de botella el máximo es cinco de seis', () => {
+    // contract: enunciado de ex00.3: «ahora acierta con cuatro»
+    expect(labAt(lab(3)).hits).toBe(4);
+    // contract: solution de ex00.3: ĵ en (1, 0) falla «horrible»; (0,5; 0) falla «bueno»; cinco de seis las dos
+    expect(solves(lab(3), { jx: 1 })).toBe(true);
+    expect(solves(lab(3), { jx: 0.5 })).toBe(true);
+    // contract: solution de ex00.3: subir o bajar la punta de ĵ no cambia la primera salida
+    expect(solves(lab(3), { jx: 1, jy: 2 })).toBe(true);
+    // contract: regla 4 de la guía (un límite) y solution de ex00.3: «seis es imposible» con cualquier ĵ de la rejilla
+    const best = Math.max(
+      ...grid(6).flatMap((jx) => grid(6).map((jy) => labAt(lab(3), { jx, jy }).hits)),
+    );
+    expect(best).toBe(5);
+    // contract: enunciado y hint de ex00.3: la capa de delante deja los cuadraditos en el eje vertical, «bueno» y «horrible» los dos en 1,5
+    const spec = lab(3).lab;
+    if (spec.kind !== 'capa' || !spec.before) throw new Error('ex00.3 lleva una capa delante');
+    const b = spec.before;
+    const middle = (x: number, y: number) => [b.i[0] * x + b.j[0] * y, b.i[1] * x + b.j[1] * y];
+    expect([middle(1, 1), middle(2.5, -2)]).toEqual([
+      [0, 1.5],
+      [0, 1.5],
+    ]);
+    // contract: aviso del encargo: con la capa nula ninguna positiva pasa el umbral y no vale
+    expect(solves(lab(3), { jx: 0, jy: 0 })).toBe(false);
+  });
+
+  it('ex00.4: la recta del eje largo conserva el 96,7 %; la horizontal y la diagonal, no', () => {
+    // contract: solution de ex00.4: (2, 1) conserva el 96,7 %; (3, 2) y (2,5; 1), algo más del 95 %
+    expect(labAt(lab(4), { vx: 2, vy: 1 }).var_frac).toBeCloseTo(0.967, 3);
+    expect(solves(lab(4), { vx: 2, vy: 1 })).toBe(true);
+    expect(solves(lab(4), { vx: 3, vy: 2 })).toBe(true);
+    expect(solves(lab(4), { vx: 2.5, vy: 1 })).toBe(true);
+    // contract: solution de ex00.4: en horizontal el 77,8 % y en la diagonal (1, 1) el 87,5 %
+    expect(labAt(lab(4), { vx: 1, vy: 0 }).var_frac).toBeCloseTo(0.778, 3);
+    expect(labAt(lab(4), { vx: 1, vy: 1 }).var_frac).toBeCloseTo(0.875, 3);
+    expect(solves(lab(4), { vx: 1, vy: 1 })).toBe(false);
+    // contract: solution de ex00.4: «más del 96,7 % no se puede» con ninguna v de la rejilla
+    const best = Math.max(
+      ...grid(4)
+        .flatMap((vx) => grid(4).map((vy) => labAt(lab(4), { vx, vy }).var_frac ?? 0))
+        .filter((x) => Number.isFinite(x)),
+    );
+    expect(best).toBeCloseTo(0.967, 3);
+    // contract: aviso del encargo: v en el origen no mide nada y no cumple la meta
+    expect(solves(lab(4), { vx: 0, vy: 0 })).toBe(false);
+  });
+
+  it('ex00.5: el cuello de botella que vale es «enlaces − saludos»; un solo rasgo, no', () => {
+    // contract: petición de Oliver 2026-11-10: la identidad no aplasta y acierta 3 de 6
+    expect([labAt(lab(5)).det, labAt(lab(5)).hits]).toEqual([1, 3]);
+    // contract: solution de ex00.5: î en (1, 0) y ĵ en (−1, 0); los tres correos normales caen en el mismo punto
+    expect(solves(lab(5), { jx: -1, jy: 0 })).toBe(true);
+    expect(labAt(lab(5), { jx: -1, jy: 0 }).merged).toBe(3);
+    // contract: regla 3 de la guía (varias soluciones), solution de ex00.5: î (1, 1) con ĵ (−1, −1), o î (2, 0) con ĵ (−1,5; 0)
+    expect(solves(lab(5), { ix: 1, iy: 1, jx: -1, jy: -1 })).toBe(true);
+    expect(solves(lab(5), { ix: 2, iy: 0, jx: -1.5, jy: 0 })).toBe(true);
+    // contract: hint de ex00.5 y explain: quedarse solo con los enlaces aplasta pero deja la mitad mal
+    const enlaces = labAt(lab(5), { jx: 0, jy: 0 });
+    expect([enlaces.det, enlaces.acc]).toEqual([0, 0.5]);
+    // contract: enunciado de ex00.5: «ningún rasgo basta»: quedarse solo con los saludos tampoco acierta todo
+    expect(labAt(lab(5), { ix: 0, iy: 0, jx: 1, jy: 0 }).acc).toBeLessThan(1);
+    // contract: aviso del encargo: la capa nula cumple «det = 0» pero no vale
+    expect(solves(lab(5), ALL_AT_ORIGIN)).toBe(false);
+  });
+
+  it('las cinco cambian una cosa cada vez', () => {
+    const scene = [1, 2, 3, 4, 5].map((k) => {
+      const spec = lab(k).lab;
+      if (spec.kind !== 'capa') throw new Error('ex00 usa el laboratorio capa');
       return [
-        q.plane.range,
-        q.plane.snap,
-        q.plane.readouts,
-        q.plane.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        q.plane.transform,
+        spec.axes?.[0] ?? null,
+        !!spec.before,
+        !!spec.probe,
+        lab(k).goals.map((g) => g.metric),
       ];
-    };
-    // contract: encargo de la Órbita 1 de matrices: ex00.1 con î fijo en (2, 1) y det visible; ex00.2 y ex00.3 con A fija y v móvil (apply); ex00.4 y ex00.5 con las dos columnas móviles desde la identidad, sin det
-    expect(shape(0)).toEqual([
-      3,
-      1,
-      ['matrix', 'det'],
-      ['i=(2, 1) false', 'j=(0, 1) true'],
-      { columns: ['i', 'j'] },
+    });
+    // contract: brief-juego-2.md, Rango: elegir la recta, el núcleo que confunde, un cuello de botella delante, la recta que conserva la variación y los correos
+    expect(scene).toEqual([
+      ['intensidad', false, false, ['det', 'acc']],
+      ['intensidad', false, false, ['pair_dist', 'merged']],
+      ['intensidad', true, false, ['hits']],
+      [null, false, true, ['var_frac']],
+      ['enlaces', false, false, ['det', 'acc']],
     ]);
-    expect(shape(1)).toEqual([
-      3,
+  });
+});
+
+describe('rango, «Calcular»: las respuestas se recalculan', () => {
+  const [, ex01, ex02] = rango.exercises;
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 1): rango 1 (opción 1); 1000·10 + 10·1000; 384 − 64; «malo» y «triste» (opción 1); (2,5 − 2)·2
+    expect(ex01!.questions.map(answerOf)).toEqual([
       1,
-      ['matrix', 'components'],
-      ['i=(1, -1) false', 'j=(-2, 2) false', 'v=(1, 2) true'],
-      { columns: ['i', 'j'], apply: ['v'] },
-    ]);
-    expect(shape(2)).toEqual([
-      3,
+      [1000 * 10 + 10 * 1000, 0],
+      [384 - 64, 0],
       1,
-      ['matrix', 'components'],
-      ['i=(1, -1) false', 'j=(-2, 2) false', 'v=(1, 1) true'],
-      { columns: ['i', 'j'], apply: ['v'] },
-    ]);
-    expect(shape(3)).toEqual([
-      5,
-      1,
-      ['matrix'],
-      ['i=(1, 0) true', 'j=(0, 1) true'],
-      { columns: ['i', 'j'] },
-    ]);
-    expect(shape(4)).toEqual([
-      3,
-      1,
-      ['matrix'],
-      ['i=(1, 0) true', 'j=(0, 1) true'],
-      { columns: ['i', 'j'] },
+      [(2.5 - 2) * 2, 0],
     ]);
   });
 
-  it('ex01: respuestas de calcular', () => {
-    // contract: tabla de ex01: rango 1, rango 2, rango 1, núcleo (2, −1), opción 2 (una recta por el origen)
-    expect(ex01!.questions.map(answerOf)).toEqual([[1, 0], [2, 0], [1, 0], [[2, -1], 0], 2]);
-  });
-
-  it('ex01: los rangos y el núcleo se recalculan', () => {
-    // contract: ex01.1: A = (2, −1; −4, 2) tiene rango 1 y det 0
+  it('ex01.1: la capa del laboratorio es la del enunciado y tiene rango 1', () => {
+    const q = ex01!.questions[0]!;
+    if (q.type !== 'opcion' || q.lab?.kind !== 'capa') throw new Error('ex01.1 es opcion con capa');
+    // contract: ex01.1: A = (1 0,5; −1 −0,5): î en (1, −1) y ĵ en (0,5; −0,5)
+    expect(q.prompt).toContain('\\begin{pmatrix}1&0{,}5\\\\-1&-0{,}5\\end{pmatrix}');
+    expect([q.lab.i, q.lab.j]).toEqual([
+      [1, -1],
+      [0.5, -0.5],
+    ]);
     expect(
       rank([
-        [2, -1],
-        [-4, 2],
+        [1, 0.5],
+        [-1, -0.5],
       ]),
     ).toBe(1);
-    expect(2 * 2 - -1 * -4).toBe(0);
-    const A2 = [
-      [1, 0, 1],
-      [2, 1, 3],
-      [0, 1, 1],
-    ];
-    // contract: ex01.2: la tercera columna es la suma de las dos primeras y el rango es 2
-    expect(cols(A2)[2]).toEqual(cols(A2)[0]!.map((x, k) => x + cols(A2)[1]![k]!));
-    expect(rank(A2)).toBe(2);
-    // contract: ex01.3: M = u vᵀ con u = (1, 2, 3) y v = (2, 0, −1) se escribe (2, 0, −1; 4, 0, −2; 6, 0, −3) y tiene rango 1
-    const u = [1, 2, 3];
-    const v = [2, 0, -1];
-    const M = u.map((a) => v.map((b) => a * b + 0));
-    expect(M).toEqual([
-      [2, 0, -1],
-      [4, 0, -2],
-      [6, 0, -3],
-    ]);
-    expect(rank(M)).toBe(1);
-    const A4 = [
-      [1, 2],
-      [3, 6],
-    ];
-    // contract: ex01.4: A = (1, 2; 3, 6) tiene rango 1 y A·(2, −1) = (0, 0); rango 1 más núcleo de dimensión 1 suman las 2 columnas
-    expect(rank(A4)).toBe(1);
-    expect(apply(A4, [2, -1])).toEqual([0, 0]);
+    // contract: solution de ex01.1: «bueno» y «horrible» dan 1,5 y caen juntas
+    expect(labMeasure(q.lab, {}).merged).toBe(1);
+    expect(q.options[q.correct]).toMatch(/^\$1\$/);
   });
 
-  it('ex01.4 es un vector sin casillas de matriz y ex01.5 acierta con la recta', () => {
+  it('ex01.3: el laboratorio borra el tono: rango 1 y núcleo de dimensión 1', () => {
+    const q = ex01!.questions[2]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.3 es numero con capa');
+    // contract: solution de ex01.3: en el plano del laboratorio, 2 − 1 = 1, la dirección del tono
+    expect(q.lab.j).toEqual([0, 0]);
+    expect(rank(cols([q.lab.i, q.lab.j]))).toBe(1);
+  });
+
+  it('ex01.4: la capa del enunciado confunde «malo» con «triste», y nada más', () => {
     const q = ex01!.questions[3]!;
-    // contract: la respuesta de ex01.4 es un vector de dos componentes, sin casillas de matriz
-    expect(q.type === 'vector' ? q.shape : 'otro').toBeUndefined();
-    const o = ex01!.questions[4]!;
-    // contract: solution de ex01.5: rango 1 es una recta por el origen (opción 2)
-    expect(o.type === 'opcion' ? o.options[o.correct] : '').toMatch(/^Lo aplasta contra una recta/);
+    if (q.type !== 'opcion' || q.lab?.kind !== 'capa') throw new Error('ex01.4 es opcion con capa');
+    // contract: ex01.4: A = (0,5 0,5; 0,5 0,5); construida en el laboratorio, una sola pareja confundida
+    expect(q.prompt).toContain('\\begin{pmatrix}0{,}5&0{,}5\\\\0{,}5&0{,}5\\end{pmatrix}');
+    expect(labMeasure(q.lab, { ix: 0.5, iy: 0.5, jx: 0.5, jy: 0.5 }).merged).toBe(1);
+    // contract: solution de ex01.4: «malo» y «triste» suman 0; «genial» 4,5, «horrible» 0,5, «bueno» 2
+    const sum = (id: string) => {
+      const p = q.lab!.kind === 'capa' ? q.lab!.points.find((x) => x.id === id)! : null;
+      return p!.x + p!.y;
+    };
+    expect(['malo', 'triste', 'genial', 'horrible', 'bueno'].map(sum)).toEqual([0, 0, 4.5, 0.5, 2]);
+    expect(q.options[q.correct]).toBe('«malo» y «triste»');
+    // contract: ex01.4 es de predecir: el laboratorio empieza en la identidad, sin la capa construida
+    expect([q.lab.i, q.lab.j, q.lab.movable]).toEqual([[1, 0], [0, 1], undefined]);
+  });
+
+  it('ex01.5: la capa u·wᵀ construida en el laboratorio manda «urgente» a (1; 0,5)', () => {
+    const q = ex01!.questions[4]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.5 es numero con capa');
+    const urgente = q.lab.points.find((p) => p.id === 'urgente')!;
+    // contract: ex01.5: «urgente» tiene 2,5 enlaces y 2 saludos, como en CORREOS
+    expect([urgente.x, urgente.y]).toEqual([2.5, 2]);
+    // contract: solution de ex01.5: u wᵀ = (2 −2; 1 −1), de rango 1, y su salida para «urgente» es (1; 0,5)
+    const A = [2, 1].map((u) => [1, -1].map((w) => u * w + 0));
+    expect(A).toEqual([
+      [2, -2],
+      [1, -1],
+    ]);
+    expect(rank(A)).toBe(1);
+    expect(apply(A, [2.5, 2])).toEqual([1, 0.5]);
+  });
+
+  it('ex01.2: las cifras de la solución', () => {
+    // contract: solution de ex01.2: 20 000 frente a 1 000 000, cincuenta veces menos
+    expect([1000 * 10 + 10 * 1000, (1000 * 1000) / 20000]).toEqual([20000, 50]);
+    expect(ex01!.questions[1]!.solution).toContain('20\\,000');
   });
 
   it('ex02: cinco preguntas de código', () => {
@@ -339,7 +371,9 @@ describe('valores de la tabla del proyecto rango', () => {
       589824, 98304, 6,
     ]);
   });
+});
 
+describe('rango: hojas', () => {
   it('hojas: línea errónea de cada una y formato', () => {
     // contract: encargo de la Órbita 1 de matrices: «det = 0, luego rango 0» (línea 3), contar filas no nulas (línea 2) y una correcta (null); al menos una de código
     expect(rango.sheets.map(answerOf)).toEqual([2, 1, null]);
@@ -388,11 +422,11 @@ describe('valores de la tabla del proyecto rango', () => {
 
 describe('banco de examen 1 del proyecto rango', () => {
   it('tiene tres entradas fijas del proyecto rango, con ids examen-1.* distintos del generado', () => {
-    // contract: encargo de la Órbita 1 de matrices: 3 entradas `{ project: 'rango', question }` con ids `examen-1.<tema>`, sin usar `examen-1.rango`, reservado para la generada
+    // contract: guía de contenido 2026-11-10: una entrada laboratorio y una cuenta del estilo nuevo; la de código se conserva; `examen-1.rango` queda reservado para la generada
     expect(examen1Rango.map((e) => e.project)).toEqual(['rango', 'rango', 'rango']);
     expect(examen1Rango.map((e) => e.question.id)).toEqual([
-      'examen-1.rango-producto',
-      'examen-1.nucleo-tres',
+      'examen-1.cuello-mascotas',
+      'examen-1.parametros-rango-bajo',
       'examen-1.columna-redundante',
     ]);
   });
@@ -405,33 +439,27 @@ describe('banco de examen 1 del proyecto rango', () => {
   });
 
   it('ninguna es generada, hay variedad de tipos y los ids no chocan con los del proyecto', () => {
-    // contract: encargo de la Órbita 1 de matrices: tres fijas, una opción, un vector y un código; ids únicos en el juego
-    expect(examen1Rango.map((e) => e.question.type)).toEqual(['opcion', 'vector', 'codigo']);
+    // contract: guía de contenido 2026-11-10: un laboratorio, un numero y un codigo
+    expect(examen1Rango.map((e) => e.question.type)).toEqual(['laboratorio', 'numero', 'codigo']);
     const projectIds = new Set(projectQuestions(rango).map((q) => q.id));
     expect(examen1Rango.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
   it('respuestas del banco', () => {
-    const [prod, nucleo] = examen1Rango.map((e) => e.question);
-    // contract: examen-1.rango-producto: rango(AB) ≤ min(3, 5) = 3, pero puede ser menor (opción 2); 8 y 15 superan el tamaño 6
-    expect(prod!.type === 'opcion' ? prod!.options[prod!.correct] : '').toMatch(
-      /^Es \$3\$ como mucho/,
-    );
-    expect(Math.min(3, 5)).toBe(3);
-    expect([3 + 5, 3 * 5].every((n) => n > 6)).toBe(true);
-    // contract: examen-1.nucleo-tres: A = (1, 2, 3; 4, 5, 6; 7, 8, 9) tiene rango 2 y A·(1, −2, 1) = 0
-    const A = [
-      [1, 2, 3],
-      [4, 5, 6],
-      [7, 8, 9],
-    ];
-    expect(rank(A)).toBe(2);
-    expect(apply(A, [1, -2, 1])).toEqual([0, 0, 0]);
-    expect(nucleo!.type === 'vector' ? [nucleo!.answer, nucleo!.shape, nucleo!.tol] : []).toEqual([
-      [1, -2, 1],
-      undefined,
-      0,
-    ]);
+    const mascotas = labQuestion(bankQuestions, 'examen-1.cuello-mascotas');
+    // contract: examen-1.cuello-mascotas: al empezar la salida 1 es el tamaño y la neurona dice «mascota» a todo (3 de 6, sin aplastar)
+    expect([labAt(mascotas).det, labAt(mascotas).hits]).toEqual([1, 3]);
+    // contract: solution: î en (0, 0) y ĵ en (1, 0); también ĵ en (1, 1)
+    expect(solves(mascotas, { ix: 0, iy: 0, jx: 1, jy: 0 })).toBe(true);
+    expect(solves(mascotas, { ix: 0, iy: 0, jx: 1, jy: 1 })).toBe(true);
+    // contract: solution: quedarse con el tamaño aplasta y deja la neurona en 3 de 6
+    expect(labAt(mascotas, { jx: 0, jy: 0 }).hits).toBe(3);
+    // contract: aviso del encargo: la capa nula cumple «det = 0» pero no vale
+    expect(solves(mascotas, { ix: 0, iy: 0, jx: 0, jy: 0 })).toBe(false);
+    const params = bankQuestions[1]!;
+    // contract: solution de examen-1.parametros-rango-bajo: 768·8 + 8·768 = 12 288 frente a 589 824, 48 veces menos
+    expect(answerOf(params)).toEqual([768 * 8 + 8 * 768, 0]);
+    expect([768 * 8 + 8 * 768, (768 * 768) / 12288]).toEqual([12288, 48]);
   });
 
   it('columna-redundante: la columna nueva es 2·col0 − col1 y el rango no sube', () => {

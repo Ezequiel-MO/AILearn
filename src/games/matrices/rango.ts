@@ -1,32 +1,33 @@
-import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { rangoWarmup } from './rango.calentamiento';
-import { transformPlane } from './plane';
+import { CORREOS, NUBE_ALARGADA, RESENAS, capaLab } from './datos';
 
-/** El vector suelto `v` que se transforma con `apply`, móvil o fijo. */
-const vec = (x: number, y: number): PlaneVector => ({
-  id: 'v',
-  label: 'v',
-  x,
-  y,
-  movable: true,
-});
+/** La neurona siguiente acierta con todas las palabras. */
+const ACIERTOS = {
+  metric: 'acc',
+  op: 'gte',
+  target: 1,
+  label: 'Aciertos de la neurona siguiente',
+  format: 'percent',
+} as const;
 
-/** Mismo plano con î quieto: solo se arrastra ĵ. */
-const fixI = (spec: PlaneSpec): PlaneSpec => ({
-  ...spec,
-  vectors: spec.vectors.map((v) => (v.id === 'i' ? { ...v, movable: false } : v)),
-});
+/** La capa aplasta el plano: rango 1 (o 0). */
+const APLASTA = {
+  metric: 'det',
+  op: 'eq',
+  target: 0,
+  label: 'Determinante de la capa',
+} as const;
 
-/** Metas de un `manipular`: î y ĵ en el sitio de las columnas pedidas. */
-const columns = (i: [number, number], j: [number, number]): Goal[] => [
-  { metric: 'x', of: ['i'], target: i[0], tol: 0.01 },
-  { metric: 'y', of: ['i'], target: i[1], tol: 0.01 },
-  { metric: 'x', of: ['j'], target: j[0], tol: 0.01 },
-  { metric: 'y', of: ['j'], target: j[1], tol: 0.01 },
-];
+/** La neurona siguiente solo mira la primera salida de la capa: responde al grupo 1 si es positiva. */
+const MIRA_SALIDA_1 = { w: [1, 0] as [number, number], b: 0 };
 
-/** Tercer proyecto de la Órbita 1 «El área»: el rango, cuántas direcciones sobreviven. */
+/**
+ * Tercer proyecto de la Órbita 1 «El área»: el rango, por cuántas dimensiones pasa la información.
+ * Una capa de rango 1 es un cuello de botella que lo deja todo en una recta: hay que elegir qué
+ * combinación de rasgos sobrevive, y lo que cae en la dirección borrada (el núcleo) se confunde.
+ */
 export const rango: Project = {
   id: 'rango',
   name: 'Rango',
@@ -42,147 +43,158 @@ export const rango: Project = {
       questions: [
         {
           id: 'rango.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En la tabla de datos con la que se entrena un modelo, cada rasgo es una columna. Si dos columnas son la misma medida en otras unidades, como el precio en euros y en céntimos, la segunda no aporta nada: la tabla tiene menos direcciones independientes que columnas. El **rango** cuenta esas direcciones, y mirarlo destapa los rasgos redundantes.',
-            aim: 'Vas a poner la segunda columna sobre la recta de la primera y a ver cómo toda la rejilla se aplasta sobre esa recta: de dos direcciones queda una.',
+            why: 'Un cuello de botella es una capa que deja pasar menos dimensiones de las que recibe: así se comprime un embedding. En un plano, una capa de rango 1 lo deja todo sobre una recta, y de cada palabra sobrevive un solo número.',
+            aim: 'Vas a aplastar las reseñas sobre una recta con una capa de determinante cero, eligiendo cuál, para que la neurona siguiente siga acertando con las seis.',
             takeaway:
-              'Dos columnas paralelas dan $\\det=0$ y rango $1$: la imagen es una recta y la segunda columna no añade ninguna dirección nueva. En datos reales pasa lo mismo con rasgos que son múltiplos unos de otros, y basta quedarse con uno.',
+              'Con el determinante en cero, cada palabra queda reducida a un número. Si ese número es el tono, la neurona no pierde nada; si es la intensidad, ya no hay quien separe. Comprimir es elegir qué combinación de rasgos sobrevive.',
           },
           prompt:
-            'Cuando $\\det=0$ el plano se aplasta. El **rango** de una matriz mide cuánto: es la dimensión de su imagen, el número de direcciones que sobreviven. Si la imagen es todo el plano, el rango es $2$; si es una recta, $1$; si es un solo punto, $0$.\n\n$\\hat{\\imath}$ está fijo en $(2, 1)$. Mueve $\\hat{\\jmath}$ hasta que toda la rejilla quede aplastada sobre la recta de $\\hat{\\imath}$, con determinante $0$. Para que $\\hat{\\jmath}$ no sea el vector nulo, pon su coordenada $x$ en $-2$.',
+            'Seis reseñas con dos rasgos: **intensidad** y **tono**. Hay que comprimirlas: la capa tiene que dejarlas todas sobre una recta (determinante $0$), así que de cada palabra quedará un solo número. La neurona siguiente mira la primera salida y responde «positiva» a lo que cae en la zona sombreada.\n\nAplasta el plano sin que la neurona deje de acertar con las seis.',
           hints: [
-            'Aplastar el plano sobre la recta de $\\hat{\\imath}$ es dejar a $\\hat{\\jmath}$ en esa misma recta: un múltiplo de $(2, 1)$.',
-            '¿Qué múltiplo de $(2, 1)$ tiene la coordenada $x$ igual a $-2$? Comprueba que la lectura del determinante marca $0$.',
+            'Al aplastar, las dos columnas acaban sobre la misma recta, o una en el origen. Mira qué rasgo separa «genial» de «horrible»: ese es el que tiene que sobrevivir en la primera salida.',
+            'Lleva $\\hat{\\imath}$ (la intensidad) al origen y deja $\\hat{\\jmath}$ (el tono) apuntando hacia la zona sombreada.',
           ],
           explain:
-            'Las dos columnas tienen que quedar sobre la misma recta. Con una fija, la otra solo tiene que ser un múltiplo suyo: arrastra mirando la lectura del determinante.',
+            'Con determinante $0$, la salida de cada palabra es un solo número multiplicado por una dirección fija. La neurona acierta si ese número tiene el signo del tono. Aplastar quitando el tono, en cambio, deja positivas y negativas mezcladas sobre la recta.',
           solution:
-            '$\\hat{\\jmath}$ tiene que ser un múltiplo de $(2, 1)$. Con $x=-2$ el múltiplo es $-1$, así que $\\hat{\\jmath}=(-2, -1)$. La matriz es $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$, con $\\det=2\\cdot(-1)-(-2)\\cdot 1=0$. Su imagen es la recta de $(2, 1)$: sobrevive una sola dirección y el rango es $1$.',
-          plane: fixI(
-            transformPlane({
-              i: [2, 1],
-              j: [0, 1],
-              movable: true,
-              readouts: ['matrix', 'det'],
-            }),
-          ),
-          goals: [
-            { metric: 'det', of: ['i', 'j'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: -2, tol: 0.01 },
-          ],
+            'Una capa que vale: $\\hat{\\imath}$ en $(0, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$. Cada reseña queda en su tono, sobre la diagonal: $2$, $1$ y $1{,}5$ las positivas, y $-2$, $-1$ y $-1{,}5$ las negativas. También valen $\\hat{\\jmath}$ en $(1, 0)$ con $\\hat{\\imath}$ en el origen, o $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ con $\\hat{\\jmath}$ en $(1, 0)$. Quedarse con la intensidad deja la neurona en 3 de 6.',
+          lab: capaLab(RESENAS, { readout: MIRA_SALIDA_1, readouts: ['det'] }),
+          goals: [APLASTA, ACIERTOS],
+          solved: { ix: 0, iy: 0, jx: 1, jy: 1 },
         },
         {
           id: 'rango.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Para dibujar en una pantalla embeddings de cientos de dimensiones, se proyectan con una transformación lineal, como PCA, a un espacio de dos, y casi todas las direcciones se pierden. Lo que se pierde es el **núcleo**: dos textos que solo se diferencian a lo largo de él caen en el mismo punto del dibujo, aunque en el espacio original estén lejos.',
-            aim: 'Vas a encontrar una entrada que la matriz envía al origen sin ser el vector nulo, y a ver que con ella llega una recta entera de entradas que desaparecen.',
+            why: 'Lo que una capa borra no se recupera después. Una capa de rango 1 manda una dirección entera al origen, su núcleo: dos palabras que solo se diferencian en esa dirección salen idénticas, y ninguna capa posterior las vuelve a separar.',
+            aim: 'Vas a hacer que una capa confunda «genial» con «horrible» y a mirar qué otras palabras se confunden de paso.',
             takeaway:
-              'Todo múltiplo de la entrada que encuentras acaba en $\\vec{0}$: el núcleo es una recta. Lo que cae en el núcleo no deja rastro en la salida, así que dos puntos que se solapan en un dibujo de embeddings pueden estar lejos en el espacio original.',
+              '«genial» y «horrible» solo se diferencian en el tono: para confundirlas hay que borrarlo. Y al borrarlo, «bueno» y «malo» también caen juntas. El núcleo no borra una palabra: borra una diferencia, en todas las parejas que la tengan.',
           },
           prompt:
-            'Lo que una matriz aplasta hasta el vector nulo es su **núcleo**: los vectores $\\vec{v}$ con $A\\vec{v}=\\vec{0}$. Esta matriz, $A=\\begin{pmatrix}1&-2\\\\-1&2\\end{pmatrix}$, tiene las dos columnas sobre una misma recta: $\\hat{\\imath}$ queda en $(1, -1)$ y $\\hat{\\jmath}$ en $(-2, 2)$.\n\nMueve $\\vec{v}$ hasta que la flecha discontinua, $A\\vec{v}$, llegue a $(0, 0)$. El vector nulo siempre lo cumple, así que no vale: pon la coordenada $x$ de $\\vec{v}$ en $2$.',
+            '«genial» y «horrible» tienen la misma intensidad y tonos opuestos. Construye una capa que las deje en el mismo punto, sin mandar todas las reseñas al origen: el medidor de parejas confundidas no puede pasar de dos.\n\nMira después qué otra pareja se ha confundido.',
           hints: [
-            'Con $\\vec{v}=(a, b)$, $A\\vec{v}=a\\cdot(1, -1)+b\\cdot(-2, 2)=(a-2b)\\cdot(1, -1)$. Solo hace falta que el número $a-2b$ valga $0$.',
-            'Con $a=2$, ¿qué valor de $b$ cumple $a-2b=0$?',
+            'Compara las dos palabras: ¿en qué rasgo se diferencian? La capa tiene que mandar ese rasgo a ninguna parte.',
+            'Lleva $\\hat{\\jmath}$ (el tono) al origen y deja $\\hat{\\imath}$ en cualquier sitio que no sea el origen.',
           ],
           explain:
-            'Las dos columnas son múltiplos de la misma flecha, así que una combinación de ellas puede cancelarse. Escribe cuánto vale $A\\vec{v}$ en función de $a$ y $b$ y busca cuándo se anula.',
+            'La salida de una palabra es su intensidad por $\\hat{\\imath}$ más su tono por $\\hat{\\jmath}$. Dos palabras con la misma intensidad solo se separan por el tono: si $\\hat{\\jmath}$ vale $(0, 0)$, salen iguales. Esa dirección que la capa manda al origen es su núcleo.',
           solution:
-            'Con $a=2$ hace falta $2-2b=0$, o sea $b=1$. Con $\\vec{v}=(2, 1)$: $2\\cdot(1, -1)+1\\cdot(-2, 2)=(0, 0)$. Todos los múltiplos $(2t, t)$ están en el núcleo: una recta entera de vectores que acaban en el origen. Por eso, mirando $A\\vec{v}$ no se puede recuperar $\\vec{v}$: esa información se ha perdido.',
-          plane: transformPlane({
-            i: [1, -1],
-            j: [-2, 2],
-            extra: [vec(1, 2)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
-          }),
+            'Con $\\hat{\\jmath}$ en $(0, 0)$ y $\\hat{\\imath}$ en cualquier sitio menos el origen, cada reseña sale en su intensidad por $\\hat{\\imath}$. «genial» y «horrible» tienen intensidad $2{,}5$ y caen juntas; «bueno» y «malo», con $1$, también. Por eso no se puede confundir una sola pareja. Con $\\hat{\\imath}$ también en el origen, las seis caen en el mismo punto: quince parejas.',
+          lab: capaLab(RESENAS, { pair: ['genial', 'horrible'], readouts: ['det'] }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 0, tol: 0.01 },
-            { metric: 'x', of: ['v'], target: 2, tol: 0.01 },
+            {
+              metric: 'pair_dist',
+              op: 'eq',
+              target: 0,
+              label: 'Distancia entre «genial» y «horrible»',
+            },
+            {
+              metric: 'merged',
+              op: 'lte',
+              target: 2,
+              label: 'Parejas de palabras confundidas',
+              format: 'integer',
+            },
           ],
+          solved: { ix: 1.5, iy: 1, jx: 0, jy: 0 },
         },
         {
           id: 'rango.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Si entrenas una regresión lineal con dos rasgos que son uno múltiplo del otro, hay infinitas combinaciones de pesos que dan exactamente las mismas predicciones. El modelo predice bien, pero sus pesos no se pueden interpretar: cuánto «importa» cada rasgo depende de cuál de esas soluciones elija el algoritmo.',
-            aim: 'Vas a buscar una entrada que llegue a un punto de la imagen y a descubrir que no hay una sola: muchas entradas distintas acaban en el mismo resultado.',
+            why: 'En una red, una capa solo trabaja con lo que le deja la anterior. Si delante hay un cuello de botella de una dimensión, lo que se perdió al pasar por él se perdió para siempre, por bien que se entrene lo que viene después.',
+            aim: 'Vas a ajustar la capa que va detrás de un cuello de botella fijo y a descubrir cuántas reseñas puede clasificar bien, como mucho, la neurona siguiente.',
             takeaway:
-              'Con rango $1$, todas las $\\vec{v}$ con $a-2b=3$ llegan a $(3, -3)$, y a un punto fuera de la recta no llega ninguna. Muchas soluciones o ninguna: así se comporta un sistema cuyo rango es menor que su número de incógnitas, y por eso su matriz no tiene inversa.',
+              'Cinco de seis es el máximo: «bueno» y «horrible» salen del cuello de botella con el mismo número y ninguna capa posterior las separa. Entrenar más no arregla una compresión mal elegida; hay que cambiar la capa que comprime.',
           },
           prompt:
-            'La misma $A=\\begin{pmatrix}1&-2\\\\-1&2\\end{pmatrix}$ tiene rango $1$: su imagen es la recta de $(1, -1)$, y todos los resultados $A\\vec{v}$ caen en ella. Mueve $\\vec{v}$ hasta que $A\\vec{v}$ llegue a $(3, -3)$, un punto de esa recta. Hay muchos $\\vec{v}$ que sirven: vale cualquiera.',
+            'Delante de tu capa hay otra, fija, que comprime cada reseña en un solo número: intensidad más medio tono. Son los cuadraditos, todos sobre el eje vertical. La neurona responde «positiva» si la primera salida pasa de $1$, y ahora acierta con cuatro.\n\n¿Cuántas puedes salvar moviendo $\\hat{\\jmath}$? Consigue al menos cinco.',
           hints: [
-            'Todos los resultados son $A\\vec{v}=(a-2b)\\cdot(1, -1)$. Para llegar a $(3, -3)$ hace falta $a-2b=3$.',
-            'Elige un valor sencillo para $b$ y calcula la $a$ que falta.',
+            'Busca los cuadraditos de «bueno» y «horrible»: la capa de delante los ha dejado en el mismo sitio. Lo que le hagas a uno se lo haces al otro.',
+            'Acorta $\\hat{\\jmath}$ sobre el eje horizontal: las reseñas se acercan al origen y las negativas salen de la zona sombreada.',
           ],
           explain:
-            'Como la imagen es una recta, solo cuenta el número $a-2b$, y muchas parejas $(a, b)$ dan el mismo. Varios vectores acaban en el mismo punto, y por eso esta matriz no se puede deshacer.',
+            'Tu capa solo recibe un número por reseña y lo multiplica por $\\hat{\\jmath}$. Puede estirar o encoger la recta, pero no separar dos palabras que llegan con el mismo número. «bueno» y «horrible» llegan las dos con $1{,}5$: una de las dos falla siempre.',
           solution:
-            'Hace falta $a-2b=3$. Sirven, por ejemplo, $\\vec{v}=(3, 0)$, $(1, -1)$ y $(-1, -2)$. Si a uno le sumas un vector del núcleo, como $(2, 1)$, el resultado no cambia: $(3, 0)+(2, 1)=(5, 1)$ también da $(3, -3)$. En cambio, un punto fuera de la recta, como $(1, 1)$, no lo alcanza ningún $\\vec{v}$.',
-          plane: transformPlane({
-            i: [1, -1],
-            j: [-2, 2],
-            extra: [vec(1, 1)],
-            apply: ['v'],
-            readouts: ['matrix', 'components'],
+            'Con $\\hat{\\jmath}$ en $(1, 0)$, las salidas son $3{,}5$, $2{,}75$ y $1{,}5$ las positivas, y $1{,}5$, $0{,}75$ y $0{,}5$ las negativas: falla «horrible», cinco de seis. Con $(0{,}5;\\ 0)$ falla «bueno» en su lugar. Seis es imposible: lo que distinguía a esas dos se perdió en la capa de delante. Subir o bajar la punta de $\\hat{\\jmath}$ no cambia la primera salida.',
+          lab: capaLab(RESENAS, {
+            range: 6,
+            j: [1.5, 0],
+            movable: 'j',
+            before: { i: [0, 1], j: [0, 0.5] },
+            inputs: ['nada', 'intensidad + ½ tono'],
+            readout: { w: [1, 0], b: -1 },
           }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 3, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: -3, tol: 0.01 },
+            {
+              metric: 'hits',
+              op: 'gte',
+              target: 5,
+              label: 'Reseñas bien clasificadas',
+              format: 'integer',
+            },
           ],
+          solved: { jx: 1 },
         },
         {
           id: 'rango.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Para adaptar un modelo de lenguaje enorme a una tarea sin reentrenarlo entero, **LoRA** suma a cada matriz de pesos una corrección de rango pequeño. Una matriz de rango $1$ como esta tiene todas las columnas sobre la misma recta, así que basta guardar un vector y un número por columna: en una matriz de $4096\\times4096$ son unos $8000$ números en vez de más de $16$ millones.',
-            aim: 'Vas a elegir la imagen de una matriz, una recta concreta, colocando las dos columnas sobre ella, y a ver que un solo vector describe la matriz entera.',
+            why: 'Para ver o guardar embeddings con menos números, se proyectan sobre unas pocas direcciones. Con una sola, cada palabra se reduce a su sombra sobre una recta, y la cuestión es qué recta pierde menos.',
+            aim: 'Vas a girar la recta de un cuello de botella de una dimensión hasta que conserve casi toda la variación de una nube de palabras.',
             takeaway:
-              'Con las dos columnas múltiplos de $(1, 2)$, la matriz se reduce a esa dirección y a dos números. Una matriz de rango bajo se guarda en muy poco espacio, y esa es la razón de que LoRA sea tan barato de entrenar y de guardar.',
+              'Una buena recta conserva casi todo, el 96,7 % aquí, porque la nube ya es casi una recta. Un cuello de botella de rango bajo funciona cuando los datos varían sobre todo en pocas direcciones. Lo que queda fuera de la recta se pierde siempre.',
           },
           prompt:
-            'Ahora se mueven las dos columnas. Haz que la imagen de la matriz sea **la recta que pasa por el origen y por $(1, 2)$**: tanto $\\hat{\\imath}$ como $\\hat{\\jmath}$ tienen que quedar sobre ella. Coloca $\\hat{\\imath}$ en $(-1, -2)$ y pon la coordenada $x$ de $\\hat{\\jmath}$ en $2$; la coordenada $y$ de $\\hat{\\jmath}$ la decide la recta. Mira la rejilla: cuando las dos columnas están sobre la recta, el plano entero cae en ella.',
+            'Siete palabras de tres temas. Un cuello de botella de una dimensión se queda con un solo número de cada una: su sombra sobre la recta de $\\vec{v}$ (las proyecciones dibujadas). Lo que queda fuera de la recta se pierde.\n\nGira $\\vec{v}$ hasta que la recta conserve al menos el 95 % de la variación de la nube.',
           hints: [
-            'Los puntos de esa recta son los múltiplos $t\\cdot(1, 2)$: su coordenada $y$ es siempre el doble de la $x$.',
-            'Un $\\hat{\\jmath}$ con $x=2$ está en la recta si su $y$ es el doble.',
+            'Mira la forma de la nube: es alargada. La recta conserva más cuanto más cortas son las líneas que van de cada palabra a su sombra.',
+            'Lleva la punta de $\\vec{v}$ a lo largo de la nube, hacia arriba a la derecha y más tumbada que la diagonal.',
           ],
           explain:
-            'Una recta por el origen se describe con un solo vector: todos sus múltiplos. La imagen de una matriz es esa recta cuando todas las columnas son múltiplos de él.',
+            'La variación de la nube es la media de las distancias al cuadrado a su centro. Al proyectar, cada palabra conserva la parte a lo largo de $\\vec{v}$ y pierde la perpendicular. La recta que más conserva es la del eje largo de la nube.',
           solution:
-            '$\\hat{\\imath}=(-1, -2)=-1\\cdot(1, 2)$ y $\\hat{\\jmath}=(2, 4)=2\\cdot(1, 2)$. La matriz es $\\begin{pmatrix}-1&2\\\\-2&4\\end{pmatrix}$, con $\\det=-4+4=0$. Su imagen es la recta de $(1, 2)$ y su rango es $1$.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'], range: 5 }),
+            'Con $\\vec{v}$ en $(2, 1)$ la recta conserva el $96{,}7$ % de la variación: es el eje largo de la nube. También valen $(3, 2)$ o $(2{,}5;\\ 1)$, con algo más del 95 %. En horizontal se queda en el $77{,}8$ % y en la diagonal $(1, 1)$, en el $87{,}5$ %. Más del $96{,}7$ % no se puede: los temas tienen algo de anchura fuera de la recta, y eso se pierde siempre.',
+          lab: capaLab(NUBE_ALARGADA, {
+            movable: 'none',
+            probe: { x: 0, y: 2, movable: true, on: 'input' },
+          }),
           goals: [
-            { metric: 'x', of: ['i'], target: -1, tol: 0.01 },
-            { metric: 'y', of: ['i'], target: -2, tol: 0.01 },
-            { metric: 'x', of: ['j'], target: 2, tol: 0.01 },
-            { metric: 'det', of: ['i', 'j'], target: 0, tol: 0.01 },
+            {
+              metric: 'var_frac',
+              op: 'gte',
+              target: 0.95,
+              label: 'Variación que conserva la recta',
+              format: 'percent',
+            },
           ],
+          solved: { vx: 2, vy: 1 },
         },
         {
           id: 'rango.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Al empezar un ajuste con LoRA, la corrección arranca a cero (uno de sus dos factores es la matriz nula), así que el modelo empieza siendo exactamente el original y el entrenamiento la va haciendo crecer. La matriz **nula**, de rango $0$, es también lo que queda de una capa que se poda por completo: no deja pasar nada.',
-            aim: 'Vas a llevar las dos columnas al origen y a ver el caso extremo del rango: toda la rejilla, con todas sus direcciones, cae en un solo punto.',
+            why: 'Una capa de compresión no tiene que guardarlo todo: solo lo que va a necesitar la tarea siguiente. Un filtro de spam que reduce cada correo a un número puede acertar igual, si ese número es la mezcla adecuada de rasgos.',
+            aim: 'Vas a comprimir seis correos en una sola dimensión eligiendo la mezcla de rasgos que sobrevive, de modo que la neurona del spam acierte con todos.',
             takeaway:
-              'Rango $0$ es la matriz nula: su imagen es solo el origen y no sobrevive ninguna dirección. En el plano el rango va de $0$ a $2$, y una corrección de LoRA empieza en $0$ para no cambiar el modelo hasta que el entrenamiento lo decida.',
+              'El cuello de botella ideal guarda justo la mezcla que la neurona necesita, «enlaces − saludos». Los tres correos normales caen en el mismo punto, y no importa: lo perdido es lo que la tarea no usaba. Comprimir bien es tirar lo que sobra.',
           },
           prompt:
-            'Queda el caso más extremo: que **todo el plano caiga en un solo punto**, el origen. Es la matriz con todos sus números iguales a $0$, y tiene rango $0$: no sobrevive ninguna dirección. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ hasta lograrlo.',
+            'Seis correos con dos rasgos: **enlaces** y **saludos**. El filtro de spam tiene que comprimirlos sobre una recta (determinante $0$). La neurona responde «spam» a lo que cae en la zona sombreada, y ningún rasgo basta por sí solo.\n\nElige qué número sobrevive de cada correo para que acierte con los seis.',
           hints: [
-            'Si $\\hat{\\imath}$ y $\\hat{\\jmath}$ están en el origen, cualquier combinación de las dos también.',
-            'Con una columna en el origen se pierde una dirección; con las dos se pierden todas.',
+            'Quedarse solo con los enlaces no basta: hay correo normal con muchos. Lo que separa el spam es cuánto superan los enlaces a los saludos.',
+            'Deja $\\hat{\\imath}$ (enlaces) hacia la derecha y lleva $\\hat{\\jmath}$ (saludos) justo al lado contrario, sobre la misma recta.',
           ],
           explain:
-            'La imagen son todas las combinaciones de las columnas. Si las dos columnas son el vector nulo, la única combinación posible es el vector nulo.',
+            'Con determinante $0$, la primera salida de cada correo es un solo número: una mezcla de enlaces y saludos. Si es «enlaces − saludos», el spam sale positivo y el correo normal, negativo. Quedarse con un solo rasgo, en cambio, deja la mitad mal.',
           solution:
-            'Con $\\hat{\\imath}=(0, 0)$ y $\\hat{\\jmath}=(0, 0)$ la matriz es $\\begin{pmatrix}0&0\\\\0&0\\end{pmatrix}$. Su imagen es un punto: rango $0$. Con rango $1$ aún sobrevive una dirección, una recta; con rango $2$, el plano entero.',
-          plane: transformPlane({ movable: true, readouts: ['matrix'] }),
-          goals: columns([0, 0], [0, 0]),
+            'Una capa que vale: $\\hat{\\imath}$ en $(1, 1)$ y $\\hat{\\jmath}$ en $(-1, -1)$. Sobrevive enlaces menos saludos: $2$, $1{,}5$ y $0{,}5$ en el spam y $-1$ en los tres normales, que caen en el mismo punto. A la neurona le da igual: no tiene que distinguirlos entre ellos. También vale $\\hat{\\imath}$ en $(1, 0)$ con $\\hat{\\jmath}$ en $(-1, 0)$, o $\\hat{\\imath}$ en $(2, 0)$ con $\\hat{\\jmath}$ en $(-1{,}5;\\ 0)$.',
+          lab: capaLab(CORREOS, { readout: MIRA_SALIDA_1, readouts: ['det'] }),
+          goals: [APLASTA, ACIERTOS],
+          solved: { ix: 1, iy: 1, jx: -1, jy: -1 },
         },
       ],
     },
@@ -191,118 +203,127 @@ export const rango: Project = {
       questions: [
         {
           id: 'rango.ex01.1',
-          type: 'numero',
+          type: 'opcion',
           purpose: {
-            why: 'Los sistemas de recomendación, como los de una plataforma de series, guardan las valoraciones en una matriz de usuarios por series, y la modelan con **pocos gustos** independientes. Si las valoraciones de dos usuarios son proporcionales, uno de ellos no aporta ningún gusto nuevo. El rango cuenta cuántos gustos independientes hay.',
-            aim: 'Vas a calcular el rango de una matriz de $2\\times 2$ comparando sus columnas. Verás si cada columna aporta una dirección nueva o si solo repite a la otra a otra escala.',
+            why: 'El rango de una capa es el número de dimensiones por las que pasa la información: las que quedan tras la capa. Una capa de rango 1 en un plano lo deja todo sobre una recta, aunque su matriz tenga cuatro números.',
+            aim: 'Vas a mirar adónde manda una capa fija las seis reseñas y a decidir, por la forma de lo que sale, cuál es su rango.',
             takeaway:
-              'Un rango de $1$ quiere decir que hay una única dirección: las dos columnas viven en la misma recta. En un recomendador, un rango bajo es una ventaja, porque permite predecir muchas valoraciones con muy pocos números, pero también quiere decir que la información es menos rica de lo que parece.',
+              'Todas las reseñas caen en una recta: rango $1$. Se ve también en las columnas, que apuntan en la misma dirección: la segunda es la mitad de la primera. El rango se lee en lo que sale, no en el tamaño de la matriz.',
           },
           prompt:
-            'El rango de una matriz es el número de columnas **independientes**: las que aportan una dirección nueva. Calcula el rango de $A=\\begin{pmatrix}2&-1\\\\-4&2\\end{pmatrix}$.',
+            'Esta capa tiene cuatro pesos, todos distintos de cero:\n\n$$A=\\begin{pmatrix}1&0{,}5\\\\-1&-0{,}5\\end{pmatrix}$$\n\nMira en el laboratorio adónde manda las seis reseñas. ¿Cuál es su rango, el número de dimensiones que deja pasar?',
           hints: [
-            'Compara las dos columnas: ¿una es un múltiplo de la otra?',
-            'Las columnas son $(2, -4)$ y $(-1, 2)$. ¿Por qué número hay que multiplicar la primera para obtener la segunda?',
+            'Fíjate en las palabras de salida, no en la matriz: ¿ocupan el plano o se alinean?',
+            'Compara las dos columnas: ¿apuntan en direcciones distintas o en la misma?',
           ],
           explain:
-            'Una columna que es múltiplo de otra no aporta una dirección nueva. Cuenta solo las que sí aportan.',
+            'El rango es la dimensión de lo que sale de la capa. Si todas las salidas se alinean, la capa deja pasar una sola dimensión. Las columnas lo dicen también: si una es múltiplo de la otra, solo hay una dirección.',
           solution:
-            'La segunda columna es $-\\tfrac{1}{2}$ por la primera, así que las dos están sobre la misma recta y solo hay una dirección independiente: rango $1$. Lo confirma el determinante, $2\\cdot 2-(-1)\\cdot(-4)=0$, que descarta el rango $2$. El rango $0$ exigiría la matriz nula.',
-          answer: 1,
-          tol: 0,
+            'Rango $1$. La segunda columna, $(0{,}5;\\ -0{,}5)$, es la mitad de la primera, $(1, -1)$: cada reseña sale en (intensidad $+$ medio tono) por $(1, -1)$, sobre la recta de esa dirección. «bueno» y «horrible» dan $1{,}5$ y caen juntas. Contar los pesos distintos de cero no da el rango.',
+          lab: capaLab(RESENAS, { i: [1, -1], j: [0.5, -0.5], movable: 'none' }),
+          options: [
+            '$2$: las reseñas siguen ocupando el plano',
+            '$1$: todas caen sobre una recta',
+            '$0$: todas caen en el origen',
+            '$4$: uno por cada peso distinto de cero',
+          ],
+          correct: 1,
         },
         {
           id: 'rango.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'En una tabla de datos con una columna por categoría, como el tipo de cliente, si además de las columnas de cada categoría se añade una columna de unos, la suma de las primeras es igual a la última. La tabla tiene una columna sobrante, y una regresión sobre ella queda mal planteada. Es la «trampa de las variables ficticias».',
-            aim: 'Vas a calcular el rango de una matriz de $3\\times 3$ fijándote en cómo se relaciona su tercera columna con las otras. Verás cuántas columnas son realmente independientes.',
+            why: 'Una matriz de rango bajo se puede guardar como el producto de dos matrices estrechas. En eso se basa LoRA, una técnica para ajustar modelos grandes: en lugar de cambiar una matriz entera, entrena dos finas cuyo producto es el cambio.',
+            aim: 'Vas a contar cuántos números hacen falta para guardar una matriz grande de rango bajo escrita como producto de dos matrices finas.',
             takeaway:
-              'Una columna que sale de sumar otras no aporta información: el rango es $2$, aunque la matriz tenga tres columnas. Quien prepara los datos lo arregla quitando una de las columnas ficticias, y así la regresión tiene una única solución.',
+              'Bastan $20\\,000$ números en lugar de $1\\,000\\,000$: cincuenta veces menos. Cuanto más bajo el rango, más se ahorra; por eso ajustar un modelo con matrices de rango bajo cabe en mucha menos memoria.',
           },
           prompt:
-            'Calcula el rango de $A=\\begin{pmatrix}1&0&1\\\\2&1&3\\\\0&1&1\\end{pmatrix}$. Mira con atención cómo es su tercera columna.',
+            'Una matriz de $1000\\times 1000$ tiene rango $10$. Se puede escribir como $U\\cdot V$, con $U$ de $1000\\times 10$ y $V$ de $10\\times 1000$: los $10$ del medio son las dimensiones por las que pasa la información.\n\n¿Cuántos números hay que guardar entre $U$ y $V$?',
           hints: [
-            'Las columnas son $(1, 2, 0)$, $(0, 1, 1)$ y $(1, 3, 1)$. Prueba a sumar las dos primeras.',
-            'Cuando una columna sobra, comprueba si las que quedan son independientes entre sí.',
+            'Cuenta los números de cada matriz: filas por columnas.',
+            'Suma los de $U$ y los de $V$.',
           ],
           explain:
-            'Una columna que es combinación de las demás no aporta nada. Quita las que sobran y cuenta las que quedan, asegurándote de que ninguna de ellas es múltiplo de otra.',
+            'Una matriz de rango $r$ cabe en dos matrices, una de $r$ columnas y otra de $r$ filas. Guardarlas cuesta filas por $r$ más $r$ por columnas, en lugar de filas por columnas.',
           solution:
-            'La tercera columna es la suma de las dos primeras: $(1, 2, 0)+(0, 1, 1)=(1, 3, 1)$, así que sobra. Las dos primeras no son proporcionales, así que son independientes. Rango $2$: la imagen es un plano dentro del espacio de 3 dimensiones, no el espacio entero.',
-          answer: 2,
+            '$U$: $1000\\cdot 10=10\\,000$. $V$: $10\\cdot 1000=10\\,000$. Entre las dos, $20\\,000$ números, frente a los $1\\,000\\,000$ de la matriz entera: cincuenta veces menos. Multiplicar las dos da la matriz completa, número a número.',
+          answer: 20000,
           tol: 0,
         },
         {
           id: 'rango.ex01.3',
           type: 'numero',
           purpose: {
-            why: 'Una capa de un modelo con miles de entradas y de salidas guarda millones de números. Si su matriz es, o se puede aproximar por, un producto $\\vec{u}\\vec{v}^{\\top}$ de dos vectores (o por una suma de unos pocos), basta guardar esos vectores: es la base de la **compresión de capas** por factorización de rango bajo, para que el modelo ocupe menos y corra más rápido.',
-            aim: 'Vas a calcular el rango de una matriz construida como producto de dos vectores y a ver qué tienen en común todas sus filas. Verás cuánto se puede resumir una matriz de nueve números.',
+            why: 'Un autoencoder comprime cada embedding en pocos números y luego lo vuelve a expandir. Lo que no cabe por el cuello de botella se pierde: hay direcciones de la entrada que llegan al final convertidas en cero.',
+            aim: 'Vas a contar cuántas dimensiones de la entrada pierde una red que comprime embeddings de 384 números a 64 y los devuelve a 384.',
             takeaway:
-              'Una matriz $\\vec{u}\\vec{v}^{\\top}$ tiene rango $1$, y toda ella se reconstruye con $3+3$ números en lugar de $9$. En una capa grande el ahorro es enorme. Cuando la matriz real no es de rango $1$, se aproxima y se pierde algo, y por eso se mide cuánto empeora el modelo antes de comprimir.',
+              'Se pierden $320$ dimensiones: el rango y el núcleo suman siempre el tamaño de la entrada. En el plano pasa igual: con rango $1$ se pierde una dimensión de dos, la que va al origen.',
           },
           prompt:
-            'Se construye $M=\\vec{u}\\vec{v}^{\\top}$ con $\\vec{u}=(1, 2, 3)$ y $\\vec{v}=(2, 0, -1)$: la fila $i$ de $M$ es $u_i$ veces $\\vec{v}^{\\top}$. Escrita entera,\n\n$$M=\\begin{pmatrix}2&0&-1\\\\4&0&-2\\\\6&0&-3\\end{pmatrix}.$$\n\nCalcula su rango.',
+            'Una red comprime embeddings de $384$ números a $64$ y los vuelve a llevar a $384$. Juntas, las dos capas son una matriz de $384\\times 384$ de rango $64$. Su núcleo son las direcciones de la entrada que acaban en cero.\n\n¿Qué dimensión tiene el núcleo? En el laboratorio tienes la versión pequeña: una capa de rango $1$ en un plano.',
           hints: [
-            'Compara las tres filas: ¿cómo se relacionan?',
-            'También puedes mirar las columnas: ¿cuántas direcciones distintas hay entre ellas?',
+            'El rango más la dimensión del núcleo es el número de entradas.',
+            'En el laboratorio, una de las dos direcciones de la entrada (el tono) va al origen: rango $1$, núcleo de dimensión $1$, dos entradas.',
           ],
           explain:
-            'Las tres filas salen de la misma fila multiplicada por números distintos. Cuenta cuántas direcciones independientes hay de verdad.',
+            'Cada dirección de la entrada o sobrevive o acaba en cero. Las que sobreviven cuentan el rango; las que se anulan, el núcleo. Entre las dos tienen que cubrir todas las entradas.',
           solution:
-            'Las filas son $1$, $2$ y $3$ veces $(2, 0, -1)$, y las columnas son $2$, $0$ y $-1$ veces $(1, 2, 3)$. Hay una sola dirección: rango $1$. Todo producto $\\vec{u}\\vec{v}^{\\top}$ con $\\vec{u}$ y $\\vec{v}$ no nulos tiene rango $1$, por grandes que sean. Y se guarda con $3+3=6$ números en vez de $9$.',
-          answer: 1,
+            '$384-64=320$. De cada embedding solo llegan al final $64$ dimensiones; hay $320$ direcciones independientes de la entrada que la red manda a cero, y su información se pierde. En el plano del laboratorio, $2-1=1$: la dirección del tono, que la capa borra.',
+          lab: capaLab(RESENAS, { j: [0, 0] }),
+          answer: 320,
           tol: 0,
         },
         {
           id: 'rango.ex01.4',
-          type: 'vector',
+          type: 'opcion',
           purpose: {
-            why: 'Cuando un clasificador no usa cierta dirección de un embedding, esa dirección está en el **núcleo** de su matriz: se puede cambiar sin que la salida se entere. Hay técnicas que quitan de un embedding una propiedad no deseada, como el género de una palabra, proyectando para eliminar la dirección que el clasificador usa para predecirla.',
-            aim: 'Vas a encontrar un vector que una matriz de rango $1$ convierte en el vector cero. Verás que no es único: forma una recta entera, y basta con fijar una componente para elegir uno.',
+            why: 'Antes de comprimir conviene saber qué se va a confundir. En un buscador, dos documentos que el cuello de botella deja en el mismo punto ya no se pueden ordenar: el sistema no ve diferencia entre ellos.',
+            aim: 'Vas a predecir qué reseñas deja en el mismo punto una capa de rango 1, a partir de sus pesos, y a comprobarlo construyéndola.',
             takeaway:
-              'El vector $(2, -1)$ es invisible para la matriz: sumarlo a cualquier vector de entrada no cambia la salida. Por eso conocer el núcleo dice qué información no puede usar un modelo lineal, y qué se le puede borrar o añadir a un vector sin que cambie lo que el modelo predice.',
+              'Se confunden las palabras cuya diferencia cae en el núcleo, no las que se parecen. «malo» y «triste» tienen rasgos distintos, pero su diferencia es justo la dirección que la capa borra.',
           },
           prompt:
-            'La matriz $A=\\begin{pmatrix}1&2\\\\3&6\\end{pmatrix}$ tiene rango $1$ y aplasta una recta entera de vectores en el origen: su núcleo. Escribe el vector $\\vec{v}$ del núcleo, el que cumple $A\\vec{v}=\\vec{0}$, cuya primera componente es $2$.',
+            'Una capa tiene estos pesos:\n\n$$A=\\begin{pmatrix}0{,}5&0{,}5\\\\0{,}5&0{,}5\\end{pmatrix}$$\n\nSin construirla todavía, ¿qué pareja de reseñas sale en el mismo punto? Después puedes construirla en el laboratorio y comprobarlo.',
           hints: [
-            'Con $\\vec{v}=(2, b)$, $A\\vec{v}$ es $2$ veces la primera columna más $b$ veces la segunda.',
-            'Las dos columnas son $(1, 3)$ y $(2, 6)$. ¿Qué $b$ hace que las dos partes se cancelen?',
+            'Cada salida es media intensidad más medio tono. Calcula intensidad más tono para cada reseña.',
+            'Busca dos reseñas con la misma suma de rasgos.',
           ],
           explain:
-            'Plantea $A\\vec{v}=\\vec{0}$ con la primera componente fijada. Las dos coordenadas de $A\\vec{v}$ tienen que anularse a la vez, y en una matriz de rango $1$ lo hacen con el mismo valor.',
+            'Las dos filas son iguales: la capa reduce cada reseña a un número, intensidad más tono, y lo pone sobre la diagonal. Dos reseñas con la misma suma caen juntas, aunque sus rasgos sean distintos.',
           solution:
-            'Con $\\vec{v}=(2, b)$: $A\\vec{v}=(2+2b,\\ 6+6b)$, que se anula con $b=-1$. Entonces $\\vec{v}=(2, -1)$ y $2\\cdot(1, 3)+(-1)\\cdot(2, 6)=(0, 0)$. Con la primera componente fijada solo hay un vector: el núcleo es una recta. Rango $1$ más dimensión del núcleo $1$ suman el número de columnas, $2$.',
-          answer: [2, -1],
-          tol: 0,
+            '«malo» $(1, -1)$ y «triste» $(1{,}5;\\ -1{,}5)$ suman $0$ las dos: caen en el origen. Su diferencia, $(0{,}5;\\ -0{,}5)$, está en el núcleo de la capa, la recta de $(1, -1)$. «genial» y «horrible» suman $4{,}5$ y $0{,}5$, y «bueno» y «malo», $2$ y $0$: siguen separadas.',
+          lab: capaLab(RESENAS),
+          options: [
+            '«genial» y «horrible»',
+            '«malo» y «triste»',
+            '«bueno» y «malo»',
+            'Ninguna: las seis salen en puntos distintos',
+          ],
+          correct: 1,
         },
         {
           id: 'rango.ex01.5',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'En un autoencoder, un modelo que comprime los datos y los reconstruye, la capa estrecha del medio limita lo que puede llegar al final. Si las capas son lineales, la salida solo alcanza tantas direcciones independientes como el **rango** de esa capa. Es un cuello de botella, y se diseña a propósito para forzar un resumen.',
-            aim: 'Vas a decidir qué hace con el espacio una matriz de rango $1$ en tres coordenadas. Verás hasta dónde puede llegar su salida, aunque la entrada recorra todo el espacio.',
+            why: 'Una capa de rango 1 se guarda como dos vectores: uno que lee un solo número de cada entrada y otro que lo reparte entre las salidas. Así se escriben las piezas de una matriz de rango bajo, una dirección cada vez.',
+            aim: 'Vas a calcular la salida de un correo en una capa de rango 1 escrita como dos vectores: primero el número que lee, después cómo lo reparte.',
             takeaway:
-              'Con rango $1$, todo lo que sale cae sobre una recta, por muchas entradas distintas que haya: la salida tiene un solo grado de libertad. Quien diseña el cuello de botella elige su anchura sabiendo que ese número es el límite de lo que pasa.',
+              '«urgente» se reduce a un número, $2{,}5-2=0{,}5$, y sale en $0{,}5\\cdot(2, 1)=(1;\\ 0{,}5)$. Toda capa de rango 1 hace eso: lee una mezcla de rasgos y la escribe a lo largo de una sola dirección.',
           },
           prompt:
-            'Una matriz de $3\\times 3$ tiene rango $1$. ¿Qué hace con el espacio de 3 dimensiones?',
+            'Una capa de rango 1 lee de cada correo un solo número, $\\vec{w}\\cdot\\vec{x}$ con $\\vec{w}=(1, -1)$, y lo escribe a lo largo de $\\vec{u}=(2, 1)$. Su matriz es $\\vec{u}\\,\\vec{w}^{\\top}$.\n\n«urgente» tiene $2{,}5$ enlaces y $2$ saludos. ¿Cuánto vale su primera salida? Después puedes construir la capa en el laboratorio.',
           hints: [
-            'El rango es la dimensión de la imagen. ¿Qué objeto tiene dimensión $1$ dentro del espacio?',
-            'Si solo sobrevive una dirección, las otras dos se pierden.',
+            'Primero el número que lee la capa: los enlaces por $1$ más los saludos por $-1$.',
+            'La primera salida es ese número por la primera coordenada de $\\vec{u}$.',
           ],
           explain:
-            'El rango cuenta las direcciones que sobreviven. Relaciona el número de direcciones con la forma de la imagen: punto, recta, plano o espacio.',
+            'En una capa $\\vec{u}\\,\\vec{w}^{\\top}$ la salida es $\\vec{u}$ multiplicado por el número $\\vec{w}\\cdot\\vec{x}$: un número por una dirección fija. Por eso todas las salidas caen en la recta de $\\vec{u}$.',
           solution:
-            'Rango $1$ es que la imagen tiene una sola dimensión: una recta que pasa por el origen, y todo el espacio acaba sobre ella. Se pierden dos direcciones, y el núcleo es un plano entero de vectores que acaban en $\\vec{0}$. Un plano como imagen sería rango $2$ y un punto, rango $0$. El rango y la dimensión del núcleo suman $3$.',
-          options: [
-            'Lo aplasta contra un plano: se pierde una sola dirección',
-            'Manda un solo vector al origen y deja el resto como estaba',
-            'Lo aplasta contra una recta que pasa por el origen: sobrevive una sola dirección',
-            'Lo aplasta en un solo punto, el origen',
-          ],
-          correct: 2,
+            '$\\vec{w}\\cdot\\vec{x}=2{,}5-2=0{,}5$, y la salida es $0{,}5\\cdot(2, 1)=(1;\\ 0{,}5)$: la primera vale $1$. La matriz es $\\begin{pmatrix}2&-2\\\\1&-1\\end{pmatrix}$; en el laboratorio, $\\hat{\\imath}$ en $(2, 1)$ y $\\hat{\\jmath}$ en $(-2, -1)$.',
+          lab: capaLab(CORREOS),
+          answer: 1,
+          tol: 0,
         },
       ],
     },

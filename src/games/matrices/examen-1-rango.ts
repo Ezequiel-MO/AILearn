@@ -1,50 +1,63 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Rango». La entrada generada
- * (`examen-1.rango`) la añade otro paso. Ids: `examen-1.<tema>`, únicos en todo el juego.
+ * Entradas fijas del banco de examen de la Órbita 1 para el proyecto «Rango»: un laboratorio (un
+ * cuello de botella para otra neurona, con otros datos), una cuenta de parámetros de una
+ * actualización de rango bajo y una de código. La entrada generada (`examen-1.rango`) la añade otro
+ * paso. Ids: `examen-1.<tema>`, únicos en todo el juego.
  */
 export const examen1Rango: BankEntry[] = [
   {
     project: 'rango',
     question: {
-      id: 'examen-1.rango-producto',
-      type: 'opcion',
+      id: 'examen-1.cuello-mascotas',
+      type: 'laboratorio',
       prompt:
-        'Una matriz $A$ de $6\\times 6$ tiene rango $3$ y otra, $B$, también de $6\\times 6$, tiene rango $5$. ¿Qué se puede asegurar del rango de $AB$?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. La capa tiene que comprimirlos sobre una recta (determinante $0$). La neurona siguiente mira la primera salida y responde «mascota» a lo que cae en la zona sombreada.\n\nAplasta el plano sin que la neurona deje de acertar con los seis.',
       hints: [
-        'En $AB\\vec{x}$ actúa primero $B$ y después $A$. ¿Dónde caen todos los resultados?',
-        'El rango de una matriz de $6\\times 6$ nunca pasa de $6$.',
+        'Busca el rasgo que distingue a «perro» de «lobo»: es el que tiene que sobrevivir en la primera salida.',
+        'Lleva $\\hat{\\imath}$ (el tamaño) al origen y deja $\\hat{\\jmath}$ (la domesticidad) apuntando hacia la zona sombreada.',
       ],
       explain:
-        'Lo que sale de $AB$ sale siempre de $A$, y una matriz no puede tener más direcciones de salida que las que tiene su última transformación. Descarta primero lo que supera el tamaño de la matriz.',
+        'Con determinante $0$, de cada animal queda un solo número a lo largo de una recta. La neurona acierta si ese número tiene el signo de la domesticidad. Si lo que sobrevive es el tamaño, las mascotas y los salvajes se mezclan.',
       solution:
-        'Todo resultado de $AB$ es un resultado de $A$, así que su imagen está dentro de la de $A$ y el rango es $3$ como mucho. Puede ser menor: depende de cuánto de lo que sale de $B$ cae en el núcleo de $A$. Las sumas y los productos de rangos no valen: $8$ y $15$ superan el tamaño $6$.',
-      options: [
-        'Es $8$, porque los rangos se suman',
-        'Es exactamente $3$, el del factor de menor rango',
-        'Es $3$ como mucho: el producto no puede tener más rango que el menor de los dos',
-        'Es $15$, porque los rangos se multiplican',
+        'Una capa que vale: $\\hat{\\imath}$ en $(0, 0)$ y $\\hat{\\jmath}$ en $(1, 0)$. Cada animal queda en su domesticidad, sobre el eje horizontal: positiva en «gato», «perro» y «hámster» y negativa en «lobo», «tigre» y «oso». También vale $\\hat{\\jmath}$ en $(1, 1)$ con $\\hat{\\imath}$ en el origen. Quedarse con el tamaño deja la neurona en 3 de 6.',
+      lab: capaLab(ANIMALES, { readout: { w: [1, 0], b: 0 }, readouts: ['det'] }),
+      goals: [
+        {
+          metric: 'det',
+          op: 'eq',
+          target: 0,
+          label: 'Determinante de la capa',
+        },
+        {
+          metric: 'acc',
+          op: 'gte',
+          target: 1,
+          label: 'Aciertos de la neurona siguiente',
+          format: 'percent',
+        },
       ],
-      correct: 2,
+      solved: { ix: 0, iy: 0, jx: 1, jy: 0 },
     },
   },
   {
     project: 'rango',
     question: {
-      id: 'examen-1.nucleo-tres',
-      type: 'vector',
+      id: 'examen-1.parametros-rango-bajo',
+      type: 'numero',
       prompt:
-        'La matriz $A=\\begin{pmatrix}1&2&3\\\\4&5&6\\\\7&8&9\\end{pmatrix}$ tiene rango $2$, así que su núcleo es una recta de vectores. Escribe el vector $\\vec{v}$ del núcleo, el que cumple $A\\vec{v}=\\vec{0}$, cuya primera componente es $1$.',
+        'Para ajustar una capa de $768\\times 768$ sin tocar sus pesos, se le suma un cambio de rango $8$ escrito como $B\\cdot A$, con $B$ de $768\\times 8$ y $A$ de $8\\times 768$. Solo se entrenan $B$ y $A$.\n\n¿Cuántos números se entrenan entre las dos?',
       hints: [
-        'Con $\\vec{v}=(1, b, c)$, las tres filas de $A\\vec{v}$ tienen que valer $0$. Con dos de ellas ya basta.',
-        'Resta a la segunda ecuación cuatro veces la primera para dejar una sola relación entre $b$ y $c$.',
+        'Cuenta los números de cada matriz: filas por columnas.',
+        'Suma los de $B$ y los de $A$, y compáralos con los de la capa entera.',
       ],
       explain:
-        'Plantea las ecuaciones $A\\vec{v}=\\vec{0}$ fila a fila. Como el rango es $2$, una de las tres filas sobra, y con la primera componente fijada las otras dos determinan el vector.',
+        'Un cambio de rango $r$ cabe en dos matrices finas: una con $r$ columnas y otra con $r$ filas. Se entrena eso, no la matriz entera, y el número de parámetros crece con $r$.',
       solution:
-        'Las dos primeras filas dan $1+2b+3c=0$ y $4+5b+6c=0$. Restando a la segunda cuatro veces la primera queda $-3b-6c=0$, o sea $b=-2c$. Entonces $1-4c+3c=0$ y $c=1$, así que $\\vec{v}=(1, -2, 1)$. La tercera fila también se anula: $7-16+9=0$.',
-      answer: [1, -2, 1],
+        '$B$: $768\\cdot 8=6144$. $A$: $8\\cdot 768=6144$. Entre las dos, $12\\,288$ números, frente a los $589\\,824$ de la capa entera: $48$ veces menos.',
+      answer: 12288,
       tol: 0,
     },
   },
