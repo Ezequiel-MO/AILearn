@@ -1,3 +1,4 @@
+import type { AtencionToken } from '../../engine/labs/atencion';
 import type { CapaPoint, CapaSpec } from '../../engine/labs/capa';
 
 /**
@@ -158,3 +159,56 @@ export const capaLab = (cloud: Cloud, options: CapaOptions = {}): CapaSpec => ({
   j: [0, 1],
   ...options,
 });
+
+/**
+ * «el animal no cruzó porque estaba cansado», para el laboratorio `atencion`: cada token con una clave
+ * y un valor de juguete en dos dimensiones. Quien mira es «estaba» (`FRASE_ANIMAL_MIRA`): tiene que
+ * saber quién estaba cansado. Con la consulta (2, 1) las puntuaciones q·k son, en orden, −2, 5, −1, 0,
+ * −5, 1 y 0, y «animal» se lleva casi toda la atención; con (0, 1) son 0, 1, −1, −2, −1, 1 y 2, y la
+ * mayor es la de «cansado».
+ */
+export const FRASE_ANIMAL: AtencionToken[] = [
+  { id: 'el', text: 'el', key: [-1, 0], value: [0, 0] },
+  { id: 'animal', text: 'animal', key: [2, 1], value: [2, 2] },
+  { id: 'no', text: 'no', key: [0, -1], value: [0, -1] },
+  { id: 'cruzo', text: 'cruzó', key: [1, -2], value: [1, 0] },
+  { id: 'porque', text: 'porque', key: [-2, -1], value: [0, 1] },
+  { id: 'estaba', text: 'estaba', key: [0, 1], value: [1, 1] },
+  { id: 'cansado', text: 'cansado', key: [-1, 2], value: [-2, 1] },
+];
+
+/** Índice de «estaba» en `FRASE_ANIMAL`: el token que mira (`focus`). */
+export const FRASE_ANIMAL_MIRA = 5;
+
+/**
+ * Una cara de 8×8 píxeles (0 negro, 0,5 gris, 1 blanco) para el laboratorio `compresion`: simétrica y
+ * de rango 4. Con dos capas ya se reconoce (error por debajo del 25 %); con una, no.
+ */
+export const CARA_8X8: number[][] = [
+  [0, 0, 0.5, 0.5, 0.5, 0.5, 0, 0],
+  [0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0],
+  [0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5],
+  [0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5],
+  [0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5],
+  [0.5, 1, 0.5, 0.5, 0.5, 0.5, 1, 0.5],
+  [0, 0.5, 1, 1, 1, 1, 0.5, 0],
+  [0, 0, 0.5, 0.5, 0.5, 0.5, 0, 0],
+];
+
+const U1 = [2, 1, 0, -1];
+const V1 = [1, -1, 0, 2, 0, 1];
+const U2 = [0, 1, -2, 1];
+const V2 = [1, 0, 1, -1, 2, 0];
+
+/**
+ * Pesos de una capa de 6 entradas y 4 salidas, con signo y de rango exactamente 2 (la suma de dos
+ * productos columna por fila): dos capas de la descomposición la reproducen entera, con 22 números
+ * en vez de 24.
+ */
+export const PESOS_4X6: number[][] = U1.map((a, r) => V1.map((b, c) => a * b + U2[r]! * V2[c]!));
+
+/** Rótulos de `PESOS_4X6`: una fila por palabra de salida y una columna por rasgo de entrada. */
+export const PESOS_4X6_ROTULOS = {
+  rows: ['perro', 'gato', 'coche', 'tren'],
+  cols: ['pelo', 'ruedas', 'ruido', 'tamaño', 'color', 'edad'],
+};
