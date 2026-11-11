@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { checkProject, checkReachable, checkStartNotSolved } from '../../content/validate';
-import { grade, type Answer } from '../../content/grade';
-import { measure } from '../../engine/vectors';
+import { checkProject } from '../../content/validate';
+import { bankEntrySchema, type CodigoQ, type LabQ, type Question } from '../../content/schema';
+import { labControls, type LabState } from '../../engine/labs';
+import { loraScene, type LoraSpec } from '../../engine/labs/lora';
 import {
-  bankEntrySchema,
-  type CodigoQ,
-  type ManipularQ,
-  type Question,
-} from '../../content/schema';
+  labAt,
+  defineLabProjectTests,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -23,8 +24,7 @@ const bankQuestions = examen3RangoBajo
 
 defineProseTests('proyecto rango-bajo', projectQuestions(rangoBajo));
 defineProseTests('banco examen-3 rango-bajo', bankQuestions);
-
-type V = [number, number];
+defineLabProjectTests(rangoBajo, examen3RangoBajo);
 
 describe('proyecto rango-bajo', () => {
   it('se identifica como pide el encargo', () => {
@@ -37,7 +37,7 @@ describe('proyecto rango-bajo', () => {
   });
 
   it('pasa checkProject sin problemas', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase B): checkProject(rangoBajo) devuelve la lista vacía
+    // contract: encargo común de la Órbita 3 de matrices: checkProject(rangoBajo) devuelve la lista vacía (incluye checkLab en cada laboratorio)
     expect(checkProject(rangoBajo)).toEqual([]);
   });
 
@@ -55,7 +55,7 @@ describe('proyecto rango-bajo', () => {
   });
 
   it('los ids siguen el patrón rango-bajo.exNN.k y rango-bajo.hoja.k', () => {
-    // contract: encargo de la Órbita 3 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
+    // contract: traspaso 2026-11-10: los ids se conservan al reescribir (el progreso guardado los nombra)
     expect(projectQuestions(rangoBajo).map((q) => q.id)).toEqual([
       ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `rango-bajo.ex0${e}.${k}`)),
       'rango-bajo.hoja.1',
@@ -65,18 +65,6 @@ describe('proyecto rango-bajo', () => {
   });
 });
 
-const [ex00, ex01] = rangoBajo.exercises;
-const manip = (k: number): ManipularQ => {
-  const q = ex00!.questions[k]!;
-  if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-  return q;
-};
-
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -84,259 +72,305 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-/** Imagen A·v de la matriz de columnas i y j. */
-const img = (i: V, j: V, v: V): V => [i[0] * v[0] + j[0] * v[1], i[1] * v[0] + j[1] * v[1]];
-const norm = (v: V): number => Math.hypot(v[0], v[1]);
+const loraOf = (q: LabQ): LoraSpec => {
+  if (q.lab.kind !== 'lora') throw new Error(`${q.id} usa el laboratorio lora`);
+  return q.lab;
+};
 
-describe('valores del proyecto rango-bajo: Manipular', () => {
-  it('ex00: metas de cada manipular', () => {
-    // contract: encargo de la Órbita 3 de matrices (rango-bajo): stretch 0; stretch 3,16; imagen de p (2, 4) e imagen de q (0, 0); imagen de p (3, 3) e imagen de q (0, 0); imagen de v (4, 2)
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['stretch(i,j,v)=0±0.01'],
-      ['stretch(i,j,v)=3.16±0.01'],
-      ['img_x(i,j,p)=2±0.01', 'img_y(i,j,p)=4±0.01', 'img_x(i,j,q)=0±0.01', 'img_y(i,j,q)=0±0.01'],
-      ['img_x(i,j,p)=3±0.01', 'img_y(i,j,p)=3±0.01', 'img_x(i,j,q)=0±0.01', 'img_y(i,j,q)=0±0.01'],
-      ['img_x(i,j,v)=4±0.01', 'img_y(i,j,v)=2±0.01'],
-    ]);
-  });
+/** Todos los estados de los cuatro deslizadores de B y A en su rejilla (9⁴ = 6561 con ±2 y paso 0,5). */
+const gridStates = (spec: LoraSpec): LabState[] => {
+  const values: number[] = [];
+  for (let v = -spec.limit; v <= spec.limit + 1e-9; v += spec.step) values.push(v);
+  const out: LabState[] = [];
+  for (const b1 of values)
+    for (const b2 of values)
+      for (const a1 of values) for (const a2 of values) out.push({ b1, b2, a1, a2 });
+  return out;
+};
 
-  it('ex00: los planos son los del encargo', () => {
-    const shape = ex00!.questions.map((q, k) => {
-      const p = manip(k).plane;
-      return [
-        p.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        p.readouts,
-        p.range,
-        p.snap,
-        p.transform?.apply,
-        p.circle,
-        p.circleImage,
-        q.id,
-      ];
-    });
-    // contract: encargo de la Órbita 3 de matrices (rango-bajo): A = (2 2; 1 1) con î = ĵ = (2, 1) y v móvil desde (1, 0) en ex00.1, .2 y .5; ex00.3 con î y ĵ móviles desde la identidad, snap 1, range 3 y sondas p = (1, 1), q = (1, −1); ex00.4 con î y ĵ móviles desde (2, 1) y (1, 2), snap 0,5, range 3; elipse imagen en ex00.1, .2 y .4
-    expect(shape).toEqual([
-      [
-        ['i=(2, 1) false', 'j=(2, 1) false', 'v=(1, 0) true'],
-        ['matrix', 'stretch'],
-        3,
-        1,
-        ['v'],
-        1,
-        true,
-        'rango-bajo.ex00.1',
-      ],
-      [
-        ['i=(2, 1) false', 'j=(2, 1) false', 'v=(1, 0) true'],
-        ['stretch', 'image'],
-        3,
-        1,
-        ['v'],
-        1,
-        true,
-        'rango-bajo.ex00.2',
-      ],
-      [
-        ['i=(1, 0) true', 'j=(0, 1) true', 'p=(1, 1) false', 'q=(1, -1) false'],
-        ['matrix', 'image'],
-        3,
-        1,
-        ['p', 'q'],
-        undefined,
-        undefined,
-        'rango-bajo.ex00.3',
-      ],
-      [
-        ['i=(2, 1) true', 'j=(1, 2) true', 'p=(1, 1) false', 'q=(1, -1) false'],
-        ['matrix', 'image'],
-        3,
-        0.5,
-        ['p', 'q'],
-        1,
-        true,
-        'rango-bajo.ex00.4',
-      ],
-      [
-        ['i=(2, 1) false', 'j=(2, 1) false', 'v=(1, 0) true'],
-        ['image'],
-        3,
-        1,
-        ['v'],
-        undefined,
-        undefined,
-        'rango-bajo.ex00.5',
-      ],
-    ]);
-  });
+/** ¿Caben las palabras originales, las afinadas y las dianas en la ventana con `state`? */
+const fits = (spec: LoraSpec, state: LabState): boolean => {
+  const { original, afterTuning } = loraScene(spec, state);
+  const all = [
+    ...Object.values(original),
+    ...Object.values(afterTuning),
+    ...Object.values(spec.targets ?? {}),
+  ];
+  return all.every((p) => Math.max(Math.abs(p[0]), Math.abs(p[1])) <= spec.range + 1e-9);
+};
 
-  it('ex00: las metas son alcanzables, no están resueltas al inicio y lo fijo cabe en la vista', () => {
-    for (let k = 0; k < 5; k++) {
-      const q = manip(k);
-      // contract: README «Añadir una pregunta», punto 2: la meta es alcanzable y no se cumple al empezar
-      expect(checkReachable(q), q.id).toEqual([]);
-      expect(checkStartNotSolved(q), q.id).toEqual([]);
-      const outside = q.plane.vectors
-        .filter((v) => !v.movable && Math.max(Math.abs(v.x), Math.abs(v.y)) > q.plane.range)
-        .map((v) => v.id);
-      // contract: revisión de la Órbita 2: un vector fijo fuera de range deja la flecha fuera de la vista
-      expect(outside, q.id).toEqual([]);
-      // contract: README «Matrices en el plano»: como mucho 2 vectores móviles, y con 2, range ≤ 6 y snap ≥ 0,5
-      const movable = q.plane.vectors.filter((v) => v.movable).length;
-      expect(movable).toBeLessThanOrEqual(2);
-      if (movable === 2) {
-        expect(q.plane.range).toBeLessThanOrEqual(6);
-        expect(q.plane.snap).toBeGreaterThanOrEqual(0.5);
-      }
+describe('rango-bajo, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(rangoBajo);
+  const lab = (k: number) => labQuestion(all, `rango-bajo.ex00.${k}`);
+
+  it('las cinco usan lora sobre las reseñas con el mismo modelo congelado, y caben en la ventana', () => {
+    for (const k of [1, 2, 3, 4, 5]) {
+      const spec = loraOf(lab(k));
+      // contract: brief-juego-2.md, «Rango bajo y LoRA»: la escena es lora con RESENAS; mismo W en las cinco (una cosa nueva cada vez)
+      expect([spec.mode ?? 'lora', spec.w, spec.points.length], `ex00.${k}`).toEqual([
+        'lora',
+        { i: [1, 0], j: [0.5, 1] },
+        6,
+      ]);
+      // contract: brief-proyecto-comun.md: las palabras y las dianas caben en la ventana al empezar y resuelto
+      expect(fits(spec, {}), `ex00.${k} al empezar`).toBe(true);
+      expect(fits(spec, lab(k).solved), `ex00.${k} resuelto`).toBe(true);
     }
   });
 
-  it('ex00: las posiciones de las soluciones cumplen las metas y sus cifras se recalculan', () => {
-    // contract: solution de cada pregunta: v sobre la recta de (1, −1) (también (2, −2) y (−1, 1)); v sobre la recta de (1, 1); î = ĵ = (1, 2); î = ĵ = (1,5; 1,5); v con x + y = 2
-    const solved: [number, Record<string, V>][] = [
-      [0, { v: [1, -1] }],
-      [0, { v: [2, -2] }],
-      [0, { v: [-1, 1] }],
-      [1, { v: [1, 1] }],
-      [1, { v: [2, 2] }],
-      [1, { v: [-1, -1] }],
-      [2, { i: [1, 2], j: [1, 2] }],
-      [3, { i: [1.5, 1.5], j: [1.5, 1.5] }],
-      [4, { v: [2, 0] }],
-      [4, { v: [1, 1] }],
-      [4, { v: [0, 2] }],
-      [4, { v: [3, -1] }],
-    ];
-    for (const [k, vectors] of solved) {
-      const q = manip(k);
-      expect(grade(q, { type: 'manipular', vectors }), `${q.id} ${JSON.stringify(vectors)}`).toBe(
-        true,
-      );
+  it('ninguna nace resuelta: con B = (0, 0) la corrección es nula y el modelo afinado es el original', () => {
+    for (const k of [1, 2, 3, 5]) {
+      const start = labAt(lab(k));
+      // contract: cabecera de src/engine/labs/lora.ts: B empieza en (0, 0), ΔW = 0 y ninguna palabra se mueve
+      expect([start.delta_norm, start.moved, start.delta_rank], `ex00.${k}`).toEqual([0, 0, 0]);
+      // contract: encargo de rango-bajo: la corrección nula no cumple ninguna pregunta
+      expect(solves(lab(k)), `ex00.${k}`).toBe(false);
     }
-    const R = (v: V): V => img([2, 1], [2, 1], v);
-    // contract: ex00.1: A = (2 2; 1 1), A·(1, −1) = (0, 0)
-    expect(R([1, -1])).toEqual([0, 0]);
-    // contract: ex00.2: el valor singular no nulo de u wᵀ es |u|·|w| = √5·√2 = √10 ≈ 3,16, y A·(1, 1) = (4, 2)
-    expect(R([1, 1])).toEqual([4, 2]);
-    expect(norm(R([1, 1])) / norm([1, 1])).toBeCloseTo(Math.sqrt(5) * Math.sqrt(2), 12);
-    expect(Math.sqrt(10)).toBeCloseTo(3.16, 2);
-    // contract: ex00.3: ΔW = (1, 2)ᵀ(1, 1) manda p = (1, 1) a (2, 4) y q = (1, −1) a (0, 0)
-    expect(img([1, 2], [1, 2], [1, 1])).toEqual([2, 4]);
-    expect(img([1, 2], [1, 2], [1, -1])).toEqual([0, 0]);
-    // contract: ex00.4: A = (2 1; 1 2) tiene A·(1, 1) = (3, 3) (σ₁ = 3) y A·(1, −1) = (1, −1) (σ₂ = 1); A₁ = 3/2·(1 1; 1 1) conserva 9/(9 + 1) = 90 % de la energía
-    expect(img([2, 1], [1, 2], [1, 1])).toEqual([3, 3]);
-    expect(img([2, 1], [1, 2], [1, -1])).toEqual([1, -1]);
-    expect(img([1.5, 1.5], [1.5, 1.5], [1, 1])).toEqual([3, 3]);
-    expect(9 / (9 + 1)).toBe(0.9);
-    // contract: ex00.5: A·v = (v_x + v_y)(2, 1), así que todo v con v_x + v_y = 2 da (4, 2)
-    for (const v of [
-      [2, 0],
+    // contract: ex00.4 empieza en r = 64, fuera del presupuesto
+    expect(solves(lab(4))).toBe(false);
+  });
+
+  it('ex00.1: el original dice «positiva» a todo; restar intensidad con B·A lo arregla', () => {
+    // contract: enunciado de ex00.1: «dice positiva a las seis reseñas» (acierta 3 de 6)
+    expect(labAt(lab(1)).hits).toBe(3);
+    // contract: solution de ex00.1: B = (−1, 0) con A = (1, 0), y también B = (1, 0) con A = (−1, 1)
+    expect(solves(lab(1), { b1: -1 })).toBe(true);
+    expect(solves(lab(1), { b1: 1, a1: -1, a2: 1 })).toBe(true);
+    // contract: tentadora y mala: con A leyendo la intensidad, B positiva suma más intensidad y sigue diciendo «positiva» a todo
+    expect(labAt(lab(1), { b1: 1 }).hits).toBe(3);
+  });
+
+  it('ex00.2: las dianas piden un desplazamiento de rango 1 y varias parejas B, A llegan', () => {
+    // contract: solution de ex00.2: B = (1, 1) con A = (0; 0,5), (0,5; 0,5) con (0, 1) y (−1, −1) con (0; −0,5)
+    expect(solves(lab(2), { b1: 1, b2: 1, a1: 0, a2: 0.5 })).toBe(true);
+    expect(solves(lab(2), { b1: 0.5, b2: 0.5, a1: 0, a2: 1 })).toBe(true);
+    expect(solves(lab(2), { b1: -1, b2: -1, a1: 0, a2: -0.5 })).toBe(true);
+    // contract: solution de ex00.2: «genial» avanza (1, 1) y «horrible» retrocede lo mismo
+    const scene = loraScene(loraOf(lab(2)), { b1: 1, b2: 1, a1: 0, a2: 0.5 });
+    const shift = (id: string) => scene.afterTuning[id]!.map((v, k) => v - scene.original[id]![k]!);
+    expect([shift('genial'), shift('horrible')]).toEqual([
       [1, 1],
-      [0, 2],
-      [3, -1],
-    ] as V[])
-      expect(R(v)).toEqual([4, 2]);
+      [-1, -1],
+    ]);
+    // contract: enunciado de ex00.2: con A leyendo la intensidad (como empieza), ninguna B lleva las seis a su diana
+    const spec = loraOf(lab(2));
+    const withStartA = gridStates(spec).filter((s) => s.a1 === 1 && s.a2 === 0);
+    expect(withStartA.some((s) => solves(lab(2), s))).toBe(false);
   });
 
-  it('ex00: las posiciones erróneas didácticas no se dan por buenas', () => {
-    // contract: el error didáctico de cada pregunta: la posición de partida, la recta de (1, 1) en lugar de la de (1, −1), el vector nulo (stretch NaN), la perpendicular y la dirección de partida, una sola columna bien, la matriz de partida sin podar y una entrada con otra suma
-    const wrong: [number, Record<string, V>][] = [
-      [0, { v: [1, 0] }],
-      [0, { v: [1, 1] }],
-      [0, { v: [0, 0] }],
-      [1, { v: [1, 0] }],
-      [1, { v: [1, -1] }],
-      [1, { v: [0, 0] }],
-      [2, { i: [1, 0], j: [0, 1] }],
-      [2, { i: [2, 4], j: [0, 0] }],
-      [2, { i: [1, 2], j: [0, 0] }],
-      [3, { i: [2, 1], j: [1, 2] }],
-      [3, { i: [3, 3], j: [0, 0] }],
-      [4, { v: [1, 0] }],
-      [4, { v: [2, 1] }],
-      [4, { v: [0, 0] }],
-    ];
-    for (const [k, vectors] of wrong) {
-      const q = manip(k);
-      expect(grade(q, { type: 'manipular', vectors }), `${q.id} ${JSON.stringify(vectors)}`).toBe(
-        false,
-      );
-    }
-    // contract: ex00.1/ex00.2: stretch de un vector nulo es NaN, que no cumple ninguna meta; stretch (1, 1) = √10 y stretch (1, 0) = √5
-    expect(measure('stretch', ['i', 'j', 'v'], { i: [2, 1], j: [2, 1], v: [0, 0] })).toBeNaN();
-    expect(measure('stretch', ['i', 'j', 'v'], { i: [2, 1], j: [2, 1], v: [1, 0] })).toBeCloseTo(
-      Math.sqrt(5),
-      12,
+  it('ex00.3: con rango 1, dos de seis es el máximo, y solo «malo» y «triste» llegan a la vez', () => {
+    const spec = loraOf(lab(3));
+    const states = gridStates(spec);
+    const onTarget = states.map((s) => labAt(lab(3), s).on_target!);
+    // contract: enunciado de ex00.3 («no hay manera de llevar las seis») y regla 4 de la guía: el máximo, recorriendo la rejilla entera, es 2
+    expect(Math.max(...onTarget)).toBe(2);
+    // contract: explain de ex00.3: la única pareja que llega a la vez es la de la misma recta desde el origen
+    const pairs = new Set(
+      states
+        .filter((s, k) => onTarget[k] === 2)
+        .map((s) => {
+          const scene = loraScene(spec, s);
+          return Object.entries(spec.targets!)
+            .filter(
+              ([id, t]) =>
+                Math.hypot(scene.afterTuning[id]![0] - t[0], scene.afterTuning[id]![1] - t[1]) <
+                1e-6,
+            )
+            .map(([id]) => id)
+            .join(',');
+        }),
     );
+    expect([...pairs]).toEqual(['malo,triste']);
+    // contract: solution de ex00.3: B = (0,5; −0,5) con A = (1, 0) o con A = (0, −1)
+    expect(solves(lab(3), { b1: 0.5, b2: -0.5 })).toBe(true);
+    expect(solves(lab(3), { b1: 0.5, b2: -0.5, a1: 0, a2: -1 })).toBe(true);
+    // contract: tentadora y mala (pista 1): apuntar B como la flecha de «bueno», una positiva, solo lleva esa palabra
+    expect(labAt(lab(3), { b1: 0.5, b2: 0.5, a1: 0.5, a2: 0.5 }).on_target).toBe(1);
+    // contract: solution de ex00.3: el ajuste completo pide ΔW = (0,5 0; 0 0,5), de rango 2
+    expect(
+      labAt({ ...lab(3), lab: { ...spec, mode: 'full', start: [0.5, 0, 0, 0.5] } }).on_target,
+    ).toBe(6);
+  });
+
+  it('ex00.4: el 1 % admite r de 1 a 20; r = 21 ya pasa', () => {
+    // contract: enunciado de ex00.4: empieza fuera del presupuesto (r = 64, un 3,125 %)
+    expect(labAt(lab(4)).saving_pct).toBe(3.125);
+    // contract: solution de ex00.4: r = 16 (0,78 %) y r = 20 (0,98 %) valen; r = 21 (1,03 %) no
+    expect(solves(lab(4), { r: 16 })).toBe(true);
+    expect(solves(lab(4), { r: 20 })).toBe(true);
+    expect(solves(lab(4), { r: 21 })).toBe(false);
+    expect(labAt(lab(4), { r: 16 }).params_lora).toBe(131072);
+    // contract: solution de ex00.4: el 1 % de 16 777 216 son unos 168 000 (pista 2)
+    expect(Math.round(16777216 / 100 / 1000)).toBe(168);
+  });
+
+  it('ex00.5: la solución de ex00.1 acierta pero es demasiado grande; hay correcciones pequeñas que aciertan', () => {
+    // contract: solution de ex00.5: restar toda la intensidad acierta con tamaño 1, demasiado
+    expect(labAt(lab(5), { b1: -1 }).acc).toBe(1);
+    expect(labAt(lab(5), { b1: -1 }).delta_norm).toBe(1);
+    expect(solves(lab(5), { b1: -1 })).toBe(false);
+    // contract: solution de ex00.5: B = (0,5; 0) con A = (−1; 0,5), tamaño 0,56, y B = (−0,5; 0) con A = (1, −1), tamaño 0,71
+    expect(solves(lab(5), { b1: 0.5, a1: -1, a2: 0.5 })).toBe(true);
+    expect(labAt(lab(5), { b1: 0.5, a1: -1, a2: 0.5 }).delta_norm).toBeCloseTo(0.559, 3);
+    expect(solves(lab(5), { b1: -0.5, a1: 1, a2: -1 })).toBe(true);
+    expect(labAt(lab(5), { b1: -0.5, a1: 1, a2: -1 }).delta_norm).toBeCloseTo(0.707, 3);
+    // contract: tentadora y mala (pista 1): quitar solo media intensidad, B = (−0,5; 0) con A = (1, 0), deja «horrible» del lado positivo y «malo» y «triste» sobre la frontera, que el motor no cuenta como acierto (3 de 6)
+    expect(labAt(lab(5), { b1: -0.5 }).hits).toBe(3);
+    expect(solves(lab(5), { b1: -0.5 })).toBe(false);
   });
 });
 
-describe('valores del proyecto rango-bajo: Calcular, hojas y banco', () => {
-  it('ex01: tipos y respuestas de calcular', () => {
-    // contract: encargo de la Órbita 3 de matrices (rango-bajo): vector 2×3 [3, −1, 2, 6, −2, 4]; 36000; opción 1 (k = 2); 2,24 con tol 0,01; 65536
-    expect(ex01!.questions.map((q) => q.type)).toEqual([
-      'vector',
-      'numero',
-      'opcion',
-      'numero',
-      'numero',
-    ]);
+describe('rango-bajo, «Calcular»: las respuestas se recalculan', () => {
+  const [, ex01] = rangoBajo.exercises;
+  const q = (k: number) => ex01!.questions[k - 1]!;
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 3): B = 0 da el modelo original (opción 0); rango máximo r = 8; 8·(11 008 + 4096) / (11 008·4096) en %; 64·16·8192·4 bytes en MB; ex01.5 se conserva (8·(4096 + 4096))
     expect(ex01!.questions.map(answerOf)).toEqual([
-      [[3, -1, 2, 6, -2, 4], 0],
-      [36000, 0],
-      1,
-      [2.24, 0.01],
-      [65536, 0],
+      0,
+      [8, 0],
+      [0.27, 0.01],
+      [32, 0],
+      [8 * (4096 + 4096), 0],
     ]);
-    const q1 = ex01!.questions[0]!;
-    expect(q1.type === 'vector' ? q1.shape : undefined).toEqual([2, 3]);
   });
 
-  it('ex01: las respuestas se recalculan y se dan por buenas', () => {
-    // contract: ex01.1: u vᵀ con u = (1, 2) y v = (3, −1, 2): el elemento (i, j) vale u_i·v_j
-    const u = [1, 2];
-    const v = [3, -1, 2];
-    expect(u.flatMap((a) => v.map((b) => a * b))).toEqual([3, -1, 2, 6, -2, 4]);
-    // contract: ex01.2: 1000×800 con rango 20: 20·(1000 + 800) = 36000 frente a 1000·800 = 800000
-    expect(20 * (1000 + 800)).toBe(36000);
-    expect(1000 * 800).toBe(800000);
-    // contract: ex01.3: σ = 6, 3, 2, 1: cuadrados 36, 9, 4, 1 (total 50); k = 1 conserva 72 % y k = 2 conserva 90 %
-    const sigma = [6, 3, 2, 1];
-    const sq = sigma.map((s) => s * s);
-    const total = sq.reduce((a, b) => a + b, 0);
-    expect(total).toBe(50);
-    const kept = (k: number): number => sq.slice(0, k).reduce((a, b) => a + b, 0) / total;
-    expect(kept(1)).toBe(0.72);
-    expect(kept(2)).toBe(0.9);
-    expect([1, 2, 3, 4].find((k) => kept(k) >= 0.9)).toBe(2);
-    // contract: ex01.3 solution: sin elevar al cuadrado, 9/12 = 75 % y 11/12 ≈ 92 %: saldría k = 3
-    expect((6 + 3) / 12).toBe(0.75);
-    expect((6 + 3 + 2) / 12).toBeGreaterThan(0.9);
-    // contract: ex01.4: error de Frobenius de la aproximación de rango 2: √(2² + 1²) = √5 ≈ 2,24; tamaño total √50 ≈ 7,07; √45 ≈ 6,71
-    expect(Math.sqrt(2 ** 2 + 1 ** 2)).toBeCloseTo(2.24, 2);
-    expect(Math.sqrt(50)).toBeCloseTo(7.07, 2);
-    expect(Math.sqrt(36 + 9)).toBeCloseTo(6.71, 2);
-    // contract: ex01.5: r = 8, d = k = 4096: 8·(4096 + 4096) = 65536 frente a 4096² = 16777216 (256 veces más)
-    expect(8 * (4096 + 4096)).toBe(65536);
-    expect(4096 * 4096).toBe(16777216);
-    expect((4096 * 4096) / 65536).toBe(256);
-    expect(4096 * 4096 * 8).toBe(134217728);
-    // contract: ex01 solution/takeaway: 800000/36000 ≈ 22 y 1000·800·20 = 16000000
-    expect(Math.round(800000 / 36000)).toBe(22);
-    expect(1000 * 800 * 20).toBe(16000000);
-    // contract: cada respuesta de la tabla se da por buena con grade
-    const ok: Answer[] = [
-      { type: 'vector', value: [3, -1, 2, 6, -2, 4] },
-      { type: 'numero', value: 36000 },
-      { type: 'opcion', index: 1 },
-      { type: 'numero', value: 2.24 },
-      { type: 'numero', value: 65536 },
+  it('ex01.1: con B = (0, 0), mover A no mueve ninguna palabra', () => {
+    const one = q(1);
+    if (one.type !== 'opcion' || one.lab?.kind !== 'lora')
+      throw new Error('ex01.1 es opcion con lora');
+    const spec = one.lab;
+    // contract: solution de ex01.1: con B = 0, ΔW = 0 y ninguna palabra se mueve, por mucho que cambie A
+    for (const s of gridStates(spec).filter((x) => x.b1 === 0 && x.b2 === 0)) {
+      expect(loraScene(spec, s).delta.every((v) => v === 0)).toBe(true);
+    }
+    // contract: ex01.1: la opción correcta es la del modelo original
+    expect(one.options[one.correct]).toBe(
+      'Que el modelo afinado empiece siendo exactamente el original',
+    );
+  });
+
+  it('ex01.2: en el laboratorio de rango 1, el rango de la corrección nunca pasa de 1', () => {
+    const two = q(2);
+    if (two.type !== 'numero' || two.lab?.kind !== 'lora')
+      throw new Error('ex01.2 es numero con lora');
+    const spec = two.lab;
+    const ranks = new Set(
+      gridStates(spec).map(
+        (s) =>
+          labAt({ ...labQuestion(projectQuestions(rangoBajo), 'rango-bajo.ex00.1'), lab: spec }, s)
+            .delta_rank,
+      ),
+    );
+    // contract: solution de ex01.2: con r = 1, el rango de la corrección vale 0 o 1, nunca 2
+    expect([...ranks].sort()).toEqual([0, 1]);
+  });
+
+  it('ex01.3 y ex01.4: las cifras de las soluciones', () => {
+    // contract: solution de ex01.3: 8·15 104 = 120 832; 11 008·4096 = 45 088 768; 0,27 %; unas 373 veces menos
+    expect(8 * (11008 + 4096)).toBe(120832);
+    expect(11008 * 4096).toBe(45088768);
+    expect((100 * 120832) / 45088768).toBeCloseTo(0.27, 2);
+    expect(Math.round(45088768 / 120832)).toBe(373);
+    // contract: solution de ex01.4: 16·8192 = 131 072 por matriz; ×64 = 8 388 608; ×4 = 33 554 432 bytes = 32 MB; ajuste completo 4096 MB, 128 veces más
+    expect(16 * 8192).toBe(131072);
+    expect(64 * 131072).toBe(8388608);
+    expect(64 * 131072 * 4).toBe(33554432);
+    expect(33554432 / 1048576).toBe(32);
+    expect((64 * 4096 * 4096 * 4) / 1048576).toBe(4096);
+    expect(4096 / 32).toBe(128);
+  });
+
+  it('ex01.3 y ex01.4: el laboratorio cuenta la capa del enunciado', () => {
+    const all = projectQuestions(rangoBajo);
+    const host = labQuestion(all, 'rango-bajo.ex00.4');
+    const three = q(3);
+    const four = q(4);
+    if (three.type !== 'numero' || three.lab?.kind !== 'lora')
+      throw new Error('ex01.3 es numero con lora');
+    if (four.type !== 'numero' || four.lab?.kind !== 'lora')
+      throw new Error('ex01.4 es numero con lora');
+    // contract: enunciado de ex01.3: W de 11 008 × 4096 y r = 8
+    expect(labAt({ ...host, lab: three.lab }, { r: 8 }).params_lora).toBe(120832);
+    expect(labAt({ ...host, lab: three.lab }, { r: 8 }).saving_pct).toBeCloseTo(0.268, 3);
+    // contract: enunciado de ex01.4: una matriz de 4096 × 4096 con r = 16
+    expect(labAt({ ...host, lab: four.lab }, { r: 16 }).params_lora).toBe(131072);
+  });
+
+  it('los mandos de los laboratorios de «Calcular» quedan libres para comprobar', () => {
+    for (const k of [1, 2, 3, 4]) {
+      const x = q(k);
+      if (!('lab' in x) || !x.lab) throw new Error(`ex01.${k} lleva lab`);
+      // contract: guía de contenido 2026-11-10: en «Calcular» el laboratorio es para explorar, con sus mandos
+      expect(labControls(x.lab).length, `ex01.${k}`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('banco de examen 3 del proyecto rango-bajo', () => {
+  it('tres entradas fijas del proyecto rango-bajo, con ids examen-3.* y cumpliendo el esquema', () => {
+    // contract: petición de Oliver 2026-11-10 (brief-proyecto-comun.md): un laboratorio con otra escena, una cuenta del estilo nuevo y la de código, que se conserva
+    expect(examen3RangoBajo.map((e) => e.project)).toEqual([
+      'rango-bajo',
+      'rango-bajo',
+      'rango-bajo',
+    ]);
+    expect(examen3RangoBajo.map((e) => [e.question.id, e.question.type])).toEqual([
+      ['examen-3.lora-mascotas', 'laboratorio'],
+      ['examen-3.salida-afinada', 'vector'],
+      ['examen-3.mejor-rango-k', 'codigo'],
+    ]);
+    for (const entry of examen3RangoBajo) {
+      // contract: bankEntrySchema es el esquema de una entrada del banco
+      expect(bankEntrySchema.safeParse(entry).success, entry.question.id).toBe(true);
+    }
+    // contract: encargo de la Órbita 3 de matrices: los ids reservados de las entradas generadas no se usan, y no chocan con los del proyecto
+    const reserved = [
+      'examen-3.valores-singulares',
+      'examen-3.parametros-lora',
+      'examen-3.puntuacion-atencion',
     ];
-    ex01!.questions.forEach((q, k) => {
-      if (q.type === 'codigo') throw new Error('ex01 no tiene código');
-      expect(grade(q, ok[k]!), q.id).toBe(true);
-    });
+    const ids = examen3RangoBajo.map((e) => e.question.id);
+    expect(ids.filter((id) => reserved.includes(id))).toEqual([]);
+    const projectIds = new Set(projectQuestions(rangoBajo).map((q) => q.id));
+    expect(ids.filter((id) => projectIds.has(id))).toEqual([]);
   });
 
+  it('examen-3.lora-mascotas: otra escena, que nace sin resolver y admite varias correcciones', () => {
+    const mascotas = labQuestion(bankQuestions, 'examen-3.lora-mascotas');
+    const spec = loraOf(mascotas);
+    // contract: brief-proyecto-comun.md: el laboratorio del banco usa otros datos que el proyecto (mide transferencia)
+    expect(spec.axes).toEqual(['tamaño', 'domesticidad']);
+    // contract: enunciado: con la corrección nula la neurona dice «mascota» también al tigre y al oso (acierta 4 de 6)
+    const start = labAt(mascotas);
+    expect([start.hits, start.delta_norm]).toEqual([4, 0]);
+    expect(solves(mascotas)).toBe(false);
+    // contract: solution: B = (1, 0) con A = (−1, 1), y B = (2, 0) con A = (−0,5; 0,5)
+    expect(solves(mascotas, { b1: 1, a1: -1, a2: 1 })).toBe(true);
+    expect(solves(mascotas, { b1: 2, a1: -0.5, a2: 0.5 })).toBe(true);
+    // contract: tentadora y mala (solution): restar solo el tamaño, la respuesta de rango-bajo.ex00.1, deja al perro en el umbral y al hámster debajo (4 de 6)
+    expect(labAt(mascotas, { b1: -1 }).hits).toBe(4);
+    expect(solves(mascotas, { b1: -1 })).toBe(false);
+    // contract: hints: empujar en vertical no sirve, la neurona mira la primera salida
+    expect(solves(mascotas, { b2: 1, a1: -1, a2: 1 })).toBe(false);
+    // contract: brief-proyecto-comun.md: las palabras caben en la ventana al empezar y resuelto
+    expect(fits(spec, {})).toBe(true);
+    expect(fits(spec, mascotas.solved)).toBe(true);
+  });
+
+  it('examen-3.salida-afinada: Wx + B·(A·x) para «feliz»', () => {
+    const q = bankQuestions[1]!;
+    // contract: solution: Wx = (2,75; 1,5), A·x = 2,5, B·2,5 = (2,5; −1,25): (5,25; 0,25)
+    const x = [2, 1.5];
+    const wx = [x[0]! + 0.5 * x[1]!, x[1]!];
+    const ax = 0.5 * x[0]! + 1 * x[1]!;
+    expect([wx, ax]).toEqual([[2.75, 1.5], 2.5]);
+    expect([wx[0]! + 1 * ax, wx[1]! - 0.5 * ax]).toEqual([5.25, 0.25]);
+    expect(answerOf(q)).toEqual([[5.25, 0.25], 0]);
+  });
+});
+
+describe('rango-bajo: hojas', () => {
   it('hojas: línea errónea de cada una y formato', () => {
     // contract: encargo de la Órbita 3 de matrices (rango-bajo): código con Vt[:, :k] (línea 3), recuento de LoRA que multiplica d·k·r (línea 3) y razonamiento correcto (null)
     expect(rangoBajo.sheets.map(answerOf)).toEqual([2, 2, null]);
@@ -378,44 +412,6 @@ describe('valores del proyecto rango-bajo: Calcular, hojas y banco', () => {
     expect(sq.reduce((a, b) => a + b, 0)).toBe(100);
     expect((64 + 16) / 100).toBe(0.8);
     expect((16 + 4) / 100).toBe(0.2);
-  });
-
-  it('banco: tres entradas fijas del proyecto rango-bajo, con ids examen-3.* y cumpliendo el esquema', () => {
-    // contract: encargo de la Órbita 3 de matrices (fases A y B): `{ project: 'rango-bajo', question }` con ids examen-3.lora-b-cero (opción), examen-3.error-peor-direccion (número) y examen-3.mejor-rango-k (código)
-    expect(examen3RangoBajo.map((e) => e.project)).toEqual([
-      'rango-bajo',
-      'rango-bajo',
-      'rango-bajo',
-    ]);
-    expect(examen3RangoBajo.map((e) => [e.question.id, e.question.type])).toEqual([
-      ['examen-3.lora-b-cero', 'opcion'],
-      ['examen-3.error-peor-direccion', 'numero'],
-      ['examen-3.mejor-rango-k', 'codigo'],
-    ]);
-    for (const entry of examen3RangoBajo) {
-      // contract: bankEntrySchema es el esquema de una entrada del banco
-      expect(bankEntrySchema.safeParse(entry).success, entry.question.id).toBe(true);
-    }
-    // contract: encargo de la Órbita 3 de matrices: los ids reservados de las entradas generadas no se usan, y no chocan con los del proyecto
-    const reserved = [
-      'examen-3.valores-singulares',
-      'examen-3.parametros-lora',
-      'examen-3.puntuacion-atencion',
-    ];
-    const ids = examen3RangoBajo.map((e) => e.question.id);
-    expect(ids.filter((id) => reserved.includes(id))).toEqual([]);
-    const projectIds = new Set(projectQuestions(rangoBajo).map((q) => q.id));
-    expect(ids.filter((id) => projectIds.has(id))).toEqual([]);
-  });
-
-  it('banco: respuestas', () => {
-    const [b, e] = examen3RangoBajo.map((x) => x.question);
-    // contract: examen-3.lora-b-cero: la opción correcta es la 1, ΔW = 0 al empezar
-    expect(b!.type === 'opcion' ? b!.correct : -1).toBe(1);
-    // contract: examen-3.error-peor-direccion: σ = 9, 5, 2, 1 y rango 2: el error en la peor dirección es σ₃ = 2; el de Frobenius sería √5 ≈ 2,24
-    expect(e!.type === 'numero' ? [e!.answer, e!.tol] : []).toEqual([2, 0]);
-    expect([9, 5, 2, 1][2]).toBe(2);
-    expect(Math.sqrt(2 ** 2 + 1 ** 2)).toBeCloseTo(2.24, 2);
   });
 });
 

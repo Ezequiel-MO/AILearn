@@ -1,4 +1,5 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES } from './datos';
 
 /**
  * Entradas fijas del banco de examen de la Órbita 3 para el proyecto «Rango bajo y LoRA». La entrada
@@ -9,43 +10,56 @@ export const examen3RangoBajo: BankEntry[] = [
   {
     project: 'rango-bajo',
     question: {
-      id: 'examen-3.lora-b-cero',
-      type: 'opcion',
+      id: 'examen-3.lora-mascotas',
+      type: 'laboratorio',
       prompt:
-        'En LoRA, la actualización $\\Delta W=BA$ se inicializa con $B$ toda de ceros y $A$ con números aleatorios. ¿Para qué sirve empezar con $B$ a cero?',
+        'Seis animales con dos rasgos, **tamaño** y **domesticidad**. El modelo original, congelado, pone en su primera salida el tamaño y media domesticidad. La neurona de la tarea nueva mira esa salida y solo dice «mascota» si pasa de $1$: ahora se lo dice también al tigre y al oso.\n\nEntrena la corrección $B\\cdot A$ hasta que acierte con los seis.',
       hints: [
-        'Calcula $BA$ al empezar el entrenamiento, con $B=0$. ¿Qué matriz sale?',
-        'Piensa en qué hace el modelo afinado, $W+BA$, antes de dar el primer paso de entrenamiento.',
+        'El tamaño no distingue un oso de un perro. Mira qué rasgo sí los distingue y cuánto tiene que pesar para que el hámster, pequeño y doméstico, pase el umbral.',
+        'Deja que $B$ empuje en horizontal y que $A$ reste tamaño y sume domesticidad: la primera salida tiene que pasar a medir solo la domesticidad, con peso de sobra.',
       ],
       explain:
-        'Con $B=0$, el producto $BA$ vale $0$ sea cual sea $A$, y la suma $W+BA$ es exactamente $W$. El entrenamiento parte así del modelo original, sin perturbarlo.',
+        'La corrección suma a cada animal $B$ multiplicado por $A\\cdot x$. Para acertar, la primera salida tiene que perder el tamaño y ganar domesticidad: con media domesticidad, el perro se queda justo en el umbral y el hámster no llega.',
       solution:
-        'Para que $\\Delta W=BA$ valga $0$ al empezar: el modelo afinado es idéntico al original y el entrenamiento arranca desde un modelo que ya funciona. $A$ sí se entrena (en cuanto $B$ deja de ser $0$ recibe cambios), el rango de $BA$ crece con el entrenamiento hasta $r$ como mucho, y $BA$ se puede fusionar con $W$ al terminar con cualquier inicialización.',
-      options: [
-        'Para que $A$ no se entrene y solo se entrene $B$',
-        'Para que $\\Delta W$ valga $0$ al empezar y el modelo afinado parta idéntico al original',
-        'Para que $BA$ tenga rango $0$ durante todo el entrenamiento',
-        'Para que $BA$ se pueda fusionar con $W$ al terminar, cosa que con otra inicialización no se podría',
+        'Con $B=(1, 0)$ y $A=(-1, 1)$, la primera salida es $1{,}5\\cdot$domesticidad: «hámster» llega a $2{,}25$ y los salvajes quedan por debajo de $-2$. Vale también $B=(2, 0)$ con $A=(-0{,}5;\\ 0{,}5)$. Restar solo el tamaño, con $B=(-1, 0)$ y $A=(1, 0)$, deja $0{,}5\\cdot$domesticidad: el perro queda en el umbral y el hámster, debajo.',
+      lab: {
+        kind: 'lora',
+        range: 5,
+        ...ANIMALES,
+        w: { i: [1, 0], j: [0.5, 1] },
+        limit: 2,
+        step: 0.5,
+        readout: { w: [1, 0], b: -1 },
+        readouts: ['moved'],
+      },
+      goals: [
+        {
+          metric: 'acc',
+          op: 'gte',
+          target: 1,
+          label: 'Aciertos de la neurona siguiente',
+          format: 'percent',
+        },
       ],
-      correct: 1,
+      solved: { b1: 1, a1: -1, a2: 1 },
     },
   },
   {
     project: 'rango-bajo',
     question: {
-      id: 'examen-3.error-peor-direccion',
-      type: 'numero',
+      id: 'examen-3.salida-afinada',
+      type: 'vector',
       prompt:
-        'Una matriz $A$ tiene valores singulares $9$, $5$, $2$ y $1$, y se aproxima por su mejor matriz de rango $2$, $A_{2}$. Para un vector de entrada de longitud $1$, ¿cuál es lo máximo que puede diferir la salida de $A$ de la de $A_{2}$, es decir, el mayor valor de $|(A-A_{2})\\,x|$?',
+        'Una capa congelada tiene $W=\\begin{pmatrix}1&0{,}5\\\\0&1\\end{pmatrix}$, y LoRA le suma $BA$ con la columna $B=(1;\\ -0{,}5)$ y la fila $A=(0{,}5;\\ 1)$. Le llega «feliz», con intensidad $2$ y tono $1{,}5$. Sin construir $W+BA$, calcula su salida afinada como se hace al entrenar: $Wx+B\\,(A\\cdot x)$.',
       hints: [
-        'La diferencia $A-A_{2}$ conserva solo las piezas que se descartaron, con sus mismos valores singulares.',
-        'El mayor estiramiento de una matriz es su valor singular mayor.',
+        'Primero $Wx$, lo que haría el modelo original. Después $A\\cdot x$, que es un solo número.',
+        'Multiplica $B$ por ese número y súmalo a $Wx$.',
       ],
       explain:
-        'En la peor dirección, el error de la mejor aproximación de rango $k$ es el primer valor singular que se descarta, $\\sigma_{k+1}$. No es la raíz de la suma de los cuadrados descartados: esa cuenta mide el error total, no el de una dirección.',
+        'Al entrenar no se construye $W+BA$: se calcula $Wx$ por un lado y $B\\,(A\\cdot x)$ por otro, que con rango bajo son muy pocas cuentas, y se suman.',
       solution:
-        'La diferencia $A-A_{2}$ solo tiene las piezas descartadas, con valores singulares $2$ y $1$, y su mayor estiramiento es $2$. Es $\\sigma_{3}=2$. Si te sale $1$ has tomado el último valor singular; si sale $\\sqrt{5}\\approx 2{,}24$, el error de Frobenius, que suma las dos piezas.',
-      answer: 2,
+        '$Wx=(2+0{,}75;\\ 1{,}5)=(2{,}75;\\ 1{,}5)$. $A\\cdot x=0{,}5\\cdot 2+1\\cdot 1{,}5=2{,}5$, y $B\\cdot 2{,}5=(2{,}5;\\ -1{,}25)$. La salida afinada es $(5{,}25;\\ 0{,}25)$. Con $(W+BA)\\,x$ sale lo mismo: el orden de las cuentas no cambia el resultado, solo el coste.',
+      answer: [5.25, 0.25],
       tol: 0,
     },
   },
