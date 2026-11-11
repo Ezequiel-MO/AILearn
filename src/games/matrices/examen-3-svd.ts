@@ -1,7 +1,21 @@
 import type { BankEntry } from '../../content/schema';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 3 para el proyecto «SVD». La entrada generada
+ * Un icono de un corazón de 6×7 píxeles, de rango 4, para el laboratorio del banco: otra imagen que
+ * la cara del proyecto. Sus σ segundo y tercero son iguales (√2), así que valen dos parejas.
+ */
+export const CORAZON_6X7: number[][] = [
+  [0, 1, 1, 0, 1, 1, 0],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [0, 1, 1, 1, 1, 1, 0],
+  [0, 0, 1, 1, 1, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0],
+];
+
+/**
+ * Entradas fijas del banco de examen de la Órbita 3 para el proyecto «SVD»: un laboratorio (elegir
+ * capas de otra imagen), una cuenta de números guardados y una de código. La entrada generada
  * (`examen-3.valores-singulares`) la añade otro paso. Ids: `examen-3.<tema>`, únicos en todo el juego
  * (también frente a las preguntas de proyecto).
  */
@@ -9,43 +23,53 @@ export const examen3Svd: BankEntry[] = [
   {
     project: 'svd',
     question: {
-      id: 'examen-3.svd-sin-autovalores',
-      type: 'opcion',
+      id: 'examen-3.capas-del-corazon',
+      type: 'laboratorio',
       prompt:
-        'Una capa gira cada flecha $90^{\\circ}$ y además la dobla: $A=\\begin{pmatrix}0&-2\\\\2&0\\end{pmatrix}$. No tiene autovalores reales, porque ninguna flecha conserva su dirección. ¿Qué se puede decir de su descomposición en valores singulares $A=U\\Sigma V^{T}$?',
+        'Un icono de un corazón de 6×7 píxeles, partido en las capas de su SVD. Cada capa tiene su interruptor, y la «parte conservada» es cuánta imagen se llevan las capas encendidas.\n\nEnciende como mucho dos capas y conserva al menos el 90 % del corazón.',
       hints: [
-        '¿Qué le pasa a la circunferencia unidad? Una matriz así gira y dobla, pero no deforma.',
-        'Los valores singulares salen de $A^{T}A$, que es simétrica aunque $A$ no lo sea.',
+        'Mira los σ del panel: lo que lleva cada capa va con el cuadrado de su σ.',
+        'Enciende la capa de σ más grande y busca qué otra le basta para llegar.',
       ],
       explain:
-        'La descomposición en valores singulares existe para toda matriz, cuadrada o no, tenga o no autovectores reales: se apoya en $A^{T}A$, que siempre es simétrica. Los autovalores de $A$ y sus valores singulares son cosas distintas.',
+        'La parte conservada es la suma de los $\\sigma^{2}$ de las capas encendidas entre la suma de todos. La primera sola lleva el 83 %: ninguna pareja sin ella llega.',
       solution:
-        'Existe, como en toda matriz. $A^{T}A=\\begin{pmatrix}4&0\\\\0&4\\end{pmatrix}$ tiene dos autovalores iguales a $4$, así que $\\sigma_1=\\sigma_2=2$: la circunferencia unidad se convierte en una circunferencia de radio $2$. $\\Sigma=2I$ solo estira, y el giro de $90^{\\circ}$ queda en los factores que giran, $U$ y $V^{T}$. Los valores singulares son siempre reales y no negativos, haya o no autovalores reales.',
-      options: [
-        'No existe: sin autovalores reales no hay descomposición posible',
-        'Existe, como en toda matriz: los dos valores singulares valen 2, y el giro queda en los factores que giran',
-        'Existe solo si la matriz es simétrica, y esta no lo es',
-        'Existe, pero con valores singulares complejos, porque los autovalores no son reales',
+        'La capa 1 con la 2 o con la 3: las dos tienen $\\sigma=\\sqrt{2}$ y cualquiera de ellas lleva el total al 90,6 %. La 1 con la 4 se queda en el 85 %, y la 2 con la 3, en el 15 %.',
+      lab: {
+        kind: 'compresion',
+        mode: 'pick',
+        rows: CORAZON_6X7,
+        caption: 'Un corazón de 6×7 píxeles',
+      },
+      goals: [
+        {
+          metric: 'kept',
+          op: 'gte',
+          target: 0.9,
+          label: 'Parte del corazón conservada',
+          format: 'percent',
+        },
+        { metric: 'k', op: 'lte', target: 2, label: 'Capas encendidas', format: 'integer' },
       ],
-      correct: 1,
+      solved: { c1: 1, c2: 1 },
     },
   },
   {
     project: 'svd',
     question: {
-      id: 'examen-3.numero-de-condicion',
+      id: 'examen-3.numeros-rango-k',
       type: 'numero',
       prompt:
-        'Para una capa $W$, la matriz $W^{T}W$ tiene autovalores $36$ y $4$. El **número de condición** de $W$ es $\\sigma_1/\\sigma_2$, el cociente entre su mayor y su menor valor singular: dice cuán desigual es el estiramiento. ¿Cuánto vale?',
+        'En el GPT-2 pequeño, la capa que ensancha los vectores en cada bloque tiene una matriz de $3072\\times 768$. Se aproxima con sus $k=8$ primeras capas de la SVD.\n\n¿Cuántos números hay que guardar?',
       hints: [
-        'Los valores singulares son las raíces cuadradas de los autovalores de $W^{T}W$.',
-        'Haz el cociente después de sacar las raíces, no antes.',
+        'Cada capa guarda una columna de 3072 números, una fila de 768 y su σ.',
+        'Multiplica lo que cuesta una capa por las 8 capas.',
       ],
       explain:
-        'Los autovalores de $W^{T}W$ son los cuadrados de los valores singulares, así que hay que sacar la raíz antes de dividir. Dividir los autovalores sin más da el cuadrado del número de condición.',
+        'Con $k$ capas se guardan $k\\cdot(m+n+1)$ números en vez de $m\\cdot n$: lo que cuesta cada capa crece con la suma de filas y columnas.',
       solution:
-        '$\\sigma_1=\\sqrt{36}=6$ y $\\sigma_2=\\sqrt{4}=2$, luego $\\sigma_1/\\sigma_2=3$. Si te sale $9$, has dividido los autovalores sin sacar la raíz.',
-      answer: 3,
+        '$8\\cdot(3072+768+1)=8\\cdot 3841=30\\,728$ números, frente a $3072\\cdot 768=2\\,359\\,296$: alrededor del 1,3 %. Si olvidas los σ sale $30\\,720$.',
+      answer: 30728,
       tol: 0,
     },
   },

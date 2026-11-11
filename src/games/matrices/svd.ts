@@ -1,38 +1,76 @@
-import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { svdWarmup } from './svd.calentamiento';
-import { transformPlane, type TransformPlaneOptions } from './plane';
+import { CARA_8X8, PESOS_4X6, PESOS_4X6_ROTULOS, capaLab, type Cloud } from './datos';
 
-/** Un vector del plano. */
-const vec = (id: string, x: number, y: number, movable: boolean): PlaneVector => ({
-  id,
-  label: id,
-  x,
-  y,
-  movable,
-});
+/** El error de la aproximación: cuánto de la tabla se queda fuera de las capas que se suman. */
+const ERROR = (target: number) =>
+  ({
+    metric: 'error',
+    op: 'lte',
+    target,
+    label: 'Error de la aproximación',
+    format: 'percent',
+  }) as const;
 
-/** Plano de la SVD: la matriz A fija en las columnas î y ĵ y la elipse imagen de la circunferencia unidad. */
-const svdPlane = (o: TransformPlaneOptions): PlaneSpec => ({
-  ...transformPlane(o),
-  circle: 1,
-  circleImage: true,
-});
+/** Los números que cuesta guardar las capas que se suman. */
+const GUARDADOS = (target: number) =>
+  ({
+    metric: 'stored',
+    op: 'lte',
+    target,
+    label: 'Números guardados',
+    format: 'integer',
+  }) as const;
 
-/** Como `svdPlane`, pero con ĵ móvil y î fija. */
-const svdPlaneJMovable = (o: TransformPlaneOptions): PlaneSpec => {
-  const plane = svdPlane(o);
-  return {
-    ...plane,
-    vectors: plane.vectors.map((v) => (v.id === 'j' ? { ...v, movable: true } : v)),
-  };
+/**
+ * Pesos de una capa de 4×4 con valores singulares 4, 2, 1 y 1: las columnas de una matriz de Hadamard
+ * (divididas entre 2, para que tengan longitud 1) multiplicadas por esos cuatro números.
+ */
+export const PESOS_4X4_HADAMARD: number[][] = [
+  [2, 1, 0.5, 0.5],
+  [2, -1, 0.5, -0.5],
+  [2, 1, -0.5, -0.5],
+  [2, -1, -0.5, 0.5],
+];
+
+/**
+ * Unas rayas de 6×6 (la fila (0,5; 1; 1; 0,5; 0,5; 1) repetida con fuerza 0,3; 0,6; 0,9; 0,9; 0,6 y
+ * 0,3: rango 1) con ruido de ±0,05 escrito a mano. Un σ grande y cinco pequeños.
+ */
+export const RAYAS_CON_RUIDO: number[][] = [
+  [0.2, 0.3, 0.25, 0.1, 0.2, 0.35],
+  [0.25, 0.65, 0.55, 0.35, 0.25, 0.6],
+  [0.5, 0.85, 0.95, 0.4, 0.5, 0.9],
+  [0.4, 0.95, 0.85, 0.5, 0.4, 0.85],
+  [0.35, 0.55, 0.65, 0.25, 0.35, 0.6],
+  [0.1, 0.35, 0.3, 0.2, 0.1, 0.25],
+];
+
+/**
+ * Cuatro reseñas cortas, de dos en dos a la misma distancia del origen: «genial» y «horrible» miden
+ * √2, «bueno» y «malo», la mitad. La capa de ex00.4 las alarga de forma muy distinta.
+ */
+export const RESENAS_CORTAS: Cloud = {
+  points: [
+    { id: 'genial', label: 'genial', x: 1, y: 1, group: 1 },
+    { id: 'bueno', label: 'bueno', x: 0.5, y: 0.5, group: 1 },
+    { id: 'horrible', label: 'horrible', x: 1, y: -1, group: 0 },
+    { id: 'malo', label: 'malo', x: 0.5, y: -0.5, group: 0 },
+  ],
+  groups: ['negativa', 'positiva'],
+  axes: ['intensidad', 'tono'],
 };
 
-/** Primer proyecto de la Órbita 3 de matrices: la descomposición en valores singulares (SVD). */
+/**
+ * Primer proyecto de la Órbita 3 de matrices: la descomposición en valores singulares (SVD). Toda tabla
+ * de números (una imagen, los pesos de una capa) es una suma de capas de rango 1 ordenadas de más a
+ * menos importantes; quedarse con las primeras guarda mucho menos y pierde poco.
+ */
 export const svd: Project = {
   id: 'svd',
   name: 'SVD',
-  sub: 'Girar, estirar, girar',
+  sub: 'Capas de más a menos importantes',
   bigPicture: {
     parts: ['compress', 'linear'],
     text: 'Toda matriz se puede ver como un giro, un estirado y otro giro: es la SVD. Con ella se ve cuántas direcciones importan de verdad en una matriz de pesos y cuáles aportan poco. Aquí lo ves con transformaciones de dos dimensiones; la misma descomposición sirve para aproximar matrices grandes con pocas direcciones.',
@@ -44,154 +82,164 @@ export const svd: Project = {
       questions: [
         {
           id: 'svd.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Una capa de red neuronal es una matriz, y muchas giran las flechas sin dejar ninguna dirección propia. Aun así, una pregunta sigue en pie: cuál es la dirección que más alarga. Ese factor, el mayor **valor singular** $\\sigma_1$, es lo máximo que la capa puede amplificar una entrada, y se mide para vigilar que el entrenamiento no se desboque.',
-            aim: 'Vas a mover $v$ hasta dar con la dirección que esta matriz estira más, guiándote por la lectura del estiramiento y por la forma de la elipse.',
+            why: 'Cualquier tabla de números, una foto o los pesos de una capa, se puede escribir como una suma de capas sencillas ordenadas de la que más aporta a la que menos. Es la descomposición en valores singulares, la SVD.',
+            aim: 'Vas a sumar capas de una cara de 8×8 píxeles hasta que se reconozca, sin guardar más números que la propia imagen.',
             takeaway:
-              'La dirección de máximo estiramiento es la recta de $(1, 1)$, que $A$ manda a $(4, 0)$, y su factor es $\\sigma_1=2\\sqrt{2}\\approx 2{,}83$. Esta matriz no tiene autovalores reales y aun así siempre hay una dirección que más alarga: la **descomposición en valores singulares** existe para toda matriz.',
+              'Las primeras capas llevan casi toda la imagen: con 2 de las 4 la cara ya se reconoce. Cada capa cuesta una columna, una fila y un número, así que comprimir es quedarse con pocas.',
           },
           prompt:
-            'Esta matriz gira todas las flechas: $A=\\begin{pmatrix}2&2\\\\-1&1\\end{pmatrix}$, con $\\hat{\\imath}=(2, -1)$ y $\\hat{\\jmath}=(2, 1)$. No tiene autovalores reales ($\\lambda^{2}-3\\lambda+4=0$ no tiene solución real), así que ninguna dirección se conserva. Pero la elipse, imagen de la circunferencia unidad, tiene un eje largo.\n\nLa lectura $|A\\,v|\\,/\\,|v|$ del panel es **cuánto estira $A$ la dirección de $v$**, y no depende de la longitud de $v$. Mueve $v$, que parte de $(1, 0)$, hasta que valga **$2{,}83$**, el mayor estiramiento posible.',
+            'Una imagen es una tabla de números: esta cara de 8×8 píxeles son 64. La SVD la parte en capas, cada una una columna por una fila, ordenadas de más a menos importantes. Con una sola capa la cara no se reconoce.\n\nSuma capas hasta que se reconozca, sin guardar más números que la imagen entera.',
           hints: [
-            'Prueba $v=(1, 0)$ y $v=(0, 1)$ y mira la lectura. Después busca la dirección que queda entre las dos.',
-            'El mayor estiramiento está hacia donde la elipse llega más lejos del centro: apunta $v$ al extremo de su eje largo.',
+            'Mira la aproximación junto a la original: con una capa solo queda un borrón. Cada capa suma detalle y cuesta una columna de 8 números, una fila de 8 y su σ.',
+            'Sube el deslizador de una en una. Para en cuanto el error baje del límite, antes de que los números guardados pasen de los 64 de la imagen.',
           ],
           explain:
-            'El estiramiento depende de la dirección de $v$, no de su longitud. Que no haya autovectores reales no impide que una dirección se estire más que las demás: la elipse siempre tiene un eje más largo.',
+            'Una capa guarda 8 + 8 + 1 = 17 números, y $k$ capas, $17\\,k$. El error mide qué parte de la imagen se queda fuera de la suma: baja con cada capa, y mucho más con las primeras, porque la SVD las ordena por lo que aportan.',
           solution:
-            'Sirve cualquier $v$ sobre la recta de $(1, 1)$: $(1, 1)$, $(2, 2)$ o $(-1, -1)$. Con $v=(1, 1)$, $A\\,v=(4, 0)$, y $\\frac{|(4, 0)|}{|(1, 1)|}=\\frac{4}{\\sqrt{2}}=2\\sqrt{2}\\approx 2{,}83$. Ese es el **valor singular** mayor, $\\sigma_1$, y $v$ es la dirección de entrada que lo da. Con $v=(1, 0)$ el estiramiento es solo $\\sqrt{5}\\approx 2{,}24$.',
-          plane: svdPlane({
-            i: [2, -1],
-            j: [2, 1],
-            extra: [vec('v', 1, 0, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'stretch'],
-            range: 4,
-          }),
-          goals: [{ metric: 'stretch', of: ['i', 'j', 'v'], target: 2.83, tol: 0.01 }],
+            'Valen 2 o 3 capas. Con 2 el error baja al 19 % y se guardan 34 números, poco más de la mitad de 64. Con 3, al 7,5 % con 51 números. Con 4 la cara sale exacta, pero cuesta 68 números, más que la imagen: la compresión solo compensa con pocas capas.',
+          lab: {
+            kind: 'compresion',
+            rows: CARA_8X8,
+            caption: 'Una cara de 8×8 píxeles',
+            start: 1,
+          },
+          goals: [ERROR(0.25), GUARDADOS(64)],
+          solved: { k: 2 },
         },
         {
           id: 'svd.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Los valores singulares pequeños son las direcciones que una capa casi borra: lo que entra por ahí sale apagado, y si una señal útil va por ahí, el modelo apenas la ve. Por eso importa conocer también el estiramiento **mínimo**, $\\sigma_2$, y saber en qué dirección de entrada se da.',
-            aim: 'Vas a buscar, con la misma matriz, la dirección que menos estira, y a fijarte en cómo cae respecto de la que más estira.',
+            why: 'Las matrices de pesos de una red no siempre usan todo su tamaño: a menudo sus filas se parecen y la información real cabe en pocas capas. Detectarlo permite guardar la capa entera con menos números.',
+            aim: 'Vas a buscar cuántas capas de la SVD reproducen sin pérdida una tabla de pesos con signo, gastando menos números que la tabla.',
             takeaway:
-              'El estiramiento mínimo es $\\sigma_2=\\sqrt{2}\\approx 1{,}41$, en la recta de $(1, -1)$, perpendicular a la del máximo. Además $\\sigma_1\\sigma_2=4=|\\det A|$: la capa multiplica las áreas por $4$. Una capa con un $\\sigma$ casi nulo aplasta una dirección del espacio y pierde lo que había en ella.',
+              'El rango de una tabla es cuántas capas tiene de verdad: a partir de ahí los σ valen 0 y sumar más capas solo gasta memoria. Una capa de rango bajo se guarda entera con pocos números.',
           },
           prompt:
-            'Misma matriz $A=\\begin{pmatrix}2&2\\\\-1&1\\end{pmatrix}$, con $\\hat{\\imath}=(2, -1)$ y $\\hat{\\jmath}=(2, 1)$, y $v$ vuelve a partir de $(1, 0)$. Ahora busca la dirección que $A$ **menos** estira: mueve $v$ hasta que la lectura $|A\\,v|\\,/\\,|v|$ valga **$1{,}41$**. Fíjate en cómo queda esa dirección respecto de la del mayor estiramiento, y hacia dónde cae $A\\,v$.',
+            'Ahora no es una foto: son los pesos de una capa, con signo, de 6 rasgos de entrada a 4 palabras de salida. Los colores dicen el signo de cada peso. Son 24 números, pero llevan menos información de la que parece.\n\nReprodúcela sin perder nada y guardando menos números que la tabla entera.',
           hints: [
-            'En $(1, 0)$ el estiramiento es $2{,}24$, y en la dirección de $(1, 1)$ es el máximo, $2{,}83$. El mínimo está lejos de esa.',
-            'La dirección de menor estiramiento apunta al eje corto de la elipse, que forma un ángulo recto con el eje largo.',
+            'Mira la lista de σ del panel: cuenta cuántos no son cero. Cada uno es una capa que aporta algo.',
+            'Sube el deslizador hasta que el error llegue a 0 y no lo pases: una capa más ya no quita error y cuesta 11 números.',
           ],
           explain:
-            'La dirección de menor estiramiento es perpendicular a la de mayor, y sus imágenes también lo son. Eso es lo que hace especial a la descomposición en valores singulares: dos direcciones de entrada perpendiculares que se mandan a dos de salida perpendiculares.',
+            'La tabla es la suma de exactamente dos capas: tiene rango 2. Con dos capas el error es 0; las otras dos tienen σ = 0 y no añaden nada. Cada capa cuesta 4 + 6 + 1 = 11 números.',
           solution:
-            'Sirve cualquier $v$ sobre la recta de $(1, -1)$: $(1, -1)$, $(2, -2)$ o $(-1, 1)$. Con $v=(1, -1)$, $A\\,v=(0, -2)$ y $\\frac{|(0, -2)|}{|(1, -1)|}=\\frac{2}{\\sqrt{2}}=\\sqrt{2}\\approx 1{,}41$: es $\\sigma_2$. Las direcciones $(1, 1)$ y $(1, -1)$ son perpendiculares, y sus imágenes $(4, 0)$ y $(0, -2)$ también. Las de entrada son las columnas de $V$ y las de salida, una vez quitada su longitud, las de $U$. Además $\\sigma_1\\sigma_2=2\\sqrt{2}\\cdot\\sqrt{2}=4=|\\det A|$.',
-          plane: svdPlane({
-            i: [2, -1],
-            j: [2, 1],
-            extra: [vec('v', 1, 0, true)],
-            apply: ['v'],
-            readouts: ['stretch', 'image'],
-            range: 4,
-          }),
-          goals: [{ metric: 'stretch', of: ['i', 'j', 'v'], target: 1.41, tol: 0.01 }],
+            'Con 2 capas el error es 0 y se guardan 2·11 = 22 números en vez de 24. Con 1 capa se pierde el 65 % de la tabla. Con 3 el error sigue en 0, pero se guardan 33: la tercera capa tiene $\\sigma_3=0$ y es un gasto sin nada dentro.',
+          lab: {
+            kind: 'compresion',
+            rows: PESOS_4X6,
+            signed: true,
+            caption: 'Pesos de una capa',
+            labels: { rows: PESOS_4X6_ROTULOS.rows },
+            start: 1,
+          },
+          goals: [ERROR(0), GUARDADOS(22)],
+          solved: { k: 2 },
         },
         {
           id: 'svd.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'El caso más sencillo da el patrón de todos los demás: si las columnas de una matriz ya son perpendiculares, no hay que buscar direcciones especiales y los valores singulares se leen como las longitudes de las columnas. La SVD de una matriz cualquiera es la manera de reducir cada capa a ese caso limpio.',
-            aim: 'Vas a colocar dos vectores, $v$ y $w$, cada uno en la dirección de uno de los dos estiramientos extremos, y a ver qué direcciones resultan ser.',
+            why: 'Al comprimir una matriz no se eligen capas al azar: la SVD las entrega ordenadas, y la primera suele llevar más que todas las demás juntas. Entender ese orden es entender por qué basta con quedarse con las primeras.',
+            aim: 'Vas a encender a mano como mucho dos capas de la cara y a descubrir cuáles se llevan más imagen.',
             takeaway:
-              'Con las columnas perpendiculares, las direcciones de entrada son los propios ejes y los valores singulares son las longitudes de las columnas: $|(2, -2)|=2\\sqrt{2}\\approx 2{,}83$ y $|(1, 1)|=\\sqrt{2}\\approx 1{,}41$. En una matriz cualquiera esas dos direcciones hay que buscarlas, y la SVD las encuentra.',
+              'La primera capa es imprescindible: sin ella no se llega ni al 15 %. La parte conservada va con $\\sigma^{2}$, y como los σ están ordenados, las primeras capas son siempre la mejor elección.',
           },
           prompt:
-            'Aquí $A=\\begin{pmatrix}2&1\\\\-2&1\\end{pmatrix}$, con $\\hat{\\imath}=(2, -2)$ y $\\hat{\\jmath}=(1, 1)$: dos columnas **perpendiculares**, porque su producto escalar es $2-2=0$. Hay dos vectores móviles: $v$, que parte de $(1, 1)$, y $w$, que parte de $(1, -1)$. Cada uno tiene su lectura de estiramiento. Colócalos de modo que el estiramiento de $v$ valga **$2{,}83$**, el mayor, y el de $w$ valga **$1{,}41$**, el menor.',
+            'La misma cara, pero ahora cada capa tiene su interruptor y puedes encender las que quieras, en cualquier orden. La «parte conservada» es cuánta imagen se llevan las capas encendidas.\n\nEnciende como mucho dos capas y conserva al menos el 90 % de la cara.',
           hints: [
-            'Los dos parten con estiramiento $2{,}24$. Calcula $A\\,(1, 0)$ y $A\\,(0, 1)$: son las propias columnas.',
-            'Mide las dos columnas. ¿Con qué estiramientos extremos se corresponden?',
+            'Compara los σ del panel: el primero es más del triple que el segundo. Lo que lleva cada capa va con el cuadrado de su σ.',
+            'Empieza por la capa 1 y prueba a acompañarla con otra. Prueba también a dejarla apagada y encender dos de las otras.',
           ],
           explain:
-            'Las imágenes de los ejes son las propias columnas, y como son perpendiculares, los ejes ya son las direcciones de entrada que buscas. Los estiramientos son las longitudes de las columnas, y no hace falta buscar nada más.',
+            'La parte conservada suma $\\sigma^{2}$ de las capas encendidas y la divide entre la suma de todos. Con $\\sigma_1\\approx 4{,}26$, la primera capa sola ya lleva el 88 %; las demás reparten el resto.',
           solution:
-            'Pon $v$ sobre el eje $x$ ($(1, 0)$, $(2, 0)$ o $(-1, 0)$) y $w$ sobre el eje $y$ ($(0, 1)$, $(0, 2)$ o $(0, -1)$). $A\\,(1, 0)=(2, -2)$, de longitud $2\\sqrt{2}\\approx 2{,}83$, y $A\\,(0, 1)=(1, 1)$, de longitud $\\sqrt{2}\\approx 1{,}41$. Aquí las direcciones de entrada son $(1, 0)$ y $(0, 1)$, y los valores singulares son lo que miden las columnas.',
-          plane: svdPlane({
-            i: [2, -2],
-            j: [1, 1],
-            extra: [vec('v', 1, 1, true), vec('w', 1, -1, true)],
-            apply: ['v', 'w'],
-            readouts: ['stretch', 'image'],
-            range: 3,
-          }),
+            'Valen la 1 con la 2 (96 %) o la 1 con la 3 (91 %). La 1 con la 4 se queda en el 89 %. Sin la primera no hay manera: la 2 y la 3 juntas conservan el 11 %. Por eso la SVD ordena las capas y comprimir es quedarse con las primeras.',
+          lab: {
+            kind: 'compresion',
+            mode: 'pick',
+            rows: CARA_8X8,
+            caption: 'Una cara de 8×8 píxeles',
+          },
           goals: [
-            { metric: 'stretch', of: ['i', 'j', 'v'], target: 2.83, tol: 0.01 },
-            { metric: 'stretch', of: ['i', 'j', 'w'], target: 1.41, tol: 0.01 },
+            {
+              metric: 'kept',
+              op: 'gte',
+              target: 0.9,
+              label: 'Parte de la cara conservada',
+              format: 'percent',
+            },
+            { metric: 'k', op: 'lte', target: 2, label: 'Capas encendidas', format: 'integer' },
           ],
+          solved: { c1: 1, c2: 1 },
         },
         {
           id: 'svd.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Cuando una matriz es simétrica, como una covarianza o $X^{T}X$, la SVD y la descomposición en autovalores hablan de lo mismo, con una diferencia: los valores singulares nunca son negativos. Saber qué pasa con un autovalor negativo evita leer mal el estiramiento de una capa.',
-            aim: 'Vas a buscar la dirección de menor estiramiento de una matriz simétrica con un autovalor negativo y a ver qué hace $A$ con esa flecha.',
+            why: 'El primer valor singular de una capa, $\\sigma_1$, es lo máximo que puede alargar una entrada. Acota cuánto puede crecer un cambio pequeño al cruzar la capa, y hay técnicas de entrenamiento que lo vigilan.',
+            aim: 'Vas a buscar la dirección de entrada que una capa fija alarga más, mirando cómo deforma la circunferencia y cuatro reseñas.',
             takeaway:
-              'Los autovalores son $3$ y $-1$, y los valores singulares, $3$ y $1$: en una simétrica $\\sigma=|\\lambda|$. El signo no desaparece, pasa a $U$: $A$ voltea la flecha en lugar de acortarla sin más. Con una covarianza, de autovalores positivos, las dos descomposiciones coinciden.',
+              'La capa alarga más la dirección de «genial»: es $v_1$, y su alargamiento, $\\sigma_1\\approx 2{,}83$, es el techo. Sale hacia $u_1$, el eje largo de la elipse: la primera capa de la SVD es $\\sigma_1\\,u_1 v_1^{T}$.',
           },
           prompt:
-            'La matriz $A=\\begin{pmatrix}1&2\\\\2&1\\end{pmatrix}$, con $\\hat{\\imath}=(1, 2)$ y $\\hat{\\jmath}=(2, 1)$, es simétrica y sus autovalores son $3$ y $-1$. Mueve $v$, que parte de $(1, 0)$, hasta que la lectura $|A\\,v|\\,/\\,|v|$ valga **1**, y mira hacia dónde cae $A\\,v$ respecto de $v$.',
+            'Una capa fija no alarga igual en todas las direcciones: la circunferencia de radio 1 sale convertida en una elipse. «genial» y «horrible» empiezan a la misma distancia del origen; mira dónde acaba cada una.\n\nApunta la flecha $v$ a la dirección de entrada que la capa más alarga: más que ahí no se puede.',
           hints: [
-            'Las dos direcciones propias de una simétrica son perpendiculares. La de autovalor $3$ está en la recta de $(1, 1)$.',
-            'Con un autovalor $-1$ el estiramiento es $|-1|=1$: busca la dirección propia que le corresponde.',
+            'Compara cada palabra con su imagen: «genial» acaba el doble de lejos que «horrible», aunque las dos salían igual de lejos.',
+            'Apunta $v$ hacia «genial». No hacia el eje largo de la elipse: ese es adónde llega la salida, no de dónde sale la entrada.',
           ],
           explain:
-            'Un autovalor negativo estira y además voltea la flecha. El estiramiento solo mide la longitud, así que cuenta $|\\lambda|$. En la SVD ese signo se guarda en $U$ y los valores singulares quedan siempre positivos.',
+            'Lo que la capa alarga una dirección es la longitud de $A\\,v$ entre la de $v$: no depende de lo larga que sea $v$, solo de adónde apunta. El máximo es el primer valor singular, $\\sigma_1$, y se alcanza en una sola recta de entrada.',
           solution:
-            'Sirve cualquier $v$ sobre la recta de $(1, -1)$: $(1, -1)$, $(2, -2)$ o $(-1, 1)$. Con $v=(1, -1)$, $A\\,v=(-1, 1)=-v$: la flecha se voltea y mide lo mismo, así que el estiramiento es $1$. Es el autovector de autovalor $-1$, y $\\sigma_2=|-1|=1$. En $(1, 1)$, $A\\,v=3v$ y $\\sigma_1=3$. En $A=U\\Sigma V^{T}$ eso se ve en que $u_2=-v_2$: el signo va en $U$.',
-          plane: svdPlane({
-            i: [1, 2],
+            'La recta de $(1, 1)$, la de «genial»: $A\\,(1, 1)=(4, 0)$ y $4/\\sqrt{2}\\approx 2{,}83=\\sigma_1$. Vale cualquier $v$ en esa recta o muy cerca, como $(2;\\ 1{,}5)$. Apuntar al eje largo de la elipse, $(1, 0)$, da solo $\\sqrt{5}\\approx 2{,}24$: la elipse dice adónde llega la salida ($u_1$), y $v_1$ es otra dirección.',
+          lab: capaLab(RESENAS_CORTAS, {
+            range: 4.5,
+            i: [2, -1],
             j: [2, 1],
-            extra: [vec('v', 1, 0, true)],
-            apply: ['v'],
-            readouts: ['stretch', 'image'],
-            range: 3,
+            movable: 'none',
+            circle: true,
+            probe: { x: 0, y: 1, movable: true, on: 'input' },
+            iterate: 1,
           }),
-          goals: [{ metric: 'stretch', of: ['i', 'j', 'v'], target: 1, tol: 0.01 }],
+          goals: [
+            {
+              metric: 'stretch',
+              op: 'gte',
+              target: 2.73,
+              label: 'Cuánto alarga la capa la dirección de v',
+            },
+          ],
+          solved: { vx: 1, vy: 1 },
         },
         {
           id: 'svd.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Cuando todos los valores singulares de una capa valen lo mismo, la capa estira por igual en todas las direcciones: no favorece ninguna y no deforma. Es la idea de la inicialización ortogonal, que parte de matrices así para que la señal no se apague ni se dispare al pasar por muchas capas, y de medir cuánto se desvía una capa de eso con el cociente $\\sigma_1/\\sigma_2$.',
-            aim: 'Vas a mover $\\hat{\\jmath}$ hasta que dos flechas perpendiculares, $p$ y $q$, se estiren lo mismo, y a ver en qué se convierte la elipse.',
+            why: 'Los datos reales y los pesos aprendidos traen ruido: pequeñas variaciones que no son patrón. El ruido se reparte en muchas capas con σ pequeños, y quitarlas limpia la señal en vez de estropearla.',
+            aim: 'Vas a quitar capas a una tabla con ruido, empezando por todas, hasta guardarla con menos números que la tabla sin perder el patrón.',
             takeaway:
-              'Con $\\hat{\\jmath}=(-1, 2)$ o $(1, -2)$ la elipse es una circunferencia de radio $\\sqrt{5}\\approx 2{,}24$: $\\sigma_1=\\sigma_2=\\sqrt{5}$ y el cociente $\\sigma_1/\\sigma_2$ vale $1$. La matriz es un giro (o una simetría) seguido de multiplicar por $\\sqrt{5}$: no hay direcciones favorecidas.',
+              'Una sola capa guarda el patrón con un error del 9 %, y ese 9 % es casi todo ruido: la capa 1 queda cinco veces más cerca de las rayas limpias que la tabla original. Tirar las capas pequeñas quita ruido.',
           },
           prompt:
-            '$\\hat{\\imath}=(2, 1)$ queda fija y puedes mover $\\hat{\\jmath}$, la segunda columna de $A$. Hay dos flechas fijas, $p=(1, 1)$ y $q=(1, -1)$, perpendiculares entre sí, cada una con su lectura de estiramiento. Mueve $\\hat{\\jmath}$, que parte de $(0, 1)$, hasta que las dos lecturas valgan **$2{,}24$**. Mira qué le pasa a la elipse, imagen de la circunferencia unidad.',
+            'Esta tabla de 6×6 es un patrón muy sencillo, unas rayas que se repiten más o menos fuertes, estropeado por ruido de medida. Mira los σ: uno grande y los demás muy pequeños. Ahora se suman las seis capas y se guardan más números que la tabla.\n\nQuita capas hasta guardar menos números que la tabla, sin que el error pase del límite.',
           hints: [
-            'Ahora las lecturas son distintas, $2$ y $1{,}41$. Mueve $\\hat{\\jmath}$ de uno en uno y mira cómo cambian las dos.',
-            'Una matriz que estira igual en todas las direcciones tiene columnas perpendiculares y del mismo largo. ¿Cuánto mide $\\hat{\\imath}$?',
+            'Compara la aproximación con la original mientras bajas el deslizador: hasta que llegues a la última capa, apenas cambia.',
+            'Baja el deslizador de uno en uno y mira el error: sube muy poco hasta que te quedas sin la capa 1.',
           ],
           explain:
-            'Una matriz que estira igual en todas las direcciones convierte la circunferencia en otra circunferencia: sus valores singulares son iguales. Pasa cuando las columnas son perpendiculares y miden lo mismo; entonces la matriz es un giro, o una simetría, por un factor.',
+            'El patrón es una sola columna por una sola fila: es la capa 1. El ruido no tiene patrón, así que se reparte en las demás capas con σ pequeños. Quitarlas quita sobre todo ruido.',
           solution:
-            'Hay dos posiciones en la rejilla: $\\hat{\\jmath}=(-1, 2)$ y $\\hat{\\jmath}=(1, -2)$. Son perpendiculares a $\\hat{\\imath}=(2, 1)$ y miden como ella, $\\sqrt{5}$: $(2, 1)\\cdot(-1, 2)=0$. Con $\\hat{\\jmath}=(-1, 2)$, $A\\,p=(1, 3)$ y $A\\,q=(3, -1)$, las dos de longitud $\\sqrt{10}$, y $\\frac{\\sqrt{10}}{\\sqrt{2}}=\\sqrt{5}\\approx 2{,}24$. La elipse es una circunferencia de radio $\\sqrt{5}$: $\\sigma_1=\\sigma_2=\\sqrt{5}$. Con $(-1, 2)$ la matriz es un giro por $\\sqrt{5}$; con $(1, -2)$, una simetría.',
-          plane: svdPlaneJMovable({
-            i: [2, 1],
-            j: [0, 1],
-            extra: [vec('p', 1, 1, false), vec('q', 1, -1, false)],
-            apply: ['p', 'q'],
-            readouts: ['matrix', 'stretch'],
-            range: 3,
-          }),
-          goals: [
-            { metric: 'stretch', of: ['i', 'j', 'p'], target: 2.24, tol: 0.01 },
-            { metric: 'stretch', of: ['i', 'j', 'q'], target: 2.24, tol: 0.01 },
-          ],
+            'Valen 1 o 2 capas: el error es del 9 % o del 4 %, con 13 o 26 números frente a 36. Con 0 capas se pierde todo; con 3 se guardan 39. El 9 % que deja la capa 1 es casi todo ruido: su aproximación se aleja un 2 % de las rayas limpias, y la tabla original, un 9 %.',
+          lab: {
+            kind: 'compresion',
+            rows: RAYAS_CON_RUIDO,
+            caption: 'Unas rayas con ruido',
+            start: 6,
+          },
+          goals: [ERROR(0.1), GUARDADOS(36)],
+          solved: { k: 1 },
         },
       ],
     },
@@ -200,118 +248,134 @@ export const svd: Project = {
       questions: [
         {
           id: 'svd.ex01.1',
-          type: 'vector',
+          type: 'numero',
           purpose: {
-            why: 'Lo primero que se mira al analizar una capa es su lista de valores singulares: dice cuánto estira en cada una de sus direcciones principales. `np.linalg.svd` la devuelve siempre en el mismo orden y sin signos negativos, y esa convención hay que saber leerla.',
-            aim: 'Vas a leer los estiramientos de una matriz diagonal con un número negativo y a ordenarlos como lo hace una biblioteca.',
+            why: 'Guardar una matriz como unas pocas capas de la SVD es una forma de comprimir pesos: en vez de la tabla entera se guardan unos vectores. Antes de decidirlo, un ingeniero cuenta cuánto ocupa cada opción.',
+            aim: 'Vas a contar los números que cuesta guardar una tabla de pesos como suma de capas, a partir de sus filas, sus columnas y cuántas capas se guardan.',
             takeaway:
-              'Los valores singulares de esta matriz son $5$ y $3$: positivos y de mayor a menor. El $-5$ voltea una flecha, y ese volteo se guarda en $U$, no en $\\Sigma$. Por eso las listas que devuelven las bibliotecas se leen directamente como estiramientos.',
+              'Con $k$ capas se guardan $k\\cdot(m+n+1)$ números en vez de $m\\cdot n$. La tabla de 4×6 apenas ahorra; la de 40×60 guarda un 8 %. El ahorro crece con el tamaño, porque $m+n$ crece mucho más despacio que $m\\cdot n$.',
           },
           prompt:
-            'La matriz $A=\\begin{pmatrix}3&0\\\\0&-5\\end{pmatrix}$ estira el eje $x$ por $3$ y el eje $y$ por $5$, y además voltea este último. Escribe sus dos **valores singulares**, de mayor a menor: primero $\\sigma_1$ y después $\\sigma_2$.',
+            'Para guardar una capa de la SVD hacen falta su columna, su fila y su σ. En el laboratorio, una tabla de pesos de 4×6 y rango 2: mira cuánto cuesta guardar 1 capa y 2.\n\nOtra tabla de pesos tiene 40 filas, 60 columnas y también rango 2. ¿Cuántos números hay que guardar para sus 2 capas?',
           hints: [
-            'Un valor singular mide cuánto estira la matriz una dirección, es decir, una longitud, y una longitud no es negativa.',
-            'Ordénalos de mayor a menor.',
+            'En el laboratorio, una capa de la tabla de 4×6 cuesta 11 números: 4 de la columna, 6 de la fila y 1 de σ.',
+            'Haz la misma cuenta con 40 filas y 60 columnas, y multiplícala por las 2 capas.',
           ],
           explain:
-            'Un valor singular es un estiramiento, y un estiramiento no puede ser negativo: el signo de $-5$ describe un volteo, que va en $U$. Y se dan siempre de mayor a menor.',
+            'Una capa de rango 1 es $\\sigma\\,u\\,v^{T}$: $u$ tiene un número por fila, $v$ uno por columna y σ es uno solo. Con $k$ capas, $k$ veces eso.',
           solution:
-            '$\\sigma_1=|-5|=5$ y $\\sigma_2=3$, es decir, $(5, 3)$. Si escribes $(3, -5)$ has copiado la diagonal; si escribes $(3, 5)$, los has dejado sin ordenar.',
-          answer: [5, 3],
+            'Cada capa guarda una columna de 40 números, una fila de 60 y su σ: $40+60+1=101$. Dos capas, $2\\cdot 101=202$, frente a los $40\\cdot 60=2400$ de la tabla: un 8 %. En la de 4×6 eran 22 frente a 24. Si olvidas los σ sale 200.',
+          lab: {
+            kind: 'compresion',
+            rows: PESOS_4X6,
+            signed: true,
+            caption: 'Pesos de una capa',
+            labels: { rows: PESOS_4X6_ROTULOS.rows },
+            start: 1,
+          },
+          answer: 202,
           tol: 0,
         },
         {
           id: 'svd.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Los $\\sigma^{2}$ son los autovalores de $A^{T}A$, una matriz simétrica y por tanto fácil de tratar. Esa conexión explica por qué PCA y SVD son parientes: la covarianza de unos datos centrados es, salvo un factor, $X^{T}X$.',
-            aim: 'Vas a calcular $A^{T}A$, sacar su autovalor mayor y hacerle la raíz cuadrada para llegar al estiramiento máximo de $A$.',
+            why: 'Para elegir cuántas capas guardar se mira qué parte de la matriz conserva cada opción. Esa parte se mide con la suma de los $\\sigma^{2}$, igual que en PCA se mira la varianza explicada.',
+            aim: 'Vas a calcular qué parte de una tabla de pesos se lleva quedarse con sus dos primeras capas, a partir de sus valores singulares.',
             takeaway:
-              'Los autovalores de $A^{T}A$ son $45$ y $5$, y $\\sigma_1=\\sqrt{45}\\approx 6{,}71$. Esta ruta, de $A^{T}A$ a $\\sigma$ con una raíz, sirve para entender qué es un valor singular; las bibliotecas usan métodos numéricos más estables que formar $A^{T}A$.',
+              'Las dos primeras capas conservan el 90,9 %, y el error que queda es la raíz de lo que falta: $\\sqrt{2/22}\\approx 30\\,\\%$. Elevar al cuadrado hace que unos pocos σ grandes se lleven casi todo.',
           },
           prompt:
-            'Sea $A=\\begin{pmatrix}3&0\\\\4&5\\end{pmatrix}$. Los valores singulares de $A$ son las raíces cuadradas de los autovalores de $A^{T}A$. Calcula $A^{T}A$ y escribe $\\sigma_1$, el mayor, con dos decimales.',
+            'Lo que lleva cada capa se mide con el cuadrado de su σ: su «energía». Las capas de esta tabla de pesos tienen $\\sigma=4$, $2$, $1$ y $1$; las ves en el panel.\n\n¿Qué parte de la energía total conservan las dos primeras capas? Escríbela en tanto por ciento, con un decimal.',
           hints: [
-            '$A^{T}A$ es una matriz simétrica de $2\\times 2$: sus entradas son los productos escalares de las columnas de $A$ entre sí.',
-            'Para una simétrica $\\begin{pmatrix}a&b\\\\b&a\\end{pmatrix}$, los autovalores son $a+b$ y $a-b$.',
+            'Eleva cada σ al cuadrado y suma los cuatro: esa es la energía total.',
+            'Divide la energía de las dos primeras capas entre el total y multiplica por 100.',
           ],
           explain:
-            'Los autovalores de $A^{T}A$ son los **cuadrados** de los valores singulares. Si respondes con el autovalor, falta la raíz.',
+            'La energía de una tabla es la suma de los cuadrados de todos sus números, y coincide con la suma de los $\\sigma^{2}$. Cada capa se lleva su $\\sigma^{2}$; la parte conservada es la de las capas que se guardan entre el total.',
           solution:
-            '$A^{T}A=\\begin{pmatrix}25&20\\\\20&25\\end{pmatrix}$, con autovalores $25+20=45$ y $25-20=5$. Entonces $\\sigma_1=\\sqrt{45}\\approx 6{,}71$ y $\\sigma_2=\\sqrt{5}\\approx 2{,}24$. Si te sale $45$, falta la raíz cuadrada. Comprobación: $\\sigma_1\\sigma_2=\\sqrt{225}=15=|\\det A|$.',
-          answer: 6.71,
-          tol: 0.01,
+            'Energías: $16$, $4$, $1$ y $1$, en total $22$. Las dos primeras, $16+4=20$, y $20/22\\approx 90{,}9\\,\\%$. Si sumas los σ sin elevarlos sale $6/8=75\\,\\%$: la energía va con el cuadrado, por eso los σ grandes mandan tanto.',
+          lab: {
+            kind: 'compresion',
+            rows: PESOS_4X4_HADAMARD,
+            signed: true,
+            caption: 'Pesos de una capa de 4×4',
+            start: 1,
+          },
+          answer: 90.9,
+          tol: 0.1,
         },
         {
           id: 'svd.ex01.3',
           type: 'numero',
           purpose: {
-            why: 'El factor con el que una matriz multiplica las áreas (en dimensión alta, los volúmenes) es el producto de sus valores singulares. Si alguno es casi cero, la capa aplasta el espacio en esa dirección y pierde información, y es una de las señales que se miran al diagnosticar una capa.',
-            aim: 'Vas a multiplicar los valores singulares de una matriz para saber cómo cambian las áreas.',
+            why: 'Que una tabla grande tenga rango bajo dice que sus filas se repiten unas a otras: hay menos información de la que parece. Es lo que se busca al comprimir una capa, y se lee en sus valores singulares.',
+            aim: 'Vas a leer el rango de una imagen en la lista de sus valores singulares y a comprobar que coincide con las capas que la reconstruyen sin error.',
             takeaway:
-              'La matriz multiplica las áreas por $4\\cdot 0{,}5=2$: la elipse imagen de la circunferencia unidad tiene semiejes $4$ y $0{,}5$ y área $2\\pi$, frente a $\\pi$. Si el valor singular pequeño bajara hacia $0$, el área se hundiría hacia $0$ y la matriz dejaría de ser invertible.',
+              'El rango es el número de σ distintos de cero, y coincide con las capas que hacen falta para no perder nada. Con datos reales los σ casi nunca son cero exacto: se cuentan los que no son despreciables frente a $\\sigma_1$.',
           },
           prompt:
-            'Una matriz de $2\\times 2$ tiene valores singulares $4$ y $0{,}5$. ¿Por cuánto multiplica las áreas?',
+            'El panel enseña los ocho valores singulares de la cara de 8×8 píxeles. El **rango** de una tabla es cuántos de ellos no son cero: cuántas capas tiene de verdad.\n\n¿Cuál es el rango de la cara? Después sube el deslizador y busca con cuántas capas el error llega a 0.',
           hints: [
-            'La circunferencia unidad se convierte en una elipse cuyos semiejes miden los valores singulares.',
-            'El área de una elipse de semiejes $a$ y $b$ es $\\pi a b$, y la de la circunferencia unidad es $\\pi$.',
+            'Recorre la lista de σ de mayor a menor y para en el primero que vale 0.',
+            'Fíjate en la cara: cada fila es simétrica, su mitad derecha repite la izquierda. ¿Cuántas columnas distintas le quedan?',
           ],
           explain:
-            'El factor de áreas es $|\\det A|$, que es el producto de los valores singulares. Sumarlos o dividirlos no tiene ese sentido.',
+            'Cada σ que no es cero es una capa que aporta algo. Si una tabla tiene columnas repetidas, esas columnas no añaden direcciones nuevas y el rango baja.',
           solution:
-            'La elipse tiene semiejes $4$ y $0{,}5$ y su área es $\\pi\\cdot 4\\cdot 0{,}5=2\\pi$, el doble de la de la circunferencia unidad, $\\pi$. Las áreas se multiplican por $4\\cdot 0{,}5=2$, que es $|\\det A|$. Si te sale $4{,}5$ has sumado; si te sale $8$, has dividido.',
-          answer: 2,
+            'Rango 4: $\\sigma_1\\approx 4{,}26$, $\\sigma_2\\approx 1{,}28$, $\\sigma_3\\approx 0{,}79$ y $\\sigma_4\\approx 0{,}34$; los otros cuatro valen 0. Con 4 capas el error es 0. La cara es simétrica: la columna 8 repite la 1, la 7 la 2, y así, de modo que solo hay 4 columnas distintas.',
+          lab: {
+            kind: 'compresion',
+            rows: CARA_8X8,
+            caption: 'Una cara de 8×8 píxeles',
+            start: 1,
+          },
+          answer: 4,
           tol: 0,
         },
         {
           id: 'svd.ex01.4',
           type: 'numero',
           purpose: {
-            why: 'Un valor singular mayor que $1$ en una capa amplifica algunas entradas, y al encadenar capas esas amplificaciones se multiplican y el entrenamiento se desestabiliza. La **normalización espectral**, usada en los discriminadores de las GAN, divide los pesos de cada capa entre $\\sigma_1$ para acotar cuánto puede alargar una entrada.',
-            aim: 'Vas a usar $\\sigma_1$ para acotar la norma de la salida de una capa, sin conocer la entrada exacta, solo su tamaño.',
+            why: 'Las matrices de los modelos de lenguaje grandes tienen millones de números cada una. Aproximarlas con unas pocas capas de la SVD es una forma de ahorrar memoria, y la cuenta de cuánto se ahorra se hace antes de probarla.',
+            aim: 'Vas a contar cuántos números cuesta guardar una matriz de atención de un modelo real con sus 64 primeras capas.',
             takeaway:
-              'Ninguna entrada de norma $3$ sale con norma mayor que $\\sigma_1\\cdot 3=18$, y esa cota se alcanza si la entrada va en la dirección de $v_1$. Si se divide $W$ entre $\\sigma_1=6$, la cota pasa a $3$: ninguna entrada se alarga.',
+              'Con 64 capas la matriz ocupa un 3 % de lo que ocupaba. Si sus valores singulares caen deprisa, se pierde poco. La misma cuenta explica por qué LoRA entrena tan pocos números: aprende solo un cambio de rango bajo.',
           },
           prompt:
-            'Una capa $W$ tiene valores singulares $6$, $2$ y $0{,}5$. Una entrada $x$ tiene norma $3$. Según la dirección en que apunte $x$, ¿cuál es la **mayor** norma que puede tener $Wx$?',
+            'En Llama 2 7B, cada bloque de atención tiene matrices de $4096\\times 4096$. Una de ellas se aproxima con sus $k=64$ primeras capas de la SVD.\n\n¿Cuántos números hay que guardar?',
           hints: [
-            'Cada dirección se estira por un factor entre el menor y el mayor de los valores singulares.',
-            'El factor máximo es $\\sigma_1$. Multiplícalo por la norma de $x$.',
+            'Una capa guarda una columna de 4096 números, una fila de 4096 y su σ.',
+            'Multiplica lo que cuesta una capa por las 64 capas.',
           ],
           explain:
-            'El mayor estiramiento posible es $\\sigma_1$ (la norma espectral), y la salida más larga se da cuando $x$ va en la dirección de $v_1$. Los otros valores singulares dan salidas más cortas.',
+            'Con $k$ capas se guardan $k\\cdot(m+n+1)$ números. Lo que cuesta cada capa crece con la suma de filas y columnas, no con su producto: por eso en una matriz grande el ahorro es enorme.',
           solution:
-            '$|Wx|\\le\\sigma_1|x|=6\\cdot 3=18$, y se alcanza con $x$ en la dirección de $v_1$. La menor norma posible sería $0{,}5\\cdot 3=1{,}5$. Si te sale $6$, falta multiplicar por la norma de $x$; si te sale $1{,}5$, has usado el menor valor singular.',
-          answer: 18,
+            '$64\\cdot(4096+4096+1)=64\\cdot 8193=524\\,352$ números, frente a $4096\\cdot 4096=16\\,777\\,216$: alrededor del 3 %, unas 32 veces menos. Si olvidas los σ sale $524\\,288$.',
+          answer: 524352,
           tol: 0,
         },
         {
           id: 'svd.ex01.5',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'En la práctica una matriz casi nunca tiene un valor singular exactamente cero: el redondeo de los decimales deja ruido. Saber cuántos valores singulares cuentan de verdad decide cuánto se puede comprimir un peso y si una capa pierde información.',
-            aim: 'Vas a decidir cuántos de los valores singulares de una capa son reales y cuántos son ruido de redondeo.',
+            why: 'Si una capa alarga demasiado algunas entradas, al encadenar capas el efecto se multiplica y el entrenamiento se desestabiliza. La normalización espectral, que se usa en las GAN, divide los pesos de cada capa entre su $\\sigma_1$ para ponerle techo.',
+            aim: 'Vas a acotar la longitud de la salida de una capa conociendo solo sus valores singulares y la longitud de la entrada.',
             takeaway:
-              'El rango efectivo es $2$: el tercer valor, del orden de $10^{-10}$, es ruido de redondeo junto a $8{,}3$. `np.linalg.matrix_rank` lo decide con una tolerancia relativa al mayor valor singular, y contar los valores distintos de cero con `S > 0` daría $3$, un error.',
+              'La salida mide como mucho $\\sigma_1\\cdot 3=18$, y solo llega ahí si $x$ apunta en la dirección $v_1$. Dividir $W$ entre $\\sigma_1=6$ deja el techo en 3: ninguna entrada sale más larga de lo que entró.',
           },
           prompt:
-            'Una matriz de pesos de $3\\times 3$ pasa por `np.linalg.svd`, que devuelve los valores singulares $8{,}3$; $2{,}1$ y $4\\cdot 10^{-10}$ (es decir, $0{,}0000000004$). ¿Cuál es su rango en la práctica?',
+            'Una capa $W$ tiene valores singulares $6$, $2$ y $0{,}5$. Le llega una entrada $x$ de longitud $3$, y no sabes hacia dónde apunta.\n\n¿Cuál es la mayor longitud que puede tener la salida $W x$?',
           hints: [
-            'Compara el tamaño del tercer valor con el de los otros dos.',
-            'Con decimales en el ordenador, un cero exacto casi nunca aparece: lo que se mira es si un valor es ridículamente pequeño frente al mayor.',
+            'Cada dirección de entrada sale alargada por un factor entre el menor y el mayor valor singular.',
+            'El factor máximo es $\\sigma_1$. Multiplícalo por la longitud de $x$.',
           ],
           explain:
-            'El rango es el número de valores singulares que no son cero, y en un ordenador «cero» se decide con una tolerancia relativa al mayor valor singular. Un valor del orden de $10^{-10}$ junto a un $8{,}3$ es ruido, y la matriz es, a todos los efectos, de rango $2$.',
+            'El mayor alargamiento posible es $\\sigma_1$, y la salida más larga se da cuando $x$ va en la dirección $v_1$. Las otras direcciones se alargan menos.',
           solution:
-            'Rango $2$. La capa aplasta una dirección del espacio, y lo que sale por ahí es ruido de redondeo. Contar los valores distintos de cero daría $3$, pero con decimales esa cuenta no sirve; el rango $1$ ignora el $2{,}1$, que es una cuarta parte del mayor y no es ruido; y no hace falta ver la matriz: los valores singulares bastan.',
-          options: [
-            'Rango 3, porque los tres valores singulares son distintos de cero',
-            'Rango 2: el tercer valor es tan pequeño frente a los otros que es ruido de redondeo',
-            'Rango 1, porque solo hay un valor singular grande',
-            'No se puede saber sin ver la matriz entera',
-          ],
-          correct: 1,
+            '$|W x|\\le\\sigma_1\\,|x|=6\\cdot 3=18$, y se alcanza con $x$ en la dirección de $v_1$. La menor sería $0{,}5\\cdot 3=1{,}5$. Si te sale $6$, falta multiplicar por la longitud de $x$; si te sale $1{,}5$, has usado el menor valor singular.',
+          answer: 18,
+          tol: 0,
         },
       ],
     },
