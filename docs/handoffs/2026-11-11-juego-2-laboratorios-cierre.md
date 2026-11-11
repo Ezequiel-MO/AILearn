@@ -112,3 +112,32 @@ Dejar el arco cerrado y contado: `npm test`, `npm run build` y `npm run e2e` en 
 
 - Los agentes gastaron de 55 a 97 llamadas, por encima de las 60 del encargo.
 - `README.md` y `CLAUDE.md` están al día; `docs/handoffs/2026-11-10-laboratorios-y-ruta/brief-proyecto-comun.md` ya nombra `inputs` y `readout.says`.
+
+## Cierre (2026-11-11)
+
+**Estado.** Oliver pidió subir a producción a media sesión: `origin/main` está en `3b27058` (avance directo desde `64ae89f`). El arreglo de `lora` de abajo es un commit posterior de la rama y **no está subido**.
+
+**Observado.**
+
+- `npm test` entero sobre `3b27058`: 132 de 134 ficheros y 8528 de 8531 pruebas. Los 3 fallos (`src/ui/screens/play.test.tsx` y `warmup.test.tsx`, por plazo de 5000 ms, con Chrome sacando capturas a la vez) pasan lanzados solos: 76 de 76. No hay una pasada entera en verde de una sola vez.
+- `npm run build`: pasa. `npm run e2e`: 17 de 17 en 1,7 min, en una segunda pasada tras el push; la primera, cortada a las 13 pruebas, tenía 3 fallos por plazo (pasos 2, 7b y 7c) que no se repitieron.
+- Capturas miradas: `svd.ex00.1`, `svd.ex00.5` cerrada, `svd.ex00.3` cerrada a 390 px; `rango-bajo.ex00.4` cerrada, `rango-bajo.ex01.3` a 1100 y 390 px; `atencion.ex00.1`, `atencion.ex00.5` cerrada, `atencion.ex00.3` a 390 px; `despegue.3`, `despegue.5` cerrada y a 390 px.
+- Revisión ligera (`code-reviewer`, `origin/main...HEAD`): nada bloquea. Los ids de pregunta de los 12 proyectos y del despegue son los de antes; cambian 24 ids del banco de examen (los intentos viejos salen de la tabla por proyecto de estadísticas y siguen en los totales).
+
+**Arreglado en el cierre.** `rango-bajo.ex01.3` enseñaba su respuesta: con `size`, `LoraLab` escribía siempre «LoRA entrena el … % de los parámetros». Ahora calla la frase si `readouts` está declarado sin `saving_pct` (`labs.test.tsx`, «frase del porcentaje del laboratorio lora»; `rango-bajo.test.ts`). De paso, `rango-bajo.ex00.4` y `ex01.4` pierden la frase; la primera la conserva en su medidor de meta.
+
+**Hallazgos nuevos, sin arreglar** (se suman a las listas A a D)
+
+- La comprobación «ninguna lectura vale la respuesta» de `tests/content/lab-helpers.ts` solo mira `readouts`, solo el estado inicial, solo las `numero`, y se salta los laboratorios sin `readouts`. Por ese hueco pasaban `rango-bajo.ex01.3` y `svd.ex01.3`.
+- En examen, `GoalMeters` con `quiet` quita la marca, pero deja el valor en vivo junto al objetivo («100 %» junto a «al menos 100 %»): se puede leer si la meta está cumplida. La `manipular` de antes no enseñaba nada. `labs.test.tsx` solo lo prueba con la pregunta cerrada. Decisión de Oliver.
+- `examen-3.pesos-por-bloque` (`examen-3-atencion.ts`) es ambigua: la respuesta es 3 000 000 con tolerancia 0, y quien aplique la máscara causal que enseña el proyecto contestará 1 503 000.
+- `autovectores.ts:99` llama «desvanecimiento del gradiente» a la señal que se apaga hacia delante; es el mismo mecanismo, no lo mismo. El resto de cifras del punto C, contrastadas de memoria por la revisión (sin red), salen bien.
+- `lora`: las barras de parámetros van en escala logarítmica sin decirlo (con el 0,03 % la de LoRA llega a media anchura).
+- `compresion`: a 390 px el panel «Lo que se pierde» baja de línea y sale más grande que los otros dos; en la fila de capas queda un «+» colgando antes de σ8; «Error …» y «Mayor error en una celda: …» están escritos en `CompresionLab.tsx`, fuera de `compresion.strings.ts`.
+- `despegue.5` invita a mirar los aciertos de la neurona y no hay lectura de aciertos en pantalla.
+- `atencion.ex00.3` pide «como mucho 0 %» de atención al futuro: otra meta de cero exacto, que la máscara cumple por construcción; sin máscara, el medidor puede redondear a «0 %» sin estar cumplida.
+- Los porcentajes sin decimales (`show.ts`) afectan a todos los laboratorios, no solo a `atencion`.
+- El esquema de `capa` no comprueba que `i`, `j` y la sonda empiecen dentro del rango y en la rejilla (el de `lora` sí). Una lectura sin rótulo enseña su id crudo (`capa.strings.ts`).
+- Pruebas que no pueden fallar: `show.test.ts:27` compara `showValue` consigo misma; las cuentas sobre números fijos de `rango-bajo.test.ts`, `svd.test.ts`, `columnas.test.ts` y `componer.test.ts` comprueban la aritmética, no el texto de la solución.
+- Las tandas a medias del juego 2 se retoman con aciertos ganados en las preguntas viejas.
+- `Lab.tsx` importa los cinco laboratorios sin carga diferida: la revisión avisa de que el paquete principal crece (sin medir).
