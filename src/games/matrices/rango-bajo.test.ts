@@ -293,6 +293,9 @@ describe('rango-bajo, «Calcular»: las respuestas se recalculan', () => {
     // contract: enunciado de ex01.3: W de 11 008 × 4096 y r = 8
     expect(labAt({ ...host, lab: three.lab }, { r: 8 }).params_lora).toBe(120832);
     expect(labAt({ ...host, lab: three.lab }, { r: 8 }).saving_pct).toBeCloseTo(0.268, 3);
+    // contract: guía de contenido 2026-11-10: la figura de «Calcular» va sin la lectura que da la respuesta; con r = 8, `saving_pct` es la respuesta de ex01.3, así que no está entre sus lecturas (y el panel calla la frase del porcentaje)
+    expect(three.lab.readouts).toBeDefined();
+    expect(three.lab.readouts).not.toContain('saving_pct');
     // contract: enunciado de ex01.4: una matriz de 4096 × 4096 con r = 16
     expect(labAt({ ...host, lab: four.lab }, { r: 16 }).params_lora).toBe(131072);
   });

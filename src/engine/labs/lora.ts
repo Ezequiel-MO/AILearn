@@ -24,7 +24,8 @@ import type { LabControl, LabModel, LabState, Vec2 } from './types';
  *  - moved: el mayor desplazamiento de una palabra entre el modelo original y el afinado.
  *  - w11, w12, w21, w22: W; m11…m22: W + ΔW; d11…d22: ΔW.
  *  - con `size`: r, params_full (d·k), params_lora (r·(d + k)), saving (params_lora / params_full) y
- *    saving_pct (saving en %, para que una meta «≤ 1 %» se escriba con un decimal corriente).
+ *    saving_pct (saving en %, para que una meta «≤ 1 %» se escriba con un decimal corriente). El panel
+ *    escribe la frase del porcentaje salvo que `readouts` esté declarado sin `saving_pct`.
  */
 
 export interface LoraPoint {

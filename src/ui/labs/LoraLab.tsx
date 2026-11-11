@@ -191,6 +191,9 @@ export function LoraLab({ spec, state, onChange }: LabProps<LoraSpec>) {
     full! > 1 && v >= 1 ? Math.max(2, (100 * Math.log10(v)) / Math.log10(full!)) : 2;
   const pct = values.saving_pct;
   const pctText = pct !== undefined ? fmt(pct, pct < 10 ? 2 : 1) : '';
+  // La frase del porcentaje es una lectura de `saving_pct`: si el contenido declara `readouts` sin ella
+  // (una cuenta de «Calcular» cuya respuesta es ese porcentaje), no se pinta.
+  const showPercent = !spec.readouts || spec.readouts.includes('saving_pct');
 
   const figure = (
     <svg
@@ -430,7 +433,7 @@ export function LoraLab({ spec, state, onChange }: LabProps<LoraSpec>) {
             onChange={interactive ? set('r') : undefined}
             show={(v) => fmt(v, 0)}
           />
-          <p className="lora__percent">{L.percent(pctText)}</p>
+          {showPercent ? <p className="lora__percent">{L.percent(pctText)}</p> : null}
         </div>
       ) : null}
       <Readouts items={readouts} />

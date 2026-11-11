@@ -11,6 +11,7 @@ import { loraSamples } from '../dev/labs/lora';
 import { QuestionView } from '../questions/QuestionView';
 import { t } from '../strings';
 import { CapaLab } from './CapaLab';
+import { LoraLab } from './LoraLab';
 
 /** Todas las muestras de la página de desarrollo: una por laboratorio y variante. */
 const samples = [
@@ -165,5 +166,31 @@ describe('rótulos del laboratorio capa', () => {
     // contract: decisión 3 de la tanda 1: una neurona cualquiera no «responde positiva»; dice lo que ponga `says`
     expect(screen.getByText(t.labs.capa.zone('se activa'))).toBeInTheDocument();
     expect(screen.queryByText(t.labs.capa.zone('positiva'))).not.toBeInTheDocument();
+  });
+});
+
+describe('frase del porcentaje del laboratorio lora', () => {
+  const sample = samples.find((q) => q.id === 'dev-lora-explorar')!;
+  if (!('lab' in sample) || sample.lab?.kind !== 'lora') throw new Error('la muestra lleva lora');
+  const spec = sample.lab;
+  const percent = new RegExp(t.labs.lora.percent('.+'));
+
+  it('se escribe cuando las lecturas declaradas incluyen el porcentaje', () => {
+    render(<LoraLab spec={spec} state={{}} />);
+    // contract: la muestra `dev-lora-explorar` declara `saving_pct` entre sus lecturas, y el panel lo dice en una frase
+    expect(spec.readouts).toContain('saving_pct');
+    expect(screen.getByText(percent)).toBeInTheDocument();
+  });
+
+  it('no se escribe si el contenido declara las lecturas sin el porcentaje', () => {
+    render(<LoraLab spec={{ ...spec, readouts: ['params_full', 'params_lora'] }} state={{}} />);
+    // contract: guía de contenido 2026-11-10: la figura de «Calcular» va sin la lectura que da la respuesta; visto en rango-bajo.ex01.3 (2026-11-11), donde la frase daba el 0,27 %
+    expect(screen.queryByText(percent)).not.toBeInTheDocument();
+  });
+
+  it('sin lecturas declaradas, el panel de tamaño conserva la frase', () => {
+    render(<LoraLab spec={{ ...spec, readouts: undefined }} state={{}} />);
+    // contract: `readouts` es opcional; solo una lista declarada sin `saving_pct` quita la frase
+    expect(screen.getByText(percent)).toBeInTheDocument();
   });
 });
