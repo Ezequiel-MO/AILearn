@@ -6,11 +6,20 @@ import { fmt } from '../format';
  */
 export type ValueFormat = 'percent' | 'integer' | 'degrees' | undefined;
 
-/** Un valor para el jugador: «75 %», «3», «0,71», «45°». Un valor no finito sale como raya. */
+/** Espacio fino sin salto: separa los miles de un entero largo. */
+const THIN = ' ';
+
+/** Un entero de cinco cifras o más, con los miles separados: «16 777 216». «4096» se queda como está. */
+const grouped = (digits: string): string =>
+  digits.replace(/\d{5,}/, (run) => run.replace(/\B(?=(\d{3})+$)/g, THIN));
+
+/**
+ * Un valor para el jugador: «75 %», «3», «16 777 216», «0,71», «45°». Un valor no finito sale como raya.
+ */
 export const showValue = (value: number, format?: ValueFormat): string => {
   if (!Number.isFinite(value)) return fmt(value);
   if (format === 'percent') return `${fmt(value * 100, 0)} %`;
-  if (format === 'integer') return fmt(value, 0);
+  if (format === 'integer') return grouped(fmt(value, 0));
   if (format === 'degrees') return `${fmt(value, 1)}°`;
   return fmt(value);
 };
