@@ -226,12 +226,14 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
             );
           })}
         </g>
-        <polygon
-          className={`capa__unit${flipped ? ' capa__unit--flipped' : ''}`}
-          points={[[0, 0] as P, iTip, [iTip[0] + jTip[0], iTip[1] + jTip[1]] as P, jTip]
-            .map((p) => at(p).join(','))
-            .join(' ')}
-        />
+        {layerShown ? (
+          <polygon
+            className={`capa__unit${flipped ? ' capa__unit--flipped' : ''}`}
+            points={[[0, 0] as P, iTip, [iTip[0] + jTip[0], iTip[1] + jTip[1]] as P, jTip]
+              .map((p) => at(p).join(','))
+              .join(' ')}
+          />
+        ) : null}
         <g className="lab__axes">
           <line x1={sx(-range)} y1={sy(0)} x2={sx(range)} y2={sy(0)} />
           <line x1={sx(0)} y1={sy(-range)} x2={sx(0)} y2={sy(range)} />
@@ -413,34 +415,36 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
       {spec.readout && (spec.readout.says ?? groups[1]) ? (
         <p className="lab__note">{L.zone(spec.readout.says ?? groups[1]!)}</p>
       ) : null}
-      <div className="capa__matrix" role="group" aria-label={L.matrix} hidden={!layerShown}>
-        <span className="capa__matrix-title">{L.matrix}</span>
-        <table>
-          <thead>
-            <tr>
-              <td className="capa__matrix-corner" />
-              <th scope="col" data-tone={0}>
-                {L.column('î', columnNames?.[0])}
-              </th>
-              <th scope="col" data-tone={1}>
-                {L.column('ĵ', columnNames?.[1])}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <th scope="row">{L.outputs[0]}</th>
-              <td data-tone={0}>{fmt(a11)}</td>
-              <td data-tone={1}>{fmt(a12)}</td>
-            </tr>
-            <tr>
-              <th scope="row">{L.outputs[1]}</th>
-              <td data-tone={0}>{fmt(a21)}</td>
-              <td data-tone={1}>{fmt(a22)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {layerShown ? (
+        <div className="capa__matrix" role="group" aria-label={L.matrix}>
+          <span className="capa__matrix-title">{L.matrix}</span>
+          <table>
+            <thead>
+              <tr>
+                <td className="capa__matrix-corner" />
+                <th scope="col" data-tone={0}>
+                  {L.column('î', columnNames?.[0])}
+                </th>
+                <th scope="col" data-tone={1}>
+                  {L.column('ĵ', columnNames?.[1])}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">{L.outputs[0]}</th>
+                <td data-tone={0}>{fmt(a11)}</td>
+                <td data-tone={1}>{fmt(a12)}</td>
+              </tr>
+              <tr>
+                <th scope="row">{L.outputs[1]}</th>
+                <td data-tone={0}>{fmt(a21)}</td>
+                <td data-tone={1}>{fmt(a22)}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      ) : null}
       {spec.before ? <p className="lab__note">{L.before}</p> : null}
       <Readouts items={readouts} />
     </LabFrame>

@@ -137,6 +137,23 @@ describe('rótulos del laboratorio capa', () => {
     ]);
   });
 
+  it('una capa fija que no cambia nada no enseña su tabla ni el cuadrado unidad', () => {
+    const { container, unmount } = render(
+      <CapaLab
+        spec={{ ...base, movable: 'none', probe: { x: 1, y: 0, movable: true, on: 'input' } }}
+        state={{}}
+      />,
+    );
+    // contract: CapaLab, «una capa fija que no cambia nada (la identidad) no se dibuja»: visto en pca.ex00.3 (2026-11-11), la tabla salía porque `display: grid` anulaba `hidden`
+    expect(screen.queryByRole('group', { name: t.labs.capa.matrix })).not.toBeInTheDocument();
+    expect(container.querySelector('.capa__unit')).toBeNull();
+    unmount();
+    const fixed = render(<CapaLab spec={{ ...base, movable: 'none', i: [0, 1] }} state={{}} />);
+    // contract: una capa fija distinta de la identidad sí se enseña: es lo que hay que mirar
+    expect(screen.getByRole('group', { name: t.labs.capa.matrix })).toBeInTheDocument();
+    expect(fixed.container.querySelector('.capa__unit')).not.toBeNull();
+  });
+
   it('la nota de la neurona usa el grupo 1 salvo que `says` diga otra cosa', () => {
     const { unmount } = render(<CapaLab spec={base} state={{}} />);
     // contract: la neurona siguiente detecta el grupo 1, y la nota lo nombra
