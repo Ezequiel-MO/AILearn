@@ -1,52 +1,64 @@
 import type { BankEntry } from '../../content/schema';
+import { NUBE_ALARGADA, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «Matrices simétricas». La
- * entrada generada la añade otro paso. Ids: `examen-2.<tema>`, únicos en todo el juego (también
- * frente a las preguntas de proyecto).
+ * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «Matrices simétricas»: un
+ * laboratorio (decorrelar otra nube, cuyo eje no es la diagonal), una cuenta de la covarianza de
+ * embeddings reales y una de código. La entrada generada la añade otro paso. Ids:
+ * `examen-2.<tema>`, únicos en todo el juego (también frente a las preguntas de proyecto).
  */
 export const examen2Simetricas: BankEntry[] = [
   {
     project: 'simetricas',
     question: {
-      id: 'examen-2.angulo-autovectores',
-      type: 'opcion',
+      id: 'examen-2.decorrelar-nube',
+      type: 'laboratorio',
       prompt:
-        'Una matriz simétrica de $2\\times 2$ tiene dos autovalores distintos. Los dos autovectores, ¿qué ángulo forman?',
+        'Siete palabras de tres temas, repartidas a lo largo de una diagonal. Sus dos coordenadas van juntas: con la capa en la identidad, la covarianza de las dos salidas es alta.\n\nMueve las columnas de la capa hasta que esa covarianza sea casi cero, sin que la capa aplaste la nube.',
       hints: [
-        'Piensa en un ejemplo, como $\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$, con autovectores $(1, 1)$ y $(1, -1)$: calcula su producto escalar.',
-        'Una propiedad que vale para toda matriz simétrica no puede depender de los números concretos de la matriz.',
+        'Mira hacia dónde se alarga la nube: de «perro» a «coche». Ese eje tiene que acabar sobre un eje del dibujo.',
+        'Gira la nube para tumbar su eje largo sobre la salida 1. El eje de esta nube no es la diagonal: sube una casilla por cada dos que avanza.',
       ],
       explain:
-        'La simetría fija la relación entre las dos direcciones que la matriz solo estira, sea cual sea la matriz. No es una casualidad de un ejemplo, ni de que los autovalores sean sencillos.',
+        'La covarianza de las salidas es cero cuando la nube de salida queda alargada a lo largo de un eje del dibujo: conocer una salida no dice nada de la otra. Llevarlo todo a una recta también da cero, pero entonces la capa no deja área.',
       solution:
-        'Forman $90^\\circ$: los autovectores de una matriz simétrica con autovalores distintos son perpendiculares. Con $\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$, el producto escalar de $(1, 1)$ y $(1, -1)$ es $0$. Sin simetría no hay garantía: $\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$ tiene autovectores $(1, 0)$ y $(1, -1)$, que forman $45^\\circ$.',
-      options: [
-        '$90^\\circ$, porque en una matriz simétrica las dos direcciones que solo se estiran son perpendiculares',
-        '$45^\\circ$, porque las dos direcciones reparten el plano en partes iguales',
-        'Depende de la matriz: cada matriz simétrica tiene su propio ángulo',
-        '$0^\\circ$, porque con autovalores distintos los dos autovectores señalan lo mismo',
+        'Una capa que vale: $\\hat{\\imath}$ en $(1;\\ -0{,}5)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 1)$. La salida 1 mide la posición a lo largo del eje largo de la nube, la dirección $(2, 1)$, y la salida 2, a lo ancho: covarianza casi $0$ y área $1{,}25$. El giro de un octavo de vuelta no vale aquí, porque el eje de esta nube no es la diagonal $(1, 1)$.',
+      lab: capaLab(NUBE_ALARGADA, { readouts: ['spread_x', 'spread_y'] }),
+      goals: [
+        {
+          metric: 'cov_xy',
+          op: 'eq',
+          target: 0,
+          tol: 0.05,
+          label: 'Covarianza de las dos salidas',
+        },
+        {
+          metric: 'area',
+          op: 'gte',
+          target: 0.5,
+          label: 'Área que deja la capa al cuadrado unidad',
+        },
       ],
-      correct: 0,
+      solved: { ix: 1, iy: -0.5, jx: 0.5, jy: 1 },
     },
   },
   {
     project: 'simetricas',
     question: {
-      id: 'examen-2.varianza-direccion',
+      id: 'examen-2.covarianza-384',
       type: 'numero',
       prompt:
-        'Unos datos tienen por matriz de covarianza $C=\\begin{pmatrix}4&2\\\\2&4\\end{pmatrix}$. ¿Qué varianza tienen en la dirección del vector de longitud $1$ $\\vec{u}=(0{,}6;\\ 0{,}8)$, es decir, cuánto vale $\\vec{u}^{T}C\\vec{u}$?',
+        'Un buscador guarda embeddings de frases de $384$ números. Su matriz de covarianza es de $384\\times 384$, con las varianzas en la diagonal y cada covarianza dos veces, una a cada lado.\n\n¿Cuántos números distintos hay que guardar, como mucho?',
       hints: [
-        'Calcula primero $C\\vec{u}$, que es un vector, y después su producto escalar con $\\vec{u}$.',
-        'El resultado tiene que quedar entre los dos autovalores de $C$, que son $2$ y $6$.',
+        'La diagonal tiene $384$ números, todos distintos entre sí en principio.',
+        'Las casillas de fuera van por parejas iguales, una a cada lado de la diagonal: cuenta la mitad.',
       ],
       explain:
-        'La varianza en una dirección es un solo número: el producto escalar de $\\vec{u}$ con $C\\vec{u}$. Hacerlo por componentes también vale: $4u_1^2+2\\cdot 2\\,u_1u_2+4u_2^2$. Cuida el doble producto cruzado.',
+        'Una matriz simétrica queda fijada por su diagonal y por lo que hay a un lado de ella. Con $n$ coordenadas son $n(n+1)/2$ números, no $n^2$.',
       solution:
-        '$C\\vec{u}=(4\\cdot 0{,}6+2\\cdot 0{,}8,\\ 2\\cdot 0{,}6+4\\cdot 0{,}8)=(4;\\ 4{,}4)$, y $\\vec{u}^{T}C\\vec{u}=0{,}6\\cdot 4+0{,}8\\cdot 4{,}4=5{,}92$. Por componentes: $4\\cdot 0{,}36+2\\cdot 2\\cdot 0{,}48+4\\cdot 0{,}64=5{,}92$. Está entre $2$ y $6$, como tiene que estar: la varianza en una dirección nunca baja del menor autovalor ni sube del mayor.',
-      answer: 5.92,
-      tol: 0.01,
+        'Fuera de la diagonal hay $384^2-384=147\\,072$ casillas, que forman $73\\,536$ parejas. Con las $384$ varianzas, $73\\,536+384=73\\,920$, que es $384\\cdot 385/2$. La matriz entera tiene $147\\,456$ casillas.',
+      answer: 73920,
+      tol: 0,
     },
   },
   {

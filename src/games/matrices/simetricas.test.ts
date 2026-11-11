@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { checkProject } from '../../content/validate';
-import { grade } from '../../content/grade';
 import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import {
+  labAt,
+  defineLabProjectTests,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -17,6 +22,7 @@ const bankQuestions = examen2Simetricas
 
 defineProseTests('proyecto simetricas', projectQuestions(simetricas));
 defineProseTests('banco examen-2 simetricas', bankQuestions);
+defineLabProjectTests(simetricas, examen2Simetricas);
 
 type V = [number, number];
 type M = [[number, number], [number, number]];
@@ -77,11 +83,6 @@ describe('proyecto simetricas', () => {
   });
 });
 
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -89,315 +90,240 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-describe('valores de la tabla del proyecto simetricas', () => {
-  const [ex00, ex01, ex02] = simetricas.exercises;
-  const manipular = (k: number) => {
-    const q = ex00!.questions[k]!;
-    if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-    return q;
-  };
+describe('simetricas, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(simetricas);
+  const lab = (k: number) => labQuestion(all, `simetricas.ex00.${k}`);
 
-  it('ex00: metas de cada manipular', () => {
-    // contract: encargo de la Órbita 2 de matrices: x de ĵ = 1 y det = 3; img_angle 0 de v y de w y ángulo 90; img_angle 0 y cociente 2 para v, img_angle 0 y cociente 1 para w; imagen (4, 4) de v y (2, −2) de w; cociente −1
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['x(j)=1±0.01', 'det(i,j)=3±0.01'],
-      ['img_angle(i,j,v)=0±0.5', 'img_angle(i,j,w)=0±0.5', 'angle(v,w)=90±0.5'],
-      [
-        'img_angle(i,j,v)=0±0.5',
-        'rayleigh(i,j,v)=2±0.01',
-        'img_angle(i,j,w)=0±0.5',
-        'rayleigh(i,j,w)=1±0.01',
-      ],
-      ['img_x(i,j,v)=4±0.01', 'img_y(i,j,v)=4±0.01', 'img_x(i,j,w)=2±0.01', 'img_y(i,j,w)=-2±0.01'],
-      ['rayleigh(i,j,v)=-1±0.01'],
-    ]);
+  it('la nube de textos tiene la covarianza (1,25 1; 1 1,25): 90 % sobre (1, 1) y 10 % sobre (1, −1)', () => {
+    const spec = lab(1).lab;
+    if (spec.kind !== 'capa') throw new Error('ex00.1 usa el laboratorio capa');
+    const xs = spec.points.map((p) => p.x);
+    const ys = spec.points.map((p) => p.y);
+    const mean = (t: number[]) => t.reduce((s, x) => s + x, 0) / t.length;
+    const pop = (a: number[], b: number[]) =>
+      mean(a.map((x, k) => (x - mean(a)) * (b[k]! - mean(b))));
+    // contract: comentario de TEXTOS y prompt de ex00.3/ex01.3: nube centrada con covarianza (1,25 1; 1 1,25), dividiendo entre n como el laboratorio
+    expect([mean(xs), mean(ys)]).toEqual([0, 0]);
+    expect([pop(xs, xs), pop(xs, ys), pop(ys, ys)]).toEqual([1.25, 1, 1.25]);
+    // contract: takeaway de ex00.1 y ex00.2: la longitud recoge el 90 % y los tokens por palabra, el 10 %
+    expect(labAt(lab(1), { vx: 1, vy: 1 }).var_frac).toBeCloseTo(0.9, 12);
+    expect(labAt(lab(1), { vx: 1, vy: -1 }).var_frac).toBeCloseTo(0.1, 12);
   });
 
-  it('ex00.1: la solución es única y recalcula simetría y determinante', () => {
-    const q = manipular(0);
-    // contract: solution de ex00.1: ĵ = (1, 2), con A = (2 1; 1 2) simétrica y det = 4 − 1 = 3
-    expect(grade(q, { type: 'manipular', vectors: { j: [1, 2] } })).toBe(true);
-    const a = cols([2, 1], [1, 2]);
-    expect(a[0][1]).toBe(a[1][0]);
-    expect(det(a)).toBe(3);
-    // contract: el error didáctico de ex00.1: simétrica con det 5 (ĵ = (1, 3)), o det 3 sin simetría (ĵ = (3, 3))
-    expect(grade(q, { type: 'manipular', vectors: { j: [1, 3] } })).toBe(false);
-    expect(grade(q, { type: 'manipular', vectors: { j: [3, 3] } })).toBe(false);
-    expect(det(cols([2, 1], [1, 3]))).toBe(5);
-    expect(det(cols([2, 1], [3, 3]))).toBe(3);
+  it('ex00.1: al empezar v recoge la mitad; la diagonal resuelve y apuntar a «código» no', () => {
+    // contract: enunciado de ex00.1: «ahora v mira solo las palabras y recoge la mitad»
+    expect(labAt(lab(1)).var_frac).toBeCloseTo(0.5, 12);
+    // contract: solution de ex00.1: (1, 1) y cualquier múltiplo; también (2; 1,5) y (1,5; 2)
+    for (const s of [
+      { vx: 1, vy: 1 },
+      { vx: -2, vy: -2 },
+      { vx: 2, vy: 1.5 },
+      { vx: 1.5, vy: 2 },
+    ])
+      expect(solves(lab(1), s), JSON.stringify(s)).toBe(true);
+    // contract: solution de ex00.1: apuntar a «código», (1, 2), se queda en el 82 %; la vertical, en el 50 %
+    expect(labAt(lab(1), { vx: 1, vy: 2 }).var_frac).toBeCloseTo(0.82, 12);
+    expect(solves(lab(1), { vx: 1, vy: 2 })).toBe(false);
+    expect(labAt(lab(1), { vx: 0, vy: 1 }).var_frac).toBeCloseTo(0.5, 12);
   });
 
-  it('ex00.2: v y w sobre las diagonales, perpendiculares, y las erróneas fallan', () => {
-    const q = manipular(1);
-    const A = cols([2, 1], [1, 2]);
-    const solved: [V, V][] = [
-      // contract: solution de ex00.2: v = (1, 1) y w = (1, −1) en cualquier orden y con cualquier múltiplo
-      [
-        [1, 1],
-        [1, -1],
-      ],
-      [
-        [1, -1],
-        [1, 1],
-      ],
-      [
-        [2, 2],
-        [-2, 2],
-      ],
-    ];
-    for (const [v, w] of solved) {
-      expect(grade(q, { type: 'manipular', vectors: { v, w } }), `${v} ${w}`).toBe(true);
-      // contract: encargo: A·v no gira (ángulo 0) y v, w forman 90°; los cocientes son 3 y 1 (autovalores)
-      expect(degrees(v, apply(A, v))).toBeLessThan(1e-4);
-      expect(degrees(w, apply(A, w))).toBeLessThan(1e-4);
-      expect(degrees(v, w)).toBeCloseTo(90, 9);
+  it('ex00.2: la dirección de menos variación es la perpendicular; la horizontal no basta', () => {
+    // contract: enunciado de ex00.2: «ahora v sigue la nube y recoge casi toda su variación» (90 %)
+    expect(labAt(lab(2)).var_frac).toBeCloseTo(0.9, 12);
+    // contract: solution de ex00.2: (1, −1) o (−1, 1); regla 3 de la guía: también una dirección cercana, (1,5; −2)
+    for (const s of [
+      { vx: 1, vy: -1 },
+      { vx: -1, vy: 1 },
+      { vx: 1.5, vy: -2 },
+    ])
+      expect(solves(lab(2), s), JSON.stringify(s)).toBe(true);
+    // contract: takeaway de ex00.2: ninguna dirección baja del 10 % (muestreo de la rejilla)
+    let least = Infinity;
+    for (let vx = -4; vx <= 4; vx += 0.5)
+      for (let vy = -4; vy <= 4; vy += 0.5)
+        if (vx !== 0 || vy !== 0) least = Math.min(least, labAt(lab(2), { vx, vy }).var_frac!);
+    expect(least).toBeCloseTo(0.1, 12);
+    // contract: solution de ex00.2: la horizontal se queda en el 50 %
+    expect(solves(lab(2), { vx: 1, vy: 0 })).toBe(false);
+    // contract: solution de ex00.2: sobre (1, −1) «código» y «cuento» quedan en los extremos
+    const spec = lab(2).lab;
+    if (spec.kind !== 'capa') throw new Error('ex00.2 usa el laboratorio capa');
+    const along = spec.points.map((p) => [p.id, p.y - p.x] as const);
+    const sorted = [...along].sort((a, b) => a[1] - b[1]);
+    expect([sorted[0]![0], sorted[sorted.length - 1]![0]]).toEqual(['cuento', 'codigo']);
+  });
+
+  it('ex00.3: la covarianza como capa estira (1, 1) por 2,25 sin girarlo; (1, −1) no gira pero estira 0,25', () => {
+    const spec = lab(3).lab;
+    if (spec.kind !== 'capa') throw new Error('ex00.3 usa el laboratorio capa');
+    // contract: enunciado de ex00.3: la capa es la matriz de covarianza de los seis textos
+    expect([spec.i, spec.j, spec.movable]).toEqual([[1.25, 1], [1, 1.25], 'none']);
+    // contract: solution de ex00.3: (1, 1) o cualquier múltiplo resuelve
+    for (const s of [
+      { vx: 1, vy: 1 },
+      { vx: 2, vy: 2 },
+      { vx: -1, vy: -1 },
+    ])
+      expect(solves(lab(3), s), JSON.stringify(s)).toBe(true);
+    const main = labAt(lab(3), { vx: 1, vy: 1 });
+    // contract: solution de ex00.3: estira 2,25, que es también la varianza de la nube sobre la recta y el cociente
+    expect(main.stretch).toBeCloseTo(2.25, 12);
+    expect(main.var_v).toBeCloseTo(2.25, 12);
+    expect(main.rayleigh).toBeCloseTo(2.25, 12);
+    // contract: tentadora y mala (solution): (1, −1) no gira, pero estira solo 0,25
+    const minor = labAt(lab(3), { vx: 1, vy: -1 });
+    expect(minor.img_angle).toBeLessThan(1e-3);
+    expect(minor.stretch).toBeCloseTo(0.25, 12);
+    expect(solves(lab(3), { vx: 1, vy: -1 })).toBe(false);
+    // contract: regla 4 de la guía (un límite): ninguna dirección de la rejilla estira más de 2,25
+    let most = 0;
+    for (let vx = -5; vx <= 5; vx += 0.5)
+      for (let vy = -5; vy <= 5; vy += 0.5)
+        if (vx !== 0 || vy !== 0) most = Math.max(most, labAt(lab(3), { vx, vy }).stretch!);
+    expect(most).toBeCloseTo(2.25, 12);
+    // contract: enunciado de ex00.3: al empezar, la capa gira v
+    expect(labAt(lab(3)).img_angle).toBeGreaterThan(30);
+  });
+
+  it('ex00.1 a ex00.3: v en el origen no cumple ninguna meta', () => {
+    for (const k of [1, 2, 3]) {
+      const q = lab(k);
+      const values = labAt(q, { vx: 0, vy: 0 });
+      // contract: encargo de simetricas (parent, 2026-11-11): v = (0, 0) no cumple ninguna meta
+      for (const g of q.goals)
+        expect(
+          solves({ ...q, goals: [g] }, { vx: 0, vy: 0 }),
+          `${q.id} ${g.metric} = ${values[g.metric]}`,
+        ).toBe(false);
     }
-    expect([rayleigh(A, [1, 1]), rayleigh(A, [1, -1])]).toEqual([3, 1]);
-    const wrong: [V, V][] = [
-      // contract: error didáctico de ex00.2: w sobre una diagonal pero v no (45°); las dos flechas en el mismo eje; perpendiculares pero fuera de los ejes; la posición inicial
-      [
-        [1, 1],
-        [1, 0],
-      ],
-      [
-        [1, 1],
-        [2, 2],
-      ],
-      [
-        [1, 2],
-        [-2, 1],
-      ],
-      [
-        [1, 0],
-        [0, 1],
-      ],
-    ];
-    for (const [v, w] of wrong)
-      expect(grade(q, { type: 'manipular', vectors: { v, w } }), `${v} ${w}`).toBe(false);
   });
 
-  it('ex00.3: A no simétrica; las dos direcciones forman 45° o 135°, no 90°', () => {
-    const q = manipular(2);
-    const A = cols([2, 0], [1, 1]);
-    // contract: encargo: A = (2 1; 0 1) tiene i = (2, 0) y j = (1, 1), y no es simétrica (1 ≠ 0)
-    expect(A[0][1]).not.toBe(A[1][0]);
-    const solved: [V, V, number][] = [
-      // contract: solution de ex00.3: v = (t, 0) y w = (1, −1) o su opuesto; 45° o 135°
-      [[1, 0], [1, -1], 45],
-      [[2, 0], [-1, 1], 135],
-      [[-1, 0], [1, -1], 135],
-    ];
-    for (const [v, w, ang] of solved) {
-      expect(grade(q, { type: 'manipular', vectors: { v, w } }), `${v} ${w}`).toBe(true);
-      expect(rayleigh(A, v)).toBe(2);
-      expect(rayleigh(A, w)).toBe(1);
-      expect(degrees(v, apply(A, v))).toBeLessThan(1e-4);
-      expect(degrees(w, apply(A, w))).toBeLessThan(1e-4);
-      expect(degrees(v, w)).toBeCloseTo(ang, 9);
-    }
-    const wrong: [V, V][] = [
-      // contract: error didáctico de ex00.3: w sin conservar la dirección; v y w con los cocientes cambiados; w con el cociente de v; la posición inicial
-      [
-        [1, 0],
-        [1, 1],
-      ],
-      [
-        [1, -1],
-        [1, 0],
-      ],
-      [
-        [1, 0],
-        [1, 0],
-      ],
-      [
-        [0, 1],
-        [1, 1],
-      ],
-    ];
-    for (const [v, w] of wrong)
-      expect(grade(q, { type: 'manipular', vectors: { v, w } }), `${v} ${w}`).toBe(false);
+  it('ex00.4: decorrelar sin aplastar; hay más de una capa que vale y aplastar no cuenta', () => {
+    const start = labAt(lab(4));
+    // contract: enunciado de ex00.4: «con la capa en la identidad, sus dos salidas van juntas: la covarianza es alta»
+    expect(start.cov_xy).toBe(1);
+    // contract: solution de ex00.4: î en (1, −1) y ĵ en (1, 1): covarianza 0 y área 2
+    const turned = labAt(lab(4), { ix: 1, iy: -1, jx: 1, jy: 1 });
+    expect([turned.cov_xy, turned.area]).toEqual([0, 2]);
+    expect(solves(lab(4), { ix: 1, iy: -1, jx: 1, jy: 1 })).toBe(true);
+    // contract: solution de ex00.4 (regla 3): también î en (1, −2) y ĵ en (0; 2,5), y el giro a media escala
+    expect(solves(lab(4), { ix: 1, iy: -2, jx: 0, jy: 2.5 })).toBe(true);
+    expect(solves(lab(4), { ix: 0.5, iy: -0.5, jx: 0.5, jy: 0.5 })).toBe(true);
+    // contract: tentadora y mala (solution): ĵ en el origen da covarianza 0, pero la capa aplasta
+    const flat = labAt(lab(4), { jx: 0, jy: 0 });
+    expect([flat.cov_xy, flat.area]).toEqual([0, 0]);
+    expect(solves(lab(4), { jx: 0, jy: 0 })).toBe(false);
   });
 
-  it('ex00.4: la matriz con A·v = (4, 4) y A·w = (2, −2) es única y simétrica', () => {
-    const q = manipular(3);
-    // contract: solution de ex00.4: î = (3, 1), ĵ = (1, 3), con A·v = î + ĵ y A·w = î − ĵ
-    expect(grade(q, { type: 'manipular', vectors: { i: [3, 1], j: [1, 3] } })).toBe(true);
-    const A = cols([3, 1], [1, 3]);
-    expect(apply(A, [1, 1])).toEqual([4, 4]);
-    expect(apply(A, [1, -1])).toEqual([2, -2]);
-    expect(A[0][1]).toBe(A[1][0]);
-    // contract: error didáctico de ex00.4: columnas cambiadas de sitio (A·w sale (−2, 2)); la identidad
-    expect(grade(q, { type: 'manipular', vectors: { i: [1, 3], j: [3, 1] } })).toBe(false);
-    expect(apply(cols([1, 3], [3, 1]), [1, -1])).toEqual([-2, 2]);
-    expect(grade(q, { type: 'manipular', vectors: { i: [1, 0], j: [0, 1] } })).toBe(false);
+  it('ex00.5: la capa acierta sin ser simétrica; igualar los pesos cruzados por el buen lado resuelve', () => {
+    const start = labAt(lab(5));
+    // contract: enunciado de ex00.5: «ya acierta con las seis, pero no es simétrica»
+    expect([start.acc, start.asym]).toEqual([1, 2]);
+    // contract: solution de ex00.5: î en (0, 1); también bajar los dos pesos cruzados a 0,5
+    expect(solves(lab(5), { iy: 1 })).toBe(true);
+    expect(solves(lab(5), { iy: 0.5, jx: 0.5 })).toBe(true);
+    // contract: tentadora y mala (solution): ĵ en (−1; 0,5) es simétrica, pero falla con las seis
+    const flipped = labAt(lab(5), { jx: -1 });
+    expect([flipped.asym, flipped.acc]).toEqual([0, 0]);
   });
+});
 
-  it('ex00.5: el cociente −1 está en la dirección de (1, −1); el máximo 3, en la de (1, 1)', () => {
-    const q = manipular(4);
-    const A = cols([1, 2], [2, 1]);
-    for (const v of [
-      [1, -1],
-      [2, -2],
-      [-1, 1],
-    ] as V[]) {
-      // contract: solution de ex00.5: cualquier múltiplo de (1, −1), con A·v = −v
-      expect(grade(q, { type: 'manipular', vectors: { v } }), `${v}`).toBe(true);
-      expect(rayleigh(A, v)).toBe(-1);
-    }
-    // contract: solution de ex00.5: el máximo, 3, está en la recta de (1, 1); (1, 0) da 1 (posición inicial)
-    expect([rayleigh(A, [1, 1]), rayleigh(A, [1, 0])]).toEqual([3, 1]);
-    for (const v of [
-      [1, 1],
-      [1, 0],
-      [1, -2],
-    ] as V[])
-      expect(grade(q, { type: 'manipular', vectors: { v } }), `${v}`).toBe(false);
-  });
+describe('simetricas, «Calcular»: las respuestas se recalculan', () => {
+  const [, ex01] = simetricas.exercises;
 
-  it('ex00: planos, vectores móviles, lecturas, rango, rejilla, pareja y elipse', () => {
-    const shape = ex00!.questions.map((q) => {
-      if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-      return [
-        q.plane.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        q.plane.readouts,
-        q.plane.range,
-        q.plane.snap,
-        q.plane.transform,
-        q.plane.pair,
-        q.plane.circle,
-        q.plane.circleImage,
-      ];
-    });
-    // contract: encargo de la Órbita 2 de matrices (P2): î fijo y ĵ móvil desde (0, 1) en la primera; A fija y v, w móviles con pair, circle 1 y circleImage en la segunda; v y w móviles en la tercera; î y ĵ móviles con v, w fijos y elipse (circle 1 y circleImage, que el enunciado de ex00.4 anuncia y la revisión de la Órbita 2 añadió) en la cuarta (range 4, snap 1); v móvil en la quinta
-    expect(shape).toEqual([
-      [
-        ['i=(2, 1) false', 'j=(0, 1) true'],
-        ['matrix', 'det'],
-        3,
-        1,
-        { columns: ['i', 'j'] },
-        undefined,
-        undefined,
-        undefined,
-      ],
-      [
-        ['i=(2, 1) false', 'j=(1, 2) false', 'v=(1, 0) true', 'w=(0, 1) true'],
-        ['img_angle', 'rayleigh', 'angle'],
-        3,
-        1,
-        { columns: ['i', 'j'], apply: ['v', 'w'] },
-        ['v', 'w'],
-        1,
-        true,
-      ],
-      [
-        ['i=(2, 0) false', 'j=(1, 1) false', 'v=(0, 1) true', 'w=(1, 1) true'],
-        ['img_angle', 'rayleigh', 'angle'],
-        3,
-        1,
-        { columns: ['i', 'j'], apply: ['v', 'w'] },
-        ['v', 'w'],
-        undefined,
-        undefined,
-      ],
-      [
-        ['i=(1, 0) true', 'j=(0, 1) true', 'v=(1, 1) false', 'w=(1, -1) false'],
-        ['matrix', 'image'],
-        4,
-        1,
-        { columns: ['i', 'j'], apply: ['v', 'w'] },
-        undefined,
-        1,
-        true,
-      ],
-      [
-        ['i=(1, 2) false', 'j=(2, 1) false', 'v=(1, 0) true'],
-        ['image', 'rayleigh'],
-        3,
-        1,
-        { columns: ['i', 'j'], apply: ['v'] },
-        undefined,
-        undefined,
-        undefined,
-      ],
-    ]);
-  });
-
-  it('ex01: respuestas de calcular y tipos', () => {
-    // contract: encargo de la Órbita 2 de matrices (P2): opción 2 (la tercera matriz); covarianza 8; matriz [4, 2, 2, 4]; autovalor mayor 6; otro autovector [−1, 2]; todo con tol 0
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 2): covarianza 2 de los cuatro textos; la segunda opción; uᵀCu = 2,21; la tercera opción; 768·769/2
     expect(ex01!.questions.map(answerOf)).toEqual([
+      [2, 0],
+      1,
+      [2.21, 0.01],
       2,
-      [8, 0],
-      [[4, 2, 2, 4], 0],
-      [6, 0],
-      [[-1, 2], 0],
+      [(768 * 769) / 2, 0],
     ]);
-    expect(ex01!.questions.map((q) => q.type)).toEqual([
-      'opcion',
-      'numero',
-      'vector',
-      'numero',
-      'vector',
-    ]);
-    const q3 = ex01!.questions[2]!;
-    // contract: encargo de la Órbita 2 de matrices (P2): la tercera pregunta teclea una matriz 2×2
-    expect(q3.type === 'vector' ? q3.shape : undefined).toEqual([2, 2]);
   });
 
-  it('ex01: las respuestas se recalculan', () => {
-    // contract: ex01.1: solo (4 −2; −2 1) tiene la entrada de arriba a la derecha igual a la de abajo a la izquierda
-    const opts: M[] = [
-      [
-        [1, 2],
-        [3, 2],
-      ],
-      [
-        [2, -1],
-        [1, 2],
-      ],
-      [
-        [4, -2],
-        [-2, 1],
-      ],
-      [
-        [0, 1],
-        [0, 0],
-      ],
-    ];
-    expect(opts.map((m) => m[0][1] === m[1][0])).toEqual([false, false, true, false]);
-    // contract: ex01.2: cov de x = (2, 4, 9) e y = (1, 5, 6): medias 5 y 4, suma de productos 16, entre n − 1 = 2 da 8
-    expect(cov([2, 4, 9], [1, 5, 6])).toBe(8);
-    // contract: ex01.2 (solution): dividir entre n daría 16/3 ≈ 5,33; sin restar las medias, 76/2 = 38
-    expect(16 / 3).toBeCloseTo(5.33, 2);
-    expect((2 * 1 + 4 * 5 + 9 * 6) / 2).toBe(38);
-    // contract: ex01.3: los puntos (0, 1), (2, 5), (4, 3) dan var x = 4, cov = 2, var y = 4
-    const xs = [0, 2, 4];
-    const ys = [1, 5, 3];
-    expect([cov(xs, xs), cov(xs, ys), cov(ys, xs), cov(ys, ys)]).toEqual([4, 2, 2, 4]);
-    // contract: ex01.4: C = (4 2; 2 4) tiene traza 8 y determinante 12, luego λ² − 8λ + 12 = 0 da 6 y 2; C·(1, 1) = 6·(1, 1)
-    const C: M = [
-      [4, 2],
-      [2, 4],
-    ];
-    expect([4 + 4, det(C)]).toEqual([8, 12]);
-    expect([6, 2].map((l) => l * l - 8 * l + 12)).toEqual([0, 0]);
-    expect(apply(C, [1, 1])).toEqual([6, 6]);
-    expect(apply(C, [1, -1])).toEqual([2, -2]);
-    // contract: ex01.5: el otro autovector (−1, 2) es perpendicular a (2, 1): producto escalar 0
-    expect(dot([2, 1], [-1, 2])).toBe(0);
-  });
-
-  it('ex01.1: las cuatro opciones son las matrices del cálculo', () => {
+  it('ex01.1: la media de los productos de los cuatro textos es 2, y 8/3 con n − 1', () => {
     const q = ex01!.questions[0]!;
-    // contract: solution de ex01.1: las opciones son (1 2; 3 2), (2 −1; 1 2), (4 −2; −2 1) y (0 1; 0 0)
-    expect(q.type === 'opcion' ? q.options : []).toEqual([
-      '$\\begin{pmatrix}1&2\\\\3&2\\end{pmatrix}$',
-      '$\\begin{pmatrix}2&-1\\\\1&2\\end{pmatrix}$',
-      '$\\begin{pmatrix}4&-2\\\\-2&1\\end{pmatrix}$',
-      '$\\begin{pmatrix}0&1\\\\0&0\\end{pmatrix}$',
-    ]);
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.1 es numero con capa');
+    const pts = q.lab.points;
+    // contract: prompt de ex01.1: cuatro textos centrados
+    expect([pts.reduce((s, p) => s + p.x, 0), pts.reduce((s, p) => s + p.y, 0)]).toEqual([0, 0]);
+    // contract: solution de ex01.1: productos 4, 0, 0 y 4; suman 8; entre 4 da 2 y entre 3, 8/3
+    expect(pts.map((p) => p.x * p.y + 0)).toEqual([4, 0, 0, 4]);
+    expect(
+      cov(
+        pts.map((p) => p.x),
+        pts.map((p) => p.y),
+      ),
+    ).toBeCloseTo(8 / 3, 12);
   });
 
+  it('ex01.2: la covarianza de los seis textos es positiva y «saludo» está por debajo en los dos rasgos', () => {
+    const q = ex01!.questions[1]!;
+    if (q.type !== 'opcion' || q.lab?.kind !== 'capa') throw new Error('ex01.2 es opcion con capa');
+    // contract: prompt de ex01.2: «el panel da su covarianza, que es positiva»
+    expect(
+      labAt({ ...labQuestion(projectQuestions(simetricas), 'simetricas.ex00.1'), lab: q.lab })
+        .cov_xy,
+    ).toBe(1);
+    const saludo = q.lab.points.find((p) => p.id === 'saludo')!;
+    // contract: solution de ex01.2: «saludo» está por debajo de la media en ambos
+    expect(saludo.x < 0 && saludo.y < 0).toBe(true);
+  });
+
+  it('ex01.3: uᵀCu con u = (0,6; 0,8) es 2,21 y es la varianza de la nube sobre la recta del laboratorio', () => {
+    const q = ex01!.questions[2]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.3 es numero con capa');
+    const C: M = [
+      [1.25, 1],
+      [1, 1.25],
+    ];
+    const u: V = [0.6, 0.8];
+    // contract: solution de ex01.3: Cu = (1,55; 1,6) y uᵀCu = 0,93 + 1,28 = 2,21
+    expect(apply(C, u).map((t) => Math.round(t * 1e9) / 1e9)).toEqual([1.55, 1.6]);
+    expect(dot(u, apply(C, u))).toBeCloseTo(2.21, 12);
+    // contract: prompt de ex01.3: la recta del laboratorio va en la dirección de u, y su varianza es la respuesta
+    expect(q.lab.probe).toEqual({ x: 1.5, y: 2, movable: false, on: 'input' });
+    const values = labAt({
+      ...labQuestion(projectQuestions(simetricas), 'simetricas.ex00.1'),
+      lab: q.lab,
+    });
+    expect(values.var_v).toBeCloseTo(2.21, 12);
+    // contract: solution de ex01.3: la recta va a unos 8° de la diagonal
+    expect(Math.round(degrees(u, [1, 1]))).toBe(8);
+  });
+
+  it('ex01.4: la opción correcta habla de simetría y las direcciones propias son perpendiculares', () => {
+    const q = ex01!.questions[3]!;
+    if (q.type !== 'opcion') throw new Error('ex01.4 es opcion');
+    // contract: takeaway de ex01.4: la covarianza es simétrica (teorema espectral)
+    expect(q.options[q.correct]).toMatch(/simétrica/);
+    const C: M = [
+      [1.25, 1],
+      [1, 1.25],
+    ];
+    // contract: solution de ex01.4: (1, 1) y (1, −1) son direcciones propias de C y su producto escalar es 0
+    expect(apply(C, [1, 1])).toEqual([2.25, 2.25]);
+    expect(apply(C, [1, -1])).toEqual([0.25, -0.25]);
+    expect(dot([1, 1], [1, -1])).toBe(0);
+    // contract: solution de ex01.4: (2 1; 0 1) tiene direcciones propias (1, 0) y (1, −1), a 45°
+    const N = cols([2, 0], [1, 1]);
+    expect(apply(N, [1, 0])).toEqual([2, 0]);
+    expect(apply(N, [1, -1])).toEqual([1, -1]);
+    expect(degrees([1, 0], [1, -1])).toBeCloseTo(45, 9);
+  });
+
+  it('ex01.5: las cifras de la solución', () => {
+    // contract: solution de ex01.5: 768² − 768 = 589 056 casillas, 294 528 parejas, 295 296 en total y 589 824 sin simetría
+    expect(768 * 768 - 768).toBe(589056);
+    expect((768 * 768 - 768) / 2).toBe(294528);
+    expect(294528 + 768).toBe(295296);
+    expect(768 * 768).toBe(589824);
+  });
+});
+
+describe('simetricas: «Programar» y hojas', () => {
+  const [, , ex02] = simetricas.exercises;
   it('ex02: cinco preguntas de código', () => {
     // contract: encargo de la Órbita 2 de matrices: ex02 programar, cinco preguntas de código
     expect(ex02!.questions.map((q) => q.type)).toEqual(Array(5).fill('codigo'));
@@ -522,15 +448,15 @@ describe('valores de la tabla del proyecto simetricas', () => {
 
 describe('banco de examen 2 del proyecto simetricas', () => {
   it('tiene tres entradas fijas del proyecto simetricas, con ids examen-2.*', () => {
-    // contract: encargo de la Órbita 2 de matrices (P2): 3 entradas `{ project: 'simetricas', question }` con ids examen-2.angulo-autovectores, examen-2.varianza-direccion y examen-2.autovalores-de-mayor-a-menor
+    // contract: guía de contenido 2026-11-10 (petición de Oliver): un laboratorio y una cuenta del estilo nuevo; la de código se conserva («Programar» no se toca)
     expect(examen2Simetricas.map((e) => e.project)).toEqual([
       'simetricas',
       'simetricas',
       'simetricas',
     ]);
     expect(examen2Simetricas.map((e) => e.question.id)).toEqual([
-      'examen-2.angulo-autovectores',
-      'examen-2.varianza-direccion',
+      'examen-2.decorrelar-nube',
+      'examen-2.covarianza-384',
       'examen-2.autovalores-de-mayor-a-menor',
     ]);
   });
@@ -543,35 +469,39 @@ describe('banco de examen 2 del proyecto simetricas', () => {
   });
 
   it('ninguna entrada es generada, hay variedad de tipos y los ids no chocan con los del proyecto', () => {
-    // contract: encargo de la Órbita 2 de matrices (P2): tres fijas, una opción, un número y un código; ids únicos en el juego
+    // contract: guía de contenido 2026-11-10: un laboratorio, un numero y un codigo; las generadas las añade el ensamblado
     expect(examen2Simetricas.some((e) => e.question.type === 'generada')).toBe(false);
-    expect(examen2Simetricas.map((e) => e.question.type)).toEqual(['opcion', 'numero', 'codigo']);
+    expect(examen2Simetricas.map((e) => e.question.type)).toEqual([
+      'laboratorio',
+      'numero',
+      'codigo',
+    ]);
     const projectIds = new Set(projectQuestions(simetricas).map((q) => q.id));
     expect(examen2Simetricas.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
-  it('respuestas del banco', () => {
-    const [angulo, varianza] = examen2Simetricas.map((e) => e.question);
-    // contract: examen-2.angulo-autovectores: 90° (opción 0), porque (1, 1)·(1, −1) = 0 en el ejemplo
-    expect(
-      angulo!.type === 'opcion' ? [angulo!.correct, angulo!.options[angulo!.correct]] : [],
-    ).toEqual([
-      0,
-      '$90^\\circ$, porque en una matriz simétrica las dos direcciones que solo se estiran son perpendiculares',
-    ]);
-    expect(dot([1, 1], [1, -1])).toBe(0);
-    // contract: examen-2.varianza-direccion: uᵀCu = 4·0,36 + 2·2·0,48 + 4·0,64 = 5,92 con u = (0,6; 0,8), tol 0,01
-    expect(varianza!.type === 'numero' ? [varianza!.answer, varianza!.tol] : []).toEqual([
-      5.92, 0.01,
-    ]);
-    const C: M = [
-      [4, 2],
-      [2, 4],
-    ];
-    const u: V = [0.6, 0.8];
-    expect(dot(u, apply(C, u))).toBeCloseTo(5.92, 12);
-    expect(4 * 0.36 + 2 * 2 * 0.48 + 4 * 0.64).toBeCloseTo(5.92, 12);
-    expect(dot(u, u)).toBeCloseTo(1, 12);
+  it('decorrelar-nube: empieza correlada; la capa de la solución vale y el giro de los textos no', () => {
+    const q = labQuestion(bankQuestions, 'examen-2.decorrelar-nube');
+    // contract: enunciado: «con la capa en la identidad, la covarianza de las dos salidas es alta» (13,5/7)
+    expect(labAt(q).cov_xy).toBeCloseTo(13.5 / 7, 12);
+    // contract: solution: î en (1; −0,5) y ĵ en (0,5; 1), con área 1,25
+    expect(solves(q, { ix: 1, iy: -0.5, jx: 0.5, jy: 1 })).toBe(true);
+    expect(labAt(q, { ix: 1, iy: -0.5, jx: 0.5, jy: 1 }).area).toBe(1.25);
+    // contract: regla 3 de la guía (varias soluciones): también con la salida 2 el doble de larga, ĵ en (0,5; 2)
+    expect(solves(q, { ix: 1, iy: -1, jx: 0.5, jy: 2 })).toBe(true);
+    // contract: tentadora y mala (solution): el giro de un octavo de vuelta, que valía para los textos, aquí no
+    expect(solves(q, { ix: 1, iy: -1, jx: 1, jy: 1 })).toBe(false);
+  });
+
+  it('covarianza-384: las cifras de la solución', () => {
+    const q = bankQuestions[1]!;
+    // contract: examen-2.covarianza-384: 384·385/2 = 73 920
+    expect(answerOf(q)).toEqual([(384 * 385) / 2, 0]);
+    // contract: solution: 384² − 384 = 147 072, 73 536 parejas, 147 456 casillas
+    expect(384 * 384 - 384).toBe(147072);
+    expect((384 * 384 - 384) / 2).toBe(73536);
+    expect(73536 + 384).toBe(73920);
+    expect(384 * 384).toBe(147456);
   });
 
   it('autovalores-de-mayor-a-menor: la covarianza de datos tiene autovalores 4,5 y 0,5', () => {

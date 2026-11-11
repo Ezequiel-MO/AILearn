@@ -1,43 +1,62 @@
-import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
+import type { CapaSpec } from '../../engine/labs/capa';
 import { py } from '../py';
 import { simetricasWarmup } from './simetricas.calentamiento';
-import { transformPlane, type TransformPlaneOptions } from './plane';
+import { RESENAS, capaLab, type Cloud } from './datos';
 
-/** Plano de transformación con î fijo y ĵ arrastrable. */
-const fixedIPlane = (o: TransformPlaneOptions): PlaneSpec => {
-  const p = transformPlane({ ...o, movable: true });
-  return {
-    ...p,
-    vectors: p.vectors.map((v) => (v.id === 'i' ? { ...v, movable: false } : v)),
-  };
+/**
+ * Seis textos medidos por sus palabras y sus tokens, contados respecto a la media (la nube está
+ * centrada). Los dos rasgos suben juntos: su covarianza es (1,25 1; 1 1,25), con varianza 2,25 a lo
+ * largo de (1, 1), la longitud, y 0,25 a lo largo de (1, −1), los tokens por palabra: el 90 % y el
+ * 10 %. Propia de este proyecto porque la covarianza de `NUBE_ALARGADA`, usada como capa, saca las
+ * palabras de la ventana y no tiene los ejes en la rejilla.
+ */
+const TEXTOS: Cloud = {
+  points: [
+    { id: 'saludo', label: 'saludo', x: -2, y: -1.5 },
+    { id: 'receta', label: 'receta', x: -0.5, y: -1 },
+    { id: 'tuit', label: 'tuit', x: -0.5, y: 0 },
+    { id: 'cuento', label: 'cuento', x: 1, y: 0 },
+    { id: 'noticia', label: 'noticia', x: 1, y: 0.5 },
+    { id: 'codigo', label: 'código', x: 1, y: 2 },
+  ],
+  axes: ['palabras', 'tokens'],
 };
 
-/** Un vector de la figura que no es una columna de la matriz. */
-const vec = (id: string, x: number, y: number, movable: boolean): PlaneVector => ({
-  id,
-  label: id,
-  x,
-  y,
-  movable,
+/** Cuatro textos centrados para la cuenta de la covarianza: productos 4, 0, 0 y 4. */
+const CUATRO_TEXTOS: Cloud = {
+  points: [
+    { id: 'aviso', label: 'aviso', x: -2, y: -2 },
+    { id: 'tuit', label: 'tuit', x: -1, y: 0 },
+    { id: 'correo', label: 'correo', x: 1, y: 0 },
+    { id: 'informe', label: 'informe', x: 2, y: 2 },
+  ],
+  axes: ['palabras', 'tokens'],
+};
+
+/** La recta de v sobre los textos, sin capa: el medidor es la parte de la variación que recoge. */
+const sobreTextos = (x: number, y: number, movable = true): CapaSpec =>
+  capaLab(TEXTOS, { movable: 'none', probe: { x, y, movable, on: 'input' } });
+
+/** La matriz de covarianza de `TEXTOS` como capa fija, con la circunferencia unidad y su elipse. */
+const covarianzaComoCapa: CapaSpec = capaLab(TEXTOS, {
+  range: 5,
+  i: [1.25, 1],
+  j: [1, 1.25],
+  movable: 'none',
+  probe: { x: 1, y: 0, movable: true, on: 'input' },
+  circle: true,
+  readouts: ['var_v', 'rayleigh'],
 });
 
-/** Meta: A·v va en la misma dirección que v (el ángulo entre los dos, en grados, es 0). */
-const sameDirection = (v: string): Goal => ({
-  metric: 'img_angle',
-  of: ['i', 'j', v],
-  target: 0,
-  tol: 0.5,
-});
+/** La meta de las dos primeras preguntas: qué parte de la variación cae sobre la recta de v. */
+const PARTE_SOBRE_V = 'Parte de la variación de la nube a lo largo de v';
 
-/** Meta: el cociente vᵀAv / vᵀv vale `target`. */
-const rayleighGoal = (v: string, target: number, tol: number): Goal => ({
-  metric: 'rayleigh',
-  of: ['i', 'j', v],
-  target,
-  tol,
-});
-
-/** Segundo proyecto de la Órbita 2 de matrices: simetría, perpendicularidad y covarianza. */
+/**
+ * Segundo proyecto de la Órbita 2 de matrices: una nube de datos tiene forma, y esa forma es una
+ * matriz simétrica, la de covarianza. Sus direcciones propias son los ejes de la nube, salen
+ * perpendiculares, y su autovalor es la varianza en esa dirección.
+ */
 export const simetricas: Project = {
   id: 'simetricas',
   name: 'Matrices simétricas',
@@ -53,173 +72,175 @@ export const simetricas: Project = {
       questions: [
         {
           id: 'simetricas.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La matriz de similitudes de un conjunto de embeddings, con el coseno de cada par, es **simétrica**: el parecido de $a$ con $b$ es el de $b$ con $a$. La matriz de puntuaciones de la atención de un transformer, en cambio, no suele serlo: compara la consulta de un token con la clave de otro, y lo que un token atiende a otro no es lo que el otro le atiende a él.',
-            aim: 'Vas a fijar la coordenada de $\\hat{\\jmath}$ que decide la simetría y a ajustar la otra para el determinante, viendo que son dos condiciones independientes.',
+            why: 'Un conjunto de embeddings no es una bola: se estira más en unas direcciones que en otras. Saber hacia dónde varían más los datos es lo primero que se mira al explorarlos, y es lo que buscan PCA y los mapas de embeddings.',
+            aim: 'Vas a mover una dirección sobre una nube de textos hasta encontrar aquella en la que los textos más se diferencian entre sí.',
             takeaway:
-              'Simetría y determinante fijan cada uno una coordenada de $\\hat{\\jmath}$, y sale $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$. En una matriz de similitudes basta con calcular la mitad de los pares fuera de la diagonal: la otra mitad es la misma.',
+              'La nube varía sobre todo a lo largo de la diagonal: los textos con más palabras tienen también más tokens. Esa dirección, la longitud, recoge el 90 % de la variación; la horizontal y la vertical, solo la mitad.',
           },
           prompt:
-            'Una matriz es **simétrica** si es igual a su traspuesta, $A=A^{T}$: lo que hay arriba a la derecha es igual a lo que hay abajo a la izquierda. En el plano, arriba a la derecha está la $x$ de $\\hat{\\jmath}$, y abajo a la izquierda, la $y$ de $\\hat{\\imath}$. Aquí $\\hat{\\imath}=(2, 1)$ está fijo. Mueve $\\hat{\\jmath}$ para que la matriz sea simétrica **y** tenga $\\det A=3$.',
+            'Seis textos, medidos por sus **palabras** y sus **tokens**, contados respecto a la media. Cada texto se proyecta sobre la recta de $\\vec{v}$, y el medidor dice qué parte de toda la variación de la nube cae a lo largo de esa recta. Ahora $\\vec{v}$ mira solo las palabras y recoge la mitad.\n\nMueve $\\vec{v}$ hasta la dirección en la que los textos más varían.',
           hints: [
-            'Ser simétrica pide que la $x$ de $\\hat{\\jmath}$ valga lo mismo que la $y$ de $\\hat{\\imath}$. Eso ya fija una de las dos coordenadas de $\\hat{\\jmath}$.',
-            'Con $\\hat{\\jmath}=(a, b)$ y $a$ ya decidida, el determinante es $2b-a\\cdot 1$. Resuelve $2b-a=3$.',
+            'Mira las proyecciones sobre la recta: cuanto más repartidas quedan, más variación recoge. ¿Hacia dónde se alarga la nube?',
+            'Lleva la punta de $\\vec{v}$ hacia arriba a la derecha, siguiendo la nube de «saludo» a «noticia». Apuntar al texto más alejado no basta: cuenta la forma de toda la nube.',
           ],
           explain:
-            'La simetría no mira el determinante, y el determinante no mira la simetría: son dos condiciones distintas, y cada una fija una coordenada de $\\hat{\\jmath}$. Si cumples una y falla la otra, mira cuál de las dos coordenadas has dejado sin ajustar.',
+            'La variación sobre $\\vec{v}$ es la media de los cuadrados de las proyecciones, porque la nube está centrada. Las palabras y los tokens suben juntos, así que la nube se alarga en diagonal y casi toda su variación cae a lo largo de esa diagonal.',
           solution:
-            'La simetría pide $x_{\\hat{\\jmath}}=y_{\\hat{\\imath}}=1$, luego $\\hat{\\jmath}=(1, b)$. Con ese valor, $\\det A=2b-1\\cdot 1=3$ da $b=2$. La solución es única: $\\hat{\\jmath}=(1, 2)$, con $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ y $\\det A=4-1=3$. Si dejas la $x$ de $\\hat{\\jmath}$ en otro valor, el determinante puede salir $3$ pero la matriz deja de ser simétrica.',
-          plane: fixedIPlane({ i: [2, 1], range: 3, readouts: ['matrix', 'det'] }),
+            'Con $\\vec{v}$ en $(1, 1)$, o cualquier múltiplo, la recta sigue la nube y recoge el 90 % de la variación, el máximo. Valen también direcciones cercanas, como $(2;\\ 1{,}5)$ o $(1{,}5;\\ 2)$. Apuntar a «código», $(1, 2)$, se queda en el 82 %: ese texto se sale de la diagonal. La horizontal y la vertical recogen el 50 % cada una.',
+          lab: sobreTextos(1, 0),
           goals: [
-            { metric: 'x', of: ['j'], target: 1, tol: 0.01 },
-            { metric: 'det', of: ['i', 'j'], target: 3, tol: 0.01 },
+            {
+              metric: 'var_frac',
+              op: 'gte',
+              target: 0.85,
+              label: PARTE_SOBRE_V,
+              format: 'percent',
+            },
           ],
+          solved: { vx: 1, vy: 1 },
         },
         {
           id: 'simetricas.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Antes de entrenar, a veces se **blanquean** los datos: se giran hasta los ejes de su matriz de covarianza y se escala cada eje para que los rasgos varíen lo mismo y dejen de estar correlacionados. Ese giro existe porque la covarianza es simétrica: sus direcciones propias son perpendiculares, y pasar a ellas es una rotación que no deforma la nube.',
-            aim: 'Vas a buscar dos direcciones que $A$ solo estira y que además formen ángulo recto, y a comprobar dónde caen respecto a la elipse.',
+            why: 'La dirección en la que los datos apenas varían también informa: es la que se puede descartar al comprimir sin perder casi nada, y la que mide en qué se distinguen textos que por lo demás se parecen.',
+            aim: 'Vas a buscar la dirección en la que los seis textos menos se diferencian y a mirar qué ángulo forma con la que sigue la nube.',
             takeaway:
-              'En una matriz simétrica las direcciones propias son perpendiculares y coinciden con los ejes de la elipse: aquí, $(1, 1)$ con $\\lambda=3$ y $(1, -1)$ con $\\lambda=1$. Es el teorema espectral, y garantiza que toda covarianza tiene unos ejes propios en ángulo recto.',
+              'La dirección de menos variación es perpendicular a la de más: es la de los tokens por palabra, que separa «código» de «cuento». Ninguna baja del 10 %, y entre las dos se reparten toda la variación: el 90 % y el 10 %.',
           },
           prompt:
-            'La matriz $A=\\begin{pmatrix}2&1\\\\1&2\\end{pmatrix}$ es simétrica y está fija. La curva discontinua, la **elipse**, es lo que $A$ hace con la circunferencia de radio $1$. Mueve $\\vec{v}$ y $\\vec{w}$ hasta cumplir las tres condiciones a la vez: que $A\\vec{v}$ vaya en la misma dirección que $\\vec{v}$ (la lectura «ángulo(v, A·v)» vale $0°$), que $A\\vec{w}$ vaya en la misma dirección que $\\vec{w}$, y que $\\vec{v}$ y $\\vec{w}$ formen $90°$. Después fíjate en dónde caen respecto a los ejes de la elipse y en lo que vale cada cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$: dice cuánto estira $A$ en la dirección de $\\vec{v}$, y vale $\\lambda$ cuando $\\vec{v}$ solo se estira, $A\\vec{v}=\\lambda\\vec{v}$.',
+            'Los mismos seis textos. Ahora $\\vec{v}$ sigue la nube y recoge casi toda su variación. Busca lo contrario: la dirección en la que los textos menos se diferencian, la que casi no separa unos de otros.\n\nMueve $\\vec{v}$ hasta que recoja muy poca variación.',
           hints: [
-            'Una flecha que $A$ solo estira, sin girarla, tiene el ángulo con su imagen en $0°$. Prueba con $A\\cdot(1, 1)$ a mano: $(2\\cdot 1+1\\cdot 1,\\ 1\\cdot 1+2\\cdot 1)$.',
-            'Coloca una de las flechas en la dirección que acabas de encontrar. Para la otra, busca una dirección que forme $90°$ con ella y comprueba que la imagen tampoco gira.',
+            'Busca una recta sobre la que las proyecciones queden apiñadas cerca del centro. Fíjate en el ancho de la nube, no en su largo.',
+            'Lleva $\\vec{v}$ a cruzar la nube de través, hacia arriba a la izquierda o hacia abajo a la derecha, en ángulo recto con la diagonal.',
           ],
           explain:
-            'No todas las direcciones sirven: la mayoría de las flechas giran al aplicarles $A$, y entonces el ángulo con su imagen no es $0°$. Mira esa lectura mientras mueves cada flecha, y recuerda que la tercera condición pide un ángulo entre las dos flechas, no entre cada una y su imagen.',
+            'La nube es como una elipse: larga en una dirección y estrecha en otra. Las proyecciones se apiñan cuando la recta va a lo ancho. Las direcciones intermedias recogen algo de las dos.',
           solution:
-            '$A(1, 1)=(3, 3)=3\\,(1, 1)$ y $A(1, -1)=(1, -1)=1\\,(1, -1)$. Sirven $\\vec{v}=(1, 1)$ y $\\vec{w}=(1, -1)$, en cualquier orden y con cualquier múltiplo: sus imágenes no giran, solo se estiran por $3$ y por $1$, y el cociente de cada una vale ese factor. Las dos direcciones son perpendiculares, $(1, 1)\\cdot(1, -1)=0$, y caen sobre los ejes de la elipse, cuyos semiejes miden $3$ y $1$.',
-          plane: {
-            ...transformPlane({
-              i: [2, 1],
-              j: [1, 2],
-              extra: [vec('v', 1, 0, true), vec('w', 0, 1, true)],
-              apply: ['v', 'w'],
-              readouts: ['img_angle', 'rayleigh', 'angle'],
-              range: 3,
-              snap: 1,
-            }),
-            pair: ['v', 'w'],
-            circle: 1,
-            circleImage: true,
-          },
+            'Con $\\vec{v}$ en $(1, -1)$, o $(-1, 1)$, la recta cruza la nube en ángulo recto con la diagonal y recoge el 10 %, el mínimo. Sobre ella cuenta lo que cada texto tiene de tokens de más o de menos para sus palabras: «código» queda en un extremo y «cuento», en el otro. La horizontal se queda en el 50 %: no basta con salir de la diagonal.',
+          lab: sobreTextos(1, 1),
           goals: [
-            sameDirection('v'),
-            sameDirection('w'),
-            { metric: 'angle', of: ['v', 'w'], target: 90, tol: 0.5 },
+            {
+              metric: 'var_frac',
+              op: 'lte',
+              target: 0.15,
+              label: PARTE_SOBRE_V,
+              format: 'percent',
+            },
           ],
+          solved: { vx: 1, vy: -1 },
         },
         {
           id: 'simetricas.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La matriz de pesos de una capa de una red neuronal casi nunca es simétrica, y sus direcciones propias no tienen por qué formar ángulo recto (a veces ni siquiera existen en el plano real, como en un giro). Para describir cómo deforma el espacio una capa se usan los valores singulares, que dan siempre ejes perpendiculares porque salen de la matriz simétrica $A^{T}A$.',
-            aim: 'Vas a encontrar las dos direcciones que una matriz no simétrica solo estira y a medir el ángulo que forman entre ellas.',
+            why: 'La forma de una nube se guarda en una matriz, la de covarianza: la varianza de cada rasgo en la diagonal y lo que varían juntos fuera de ella. Es simétrica, y con embeddings de cientos de números es la que se descompone para hallar sus ejes.',
+            aim: 'Vas a usar la matriz de covarianza de los seis textos como una capa y a buscar la dirección que esa capa estira más sin girarla.',
             takeaway:
-              'Las direcciones propias de esta matriz forman $45^\\circ$, no $90^\\circ$: sin simetría no hay ejes perpendiculares garantizados. Un análisis que necesita ejes en ángulo recto, como PCA, tiene que partir de una matriz simétrica.',
+              'La capa estira la diagonal por 2,25 sin girarla, y ninguna dirección más: es su autovalor mayor, y es la varianza de la nube en esa dirección. Los autovectores de la covarianza son los ejes de la nube, y sus autovalores, cuánto varía en cada uno.',
           },
           prompt:
-            'Esta matriz **no** es simétrica: $A=\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$ tiene un $1$ arriba a la derecha y un $0$ abajo a la izquierda. Aun así hay direcciones que solo estira. Coloca $\\vec{v}$ para que $A\\vec{v}$ vaya en su misma dirección y el cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ valga $2$; coloca $\\vec{w}$ para que también conserve su dirección y su cociente valga $1$. Después mira el ángulo entre $\\vec{v}$ y $\\vec{w}$.',
+            'La capa es ahora la matriz de covarianza de los seis textos: en la diagonal, la varianza de las palabras y la de los tokens; fuera, cuánto varían juntos. La circunferencia unidad sale convertida en una elipse. El panel da la varianza de la nube sobre $\\vec{v}$ y el cociente $\\vec{v}^{T}A\\vec{v}/\\vec{v}^{T}\\vec{v}$, con $A=C$.\n\nBusca la dirección que la capa estira más, sin girarla.',
           hints: [
-            'Con el ángulo en $0°$, la imagen es un múltiplo de la flecha. El cociente dice cuál: $2$ para $\\vec{v}$ y $1$ para $\\vec{w}$.',
-            'Calcula $A(x, y)=(2x+y,\\ y)$. Para que la imagen de $\\vec{v}$ sea $2\\vec{v}$ hace falta $y=0$. Para $\\vec{w}$, que la imagen sea $\\vec{w}$ pide $x+y=0$.',
+            'Compara $\\vec{v}$ con su imagen: casi siempre apunta a otro lado. Compara también la elipse con la nube: ¿hacia dónde se alargan las dos?',
+            'Lleva $\\vec{v}$ a lo largo del eje largo de la elipse, que es el de la nube. En el eje corto tampoco gira, pero casi no estira.',
           ],
           explain:
-            'Pedir el ángulo $0°$ y el cociente a la vez evita tomar por buena una dirección que solo se parece. Y mira bien la última lectura: aunque las dos flechas se dejen estirar sin girar, nada obliga a que estén en ángulo recto.',
+            'Una dirección que la capa no gira es un autovector: $C\\vec{v}=\\lambda\\vec{v}$, y lo que estira es $\\lambda$. Para ella, el cociente del panel también vale $\\lambda$, y ese cociente es siempre la varianza de la nube sobre $\\vec{v}$. Por eso los ejes de la elipse son los de la nube.',
           solution:
-            '$A(x, y)=(2x+y,\\ y)$. Con $\\vec{v}=(1, 0)$ (o cualquier $(t, 0)$), $A\\vec{v}=(2, 0)=2\\vec{v}$. Con $\\vec{w}=(1, -1)$ (o cualquier múltiplo), $A\\vec{w}=(1, -1)=\\vec{w}$. Esas dos direcciones forman $45°$ (o $135°$, si eliges $\\vec{w}=(-1, 1)$), no $90°$: $(1, 0)\\cdot(1, -1)=1\\neq 0$. Sin simetría no hay perpendicularidad garantizada.',
-          plane: {
-            ...transformPlane({
-              i: [2, 0],
-              j: [1, 1],
-              extra: [vec('v', 0, 1, true), vec('w', 1, 1, true)],
-              apply: ['v', 'w'],
-              readouts: ['img_angle', 'rayleigh', 'angle'],
-              range: 3,
-              snap: 1,
-            }),
-            pair: ['v', 'w'],
-          },
+            'Con $\\vec{v}$ en $(-1, -1)$, o cualquier múltiplo como $(1, 1)$, $C\\vec{v}=(-2{,}25;\\ -2{,}25)$: la capa estira por $2{,}25$ y no gira. Es el máximo: ninguna dirección estira más, y la varianza de la nube sobre esa recta también es $2{,}25$. En $(1, -1)$ tampoco gira, pero estira solo $0{,}25$: el otro autovalor, la varianza a lo ancho.',
+          lab: covarianzaComoCapa,
           goals: [
-            sameDirection('v'),
-            rayleighGoal('v', 2, 0.01),
-            sameDirection('w'),
-            rayleighGoal('w', 1, 0.01),
+            {
+              metric: 'img_angle',
+              op: 'lte',
+              target: 1,
+              label: 'Lo que la capa gira a v, en grados',
+            },
+            { metric: 'stretch', op: 'gte', target: 2.2, label: 'Cuánto estira la capa a v' },
           ],
+          solved: { vx: -1, vy: -1 },
         },
         {
           id: 'simetricas.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Un modelo que describe unos datos con una campana gaussiana, como los que detectan anomalías, guarda la forma de la nube en una matriz de covarianza. Esa matriz se puede construir al revés: eligiendo primero los ejes de la nube y cuánto se extiende en cada uno.',
-            aim: 'Vas a montar la matriz a partir de dos direcciones perpendiculares fijas y de lo que estira cada una, y a mirar qué forma tiene la matriz que sale.',
+            why: 'Muchos modelos aprenden mejor si sus rasgos de entrada no van juntos: dos rasgos que suben a la vez dicen casi lo mismo dos veces. Por eso, al preparar los datos, a veces se aplica una capa fija que los decorrela, como hace el blanqueo.',
+            aim: 'Vas a construir una capa cuyas dos salidas no tengan relación entre sí en los seis textos, sin aplastarlos.',
             takeaway:
-              'Sale $A=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, simétrica: dos direcciones perpendiculares con factores reales dan siempre una matriz simétrica. Es la otra cara del teorema espectral: una covarianza se puede guardar como sus ejes y sus factores, y recomponerse cuando haga falta.',
+              'Girar la nube hasta sus ejes deja las salidas sin covarianza: una es la longitud y la otra, los tokens por palabra. No es la única capa que vale. Aplastar una salida también da covarianza cero, pero tira información.',
           },
           prompt:
-            'Ahora, al revés: se fijan las dos direcciones y se construye la matriz. Las flechas $\\vec{v}=(1, 1)$ y $\\vec{w}=(1, -1)$ están fijas, y también se dibuja la imagen de la circunferencia por $A$. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ para que $A\\vec{v}=(4, 4)$ y $A\\vec{w}=(2, -2)$: la matriz estira $\\vec{v}$ por $4$ y $\\vec{w}$ por $2$. Al terminar, mira si la matriz que ha salido es simétrica.',
+            'Los seis textos pasan por una capa que ahora puedes mover. Con la capa en la identidad, sus dos salidas van juntas: la covarianza es alta. La parte siguiente del modelo funcionaría mejor si no tuvieran relación.\n\nMueve las columnas hasta que la covarianza de las dos salidas sea casi cero, sin que la capa aplaste la nube.',
           hints: [
-            'Para $\\vec{v}=(1, 1)$, $A\\vec{v}$ es la suma de las dos columnas de $A$. ¿Y para $\\vec{w}=(1, -1)$?',
-            'Tienes dos ecuaciones entre vectores, $\\hat{\\imath}+\\hat{\\jmath}=(4, 4)$ y $\\hat{\\imath}-\\hat{\\jmath}=(2, -2)$. Súmalas y réstalas.',
+            'Mira la nube de salida: mientras se alargue en diagonal, las dos salidas van juntas. Tiene que quedar alargada a lo largo de un eje del dibujo.',
+            'Gira la nube un octavo de vuelta para que su eje largo caiga sobre la salida 1: $\\hat{\\imath}$ hacia abajo a la derecha y $\\hat{\\jmath}$ hacia arriba a la derecha, igual de largas.',
           ],
           explain:
-            'Cada flecha fija da una ecuación sobre las dos columnas, y hacen falta las dos a la vez: si colocas las columnas para que $\\vec{v}$ salga bien, $\\vec{w}$ se descoloca. Resuelve el sistema antes de mover.',
+            'La covarianza de las salidas mide si una sube cuando sube la otra. Si la nube de salida queda alargada sobre un eje del dibujo, conocer una salida no dice nada de la otra. Llevarlo todo a una recta también da covarianza $0$, pero entonces el área se pierde.',
           solution:
-            'Como $A(1, 1)=\\hat{\\imath}+\\hat{\\jmath}$ y $A(1, -1)=\\hat{\\imath}-\\hat{\\jmath}$, al sumar las dos ecuaciones sale $2\\hat{\\imath}=(6, 2)$, es decir, $\\hat{\\imath}=(3, 1)$, y al restarlas, $2\\hat{\\jmath}=(2, 6)$, es decir, $\\hat{\\jmath}=(1, 3)$. La solución es única: $A=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, y sale simétrica sin pedirlo. Dos direcciones perpendiculares con autovalores reales, $4$ y $2$, dan siempre una matriz simétrica.',
-          plane: {
-            ...transformPlane({
-              movable: true,
-              extra: [vec('v', 1, 1, false), vec('w', 1, -1, false)],
-              apply: ['v', 'w'],
-              readouts: ['matrix', 'image'],
-              range: 4,
-              snap: 1,
-            }),
-            circle: 1,
-            circleImage: true,
-          },
+            'Con $\\hat{\\imath}$ en $(1, -1)$ y $\\hat{\\jmath}$ en $(1, 1)$, la salida 1 es palabras más tokens, la longitud, y la salida 2, tokens menos palabras: covarianza $0$ y área $2$. También vale $\\hat{\\imath}$ en $(1, -2)$ y $\\hat{\\jmath}$ en $(0;\\ 2{,}5)$: deja las palabras en la salida 1 y quita de la 2 lo que se explica por ellas. Con $\\hat{\\jmath}$ en el origen la covarianza es $0$, pero la capa aplasta.',
+          lab: capaLab(TEXTOS, { readouts: ['spread_x', 'spread_y'] }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'v'], target: 4, tol: 0.01 },
-            { metric: 'img_x', of: ['i', 'j', 'w'], target: 2, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'w'], target: -2, tol: 0.01 },
+            {
+              metric: 'cov_xy',
+              op: 'eq',
+              target: 0,
+              tol: 0.05,
+              label: 'Covarianza de las dos salidas',
+            },
+            {
+              metric: 'area',
+              op: 'gte',
+              target: 0.5,
+              label: 'Área que deja la capa al cuadrado unidad',
+            },
           ],
+          solved: { ix: 1, iy: -1, jx: 1, jy: 1 },
         },
         {
           id: 'simetricas.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La curvatura de una función de pérdida en una dirección es este mismo cociente aplicado a su matriz de segundas derivadas, el **hessiano**, que es simétrica. Su valor más alto limita la tasa de aprendizaje: un paso demasiado largo en esa dirección hace divergir el entrenamiento. Un valor negativo señala una dirección en la que la pérdida baja: el punto no es un mínimo.',
-            aim: 'Vas a recorrer direcciones con $\\vec{v}$ buscando dónde el cociente se vuelve negativo, y a comprobar que alargar la flecha no lo cambia.',
+            why: 'Las matrices simétricas aparecen por toda una red: la covarianza de los datos, la matriz de similitudes entre embeddings, el hessiano de la pérdida. Todas actúan igual: estiran a lo largo de dos ejes en ángulo recto, sin girar.',
+            aim: 'Vas a cambiar una capa que acierta con las reseñas pero gira el plano por otra simétrica que acierte igual, y a mirar su elipse.',
             takeaway:
-              'El cociente de una matriz simétrica va siempre de su menor autovalor a su mayor, aquí de $-1$ a $3$, y alcanza los extremos en las direcciones propias. Buscar la dirección que lo hace máximo es una forma de encontrar autovectores sin calcularlos: así estiman algunos métodos la curvatura de una red sin construir el hessiano entero.',
+              'Con el mismo peso arriba a la derecha y abajo a la izquierda, la capa es simétrica: la elipse tiene los ejes en ángulo recto y la capa solo estira o voltea a lo largo de ellos. Aquí, eso basta para que la neurona siga acertando.',
           },
           prompt:
-            'La matriz $A=\\begin{pmatrix}1&2\\\\2&1\\end{pmatrix}$ es simétrica y está fija. El cociente $\\vec{v}^{T}A\\vec{v}\\,/\\,\\vec{v}^{T}\\vec{v}$ no depende de la longitud de $\\vec{v}$: solo de su dirección. Mueve $\\vec{v}$ hasta que el cociente valga $-1$.',
+            'Seis reseñas con **intensidad** y **tono**. La neurona siguiente solo mira la primera salida y responde «positiva» a lo sombreado. Esta capa ya acierta con las seis, pero no es simétrica: el peso de arriba a la derecha y el de abajo a la izquierda no coinciden, y la capa gira el plano.\n\nHazla simétrica sin que la neurona deje de acertar.',
           hints: [
-            'Recorre varias direcciones y mira el cociente: con $\\vec{v}=(1, 0)$ vale $1$. ¿Qué dirección lo hace bajar?',
-            'Si $A\\vec{v}$ apunta en sentido opuesto a $\\vec{v}$, el cociente es negativo. Prueba una dirección perpendicular a una diagonal.',
+            'En la tabla de pesos, compara lo que la intensidad pone en la salida 2 con lo que el tono pone en la salida 1. Esos dos pesos tienen que coincidir.',
+            'Sube $\\hat{\\imath}$ hasta que su altura sea el avance de $\\hat{\\jmath}$ hacia la derecha. Llevar $\\hat{\\jmath}$ hacia la izquierda también iguala, pero estropea el acierto.',
           ],
           explain:
-            'El cociente cambia al girar $\\vec{v}$, pero no al alargarlo: no sirve buscar una flecha más larga. Y para que sea negativo, la imagen tiene que formar más de $90°$ con la flecha.',
+            'Una matriz es simétrica si el peso de la fila 1 y la columna 2 es el de la fila 2 y la columna 1. En el dibujo, la altura de $\\hat{\\imath}$ tiene que ser el avance de $\\hat{\\jmath}$. La primera salida depende solo de la fila 1: si no la tocas, la neurona sigue acertando.',
           solution:
-            'Con $\\vec{v}=(1, -1)$ (o cualquier múltiplo), $A\\vec{v}=(1-2,\\ 2-1)=(-1, 1)=-\\vec{v}$, y el cociente vale $-1$. Es el valor más pequeño que alcanza: el máximo, $3$, está en la dirección de $(1, 1)$, perpendicular a esta. El cociente de una matriz simétrica queda siempre entre su menor autovalor, $-1$, y el mayor, $3$.',
-          plane: transformPlane({
-            i: [1, 2],
-            j: [2, 1],
-            extra: [vec('v', 1, 0, true)],
-            apply: ['v'],
-            readouts: ['image', 'rayleigh'],
-            range: 3,
-            snap: 1,
+            'Con $\\hat{\\imath}$ en $(0, 1)$, la capa es $\\begin{pmatrix}0&1\\\\1&0{,}5\\end{pmatrix}$: simétrica, y la salida 1 sigue siendo el tono. La elipse queda con los ejes en ángulo recto. También vale bajar los dos pesos a $0{,}5$. Con $\\hat{\\jmath}$ en $(-1;\\ 0{,}5)$ también sería simétrica, pero la salida 1 pasaría a ser el tono cambiado de signo, y la neurona fallaría con las seis.',
+          lab: capaLab(RESENAS, {
+            i: [0, -1],
+            j: [1, 0.5],
+            readout: { w: [1, 0], b: 0 },
+            circle: true,
           }),
-          goals: [rayleighGoal('v', -1, 0.01)],
+          goals: [
+            {
+              metric: 'acc',
+              op: 'gte',
+              target: 1,
+              label: 'Aciertos de la neurona siguiente',
+              format: 'percent',
+            },
+            {
+              metric: 'asym',
+              op: 'lte',
+              target: 0,
+              label: 'Lo que le falta a la capa para ser simétrica',
+            },
+          ],
+          solved: { iy: 1 },
         },
       ],
     },
@@ -228,118 +249,126 @@ export const simetricas: Project = {
       questions: [
         {
           id: 'simetricas.ex01.1',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Las matrices de covarianza y las de kernel, que usan las máquinas de vectores de soporte y los procesos gaussianos, son simétricas. Antes de aplicarles métodos pensados para matrices simétricas, como `np.linalg.eigh`, conviene comprobar que lo son: los errores de redondeo pueden dejar una matriz casi simétrica pero no del todo.',
-            aim: 'Vas a mirar cuatro matrices y a decidir cuál es simétrica, comparando solo lo que hay fuera de la diagonal. Verás que basta con mirar un par de números y su signo.',
+            why: 'Antes de entrenar se mira qué rasgos van juntos: dos rasgos con covarianza alta dicen casi lo mismo. Es una de las primeras cuentas de cualquier análisis de datos, y es lo que va fuera de la diagonal en la matriz de covarianza.',
+            aim: 'Vas a calcular, con cuatro textos, cuánto varían juntas sus palabras y sus tokens.',
             takeaway:
-              'Una matriz simétrica cumple $A=A^{T}$, y eso se comprueba comparando cada entrada con su espejo respecto de la diagonal. En el código se hace con `np.allclose(A, A.T)`. Si lo cumple, se pueden usar métodos más rápidos y estables, que además garantizan autovalores reales.',
+              'La covarianza vale $2$: positiva, porque los textos con más palabras que la media tienen también más tokens. Es el número que va fuera de la diagonal en la matriz de covarianza, arriba y abajo.',
           },
           prompt:
-            'Una matriz es **simétrica** si es igual a su traspuesta: lo que hay arriba a la derecha es igual a lo que hay abajo a la izquierda. ¿Cuál de estas matrices es simétrica?',
+            'Cuatro textos, con sus palabras y sus tokens contados respecto a la media (la media de cada rasgo es $0$): «aviso» $(-2, -2)$, «tuit» $(-1, 0)$, «correo» $(1, 0)$ e «informe» $(2, 2)$.\n\nLa covarianza de los dos rasgos es la media de los productos de palabras por tokens. ¿Cuánto vale?',
           hints: [
-            'Compara solo las dos entradas que están fuera de la diagonal principal. Las de la diagonal no cuentan.',
-            'Que dos entradas tengan el mismo valor absoluto no basta: han de ser iguales, con el mismo signo.',
+            'Multiplica las dos coordenadas de cada texto: salen cuatro productos.',
+            'Suma los cuatro productos y divide entre $4$, el número de textos.',
           ],
           explain:
-            'Basta mirar la entrada de arriba a la derecha y la de abajo a la izquierda: si son iguales, la matriz es simétrica. Cuida el signo, porque un número y su opuesto no son iguales.',
+            'Como las medias son $0$, cada coordenada ya es la desviación respecto a la media. Un producto positivo dice que el texto está del mismo lado de la media en los dos rasgos; uno negativo, que está en lados opuestos.',
           solution:
-            'En la primera, $2\\neq 3$. En la segunda, $-1\\neq 1$: tienen el mismo tamaño y signo contrario. En la tercera, las dos son $-2$, luego es simétrica. En la cuarta, $1\\neq 0$. Solo la tercera cumple $A=A^{T}$.',
+            'Los productos son $4$, $0$, $0$ y $4$. Suman $8$, y entre $4$ textos dan $2$. `np.cov` divide entre $n-1$ por defecto y daría $8/3$: las dos convenciones existen, y en el laboratorio se divide entre $n$.',
+          lab: capaLab(CUATRO_TEXTOS, { movable: 'none' }),
+          answer: 2,
+          tol: 0,
+        },
+        {
+          id: 'simetricas.ex01.2',
+          type: 'opcion',
+          purpose: {
+            why: 'Leer una covarianza es leer una relación entre rasgos. En embeddings, una covarianza positiva entre dos coordenadas dice que suelen moverse juntas: eso alarga la nube y hace que esas dos coordenadas se repitan en parte.',
+            aim: 'Vas a interpretar el signo de la covarianza entre palabras y tokens de los seis textos mirando cómo se reparte la nube.',
+            takeaway:
+              'Covarianza positiva: un texto por encima de la media en palabras suele estarlo también en tokens, y la nube se alarga hacia arriba a la derecha. Es una tendencia de la nube, no una regla que cumpla cada texto.',
+          },
+          prompt:
+            'En el laboratorio están los seis textos, con sus palabras y sus tokens contados respecto a la media. El panel da su covarianza, que es positiva. ¿Qué dice ese signo?',
+          hints: [
+            'Mira la nube: si un texto está a la derecha del centro, ¿suele estar también arriba?',
+            'El signo de cada producto dice si el texto se aparta de la media hacia el mismo lado en los dos rasgos. La covarianza es la media de esos productos.',
+          ],
+          explain:
+            'La covarianza es la media de los productos de las desviaciones. Sale positiva cuando pesan más los textos que se apartan de la media hacia el mismo lado en los dos rasgos. Habla de cómo se reparte la nube, no de cada texto.',
+          solution:
+            'La segunda: en la nube, los textos de la derecha están arriba y los de la izquierda, abajo. No dice que haya más tokens que palabras: mira cómo se apartan de la media, no los valores. Tampoco que cada texto esté por encima en los dos: «saludo» está por debajo en ambos y suma a favor. Y no son el mismo rasgo: «código» se sale de la diagonal.',
+          lab: capaLab(TEXTOS, { movable: 'none', readouts: ['cov_xy'] }),
           options: [
-            '$\\begin{pmatrix}1&2\\\\3&2\\end{pmatrix}$',
-            '$\\begin{pmatrix}2&-1\\\\1&2\\end{pmatrix}$',
-            '$\\begin{pmatrix}4&-2\\\\-2&1\\end{pmatrix}$',
-            '$\\begin{pmatrix}0&1\\\\0&0\\end{pmatrix}$',
+            'Que todo texto tiene más tokens que palabras',
+            'Que los textos con más palabras que la media suelen tener también más tokens que la media',
+            'Que cada texto tiene sus dos rasgos por encima de la media',
+            'Que las palabras y los tokens son el mismo rasgo medido dos veces',
+          ],
+          correct: 1,
+        },
+        {
+          id: 'simetricas.ex01.3',
+          type: 'numero',
+          purpose: {
+            why: 'La varianza de los datos en una dirección dice cuánta información lleva esa dirección. Con la matriz de covarianza ya calculada no hace falta volver a los datos: basta una cuenta con la matriz, que es como se hace con embeddings de cientos de números.',
+            aim: 'Vas a calcular la varianza de los seis textos en una dirección dada, usando solo su matriz de covarianza.',
+            takeaway:
+              'La varianza en la dirección de $\\vec{u}$ es $\\vec{u}^{T}C\\vec{u}=2{,}21$, entre el $0{,}25$ del eje corto y el $2{,}25$ del largo. La matriz de covarianza guarda la varianza en todas las direcciones a la vez.',
+          },
+          prompt:
+            'La matriz de covarianza de los seis textos es\n\n$$C=\\begin{pmatrix}1{,}25&1\\\\1&1{,}25\\end{pmatrix}$$\n\nEn el laboratorio, la recta de $\\vec{v}$ va en la dirección del vector de longitud $1$ $\\vec{u}=(0{,}6;\\ 0{,}8)$. ¿Qué varianza tiene la nube sobre esa recta, es decir, cuánto vale $\\vec{u}^{T}C\\vec{u}$?',
+          hints: [
+            'Calcula primero $C\\vec{u}$, que es un vector, y después su producto escalar con $\\vec{u}$.',
+            'Por componentes: $1{,}25\\,u_1^2+2\\cdot 1\\cdot u_1u_2+1{,}25\\,u_2^2$. Cuida el doble producto cruzado.',
+          ],
+          explain:
+            'La varianza de las proyecciones sobre una dirección de longitud $1$ es $\\vec{u}^{T}C\\vec{u}$: sale de la matriz, sin volver a los datos. Tiene que quedar entre la varianza del eje corto de la nube y la del largo.',
+          solution:
+            '$C\\vec{u}=(1{,}25\\cdot 0{,}6+0{,}8;\\ 0{,}6+1{,}25\\cdot 0{,}8)=(1{,}55;\\ 1{,}6)$, y $\\vec{u}^{T}C\\vec{u}=0{,}6\\cdot 1{,}55+0{,}8\\cdot 1{,}6=0{,}93+1{,}28=2{,}21$. Es casi el máximo, $2{,}25$: la recta va a unos $8°$ de la diagonal.',
+          lab: sobreTextos(1.5, 2, false),
+          answer: 2.21,
+          tol: 0.01,
+        },
+        {
+          id: 'simetricas.ex01.4',
+          type: 'opcion',
+          purpose: {
+            why: 'Los ejes de una nube de embeddings se usan como un sistema de coordenadas nuevo: la coordenada de cada dato en cada eje sale con un producto escalar. Eso funciona así de limpio porque los ejes salen en ángulo recto.',
+            aim: 'Vas a explicar por qué los dos ejes de la nube de textos, la longitud y los tokens por palabra, salen perpendiculares.',
+            takeaway:
+              'La covarianza es simétrica, y las direcciones propias de una matriz simétrica con autovalores distintos son perpendiculares: es el teorema espectral. Sin simetría no está garantizado: una capa cualquiera puede tenerlas a $45°$.',
+          },
+          prompt:
+            'En el laboratorio, la capa es la matriz de covarianza de los seis textos. Sus dos direcciones propias, las que no gira, son los ejes de la nube, y forman un ángulo recto. ¿Por qué tiene que ser así, sea cual sea la nube?',
+          hints: [
+            'Mueve $\\vec{v}$ y busca las dos direcciones que la capa no gira. ¿Qué tiene de especial esta matriz frente a una capa cualquiera?',
+            'Compara el peso de arriba a la derecha con el de abajo a la izquierda: en una covarianza, los dos son la covarianza de los mismos dos rasgos.',
+          ],
+          explain:
+            'La covarianza de las palabras con los tokens es la de los tokens con las palabras: la matriz de covarianza es simétrica siempre. Y para las matrices simétricas hay un teorema que garantiza ejes propios perpendiculares. Una capa que no es simétrica no tiene esa garantía.',
+          solution:
+            'La tercera. $C=\\begin{pmatrix}1{,}25&1\\\\1&1{,}25\\end{pmatrix}$ es simétrica, y sus direcciones propias, $(1, 1)$ y $(1, -1)$, cumplen $(1, 1)\\cdot(1, -1)=0$. Centrar la nube no basta, y no toda matriz cumple: $\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$ tiene direcciones propias $(1, 0)$ y $(1, -1)$, a $45°$. Y no se eligen a mano: salen de la matriz.',
+          lab: { ...covarianzaComoCapa, readouts: [] },
+          options: [
+            'Porque la nube está centrada en el origen',
+            'Porque toda matriz de $2\\times 2$ tiene sus direcciones propias en ángulo recto',
+            'Porque la matriz de covarianza es simétrica, y las direcciones propias de una matriz simétrica son perpendiculares',
+            'Porque al calcular los ejes se eligen perpendiculares a propósito',
           ],
           correct: 2,
         },
         {
-          id: 'simetricas.ex01.2',
-          type: 'numero',
-          purpose: {
-            why: 'Antes de entrenar un modelo con muchos rasgos, se miran las covarianzas entre ellos para detectar los que se mueven a la vez. Dos métricas que suben juntas, como la longitud de un texto y los tokens que consume, aportan casi la misma información, y no hace falta usar las dos.',
-            aim: 'Vas a restar las medias, multiplicar las desviaciones de cada muestra y dividir entre $n-1$. Verás qué número resume si dos variables suben a la vez.',
-            takeaway:
-              'Una covarianza de $8$, positiva, dice que $x$ e $y$ tienden a subir juntas. Pero su tamaño depende de las unidades: no se puede decir si es mucha o poca. Para comparar parejas de rasgos se divide por las desviaciones de cada uno y se obtiene la correlación, que va siempre entre $-1$ y $1$.',
-          },
-          prompt:
-            'La **covarianza** de dos variables mide si suben juntas (positiva) o si una baja cuando la otra sube (negativa). Con $n$ muestras, es $\\dfrac{1}{n-1}\\sum_i (x_i-\\bar{x})(y_i-\\bar{y})$, con $\\bar{x}$ y $\\bar{y}$ las medias. Calcula la covarianza de $x=(2, 4, 9)$ e $y=(1, 5, 6)$.',
-          hints: [
-            'Empieza por las medias de $x$ y de $y$, y resta cada media a sus tres valores.',
-            'Multiplica las desviaciones de cada muestra, súmalas y divide entre $n-1$, que aquí es $2$.',
-          ],
-          explain:
-            'Hay que restar la media antes de multiplicar: la covarianza mide cómo se mueven los datos alrededor de su media, no dónde están. Y se divide entre $n-1$, no entre $n$.',
-          solution:
-            'Las medias son $5$ y $4$. Las desviaciones son $(-3, -1, 4)$ y $(-3, 1, 2)$, y sus productos, $9$, $-1$ y $8$, suman $16$. Entonces la covarianza vale $16/2=8$. Si te sale $5{,}33$, has dividido entre $n=3$; si te sale $38$, has multiplicado los datos sin restar las medias.',
-          answer: 8,
-          tol: 0,
-        },
-        {
-          id: 'simetricas.ex01.3',
-          type: 'vector',
-          purpose: {
-            why: 'La matriz de covarianza es el primer paso de PCA: antes de buscar direcciones, hay que construir esta matriz con una fila y una columna por cada rasgo. Con embeddings de cientos de componentes sería una matriz de cientos por cientos, y se calcula con `np.cov` a partir de las muestras.',
-            aim: 'Vas a calcular las dos varianzas y la covarianza de tres puntos y a montar con ellas la matriz. Verás que solo tres números distintos la llenan, porque la entrada de arriba a la derecha y la de abajo a la izquierda coinciden.',
-            takeaway:
-              'La diagonal guarda cuánto varía cada rasgo, y fuera de la diagonal, cuánto se mueven juntos. Aquí, con varianzas iguales y covarianza positiva, la nube se estira a lo largo de la diagonal. Como la matriz es simétrica, basta guardar la mitad; es la entrada para sacar sus autovalores y sus ejes.',
-          },
-          prompt:
-            'Tres puntos del plano, $(0, 1)$, $(2, 5)$ y $(4, 3)$, son tres muestras de dos variables, $x$ e $y$. Calcula su matriz de covarianza $C=\\begin{pmatrix}\\operatorname{var}(x)&\\operatorname{cov}(x, y)\\\\\\operatorname{cov}(x, y)&\\operatorname{var}(y)\\end{pmatrix}$, dividiendo entre $n-1$. Escríbela fila a fila.',
-          hints: [
-            'Las medias de $x$ y de $y$ salen de las dos coordenadas de los puntos, por separado. Resta cada media a sus tres valores.',
-            'La varianza es la covarianza de una variable consigo misma: suma los cuadrados de las desviaciones y divide entre $2$.',
-          ],
-          explain:
-            'La diagonal reúne las varianzas, y las dos entradas de fuera, la misma covarianza: por eso la matriz es simétrica. Calcula las tres cantidades con las mismas desviaciones y con el mismo divisor.',
-          shape: [2, 2],
-          solution:
-            'La media es $(2, 3)$. Las desviaciones de $x$ son $(-2, 0, 2)$ y las de $y$, $(-2, 2, 0)$. Entonces $\\operatorname{var}(x)=8/2=4$, $\\operatorname{var}(y)=8/2=4$ y $\\operatorname{cov}(x, y)=(4+0+0)/2=2$. La matriz es $C=\\begin{pmatrix}4&2\\\\2&4\\end{pmatrix}$, es decir, $[4, 2, 2, 4]$ fila a fila.',
-          answer: [4, 2, 2, 4],
-          tol: 0,
-        },
-        {
-          id: 'simetricas.ex01.4',
-          type: 'numero',
-          purpose: {
-            why: 'Los autovalores de la covarianza de los rasgos, o del hessiano de la pérdida, dicen lo alargada que es la nube o el valle. Cuando el mayor es muchísimo mayor que el menor, el descenso de gradiente avanza despacio por el fondo del valle, y se dice que el problema está mal condicionado. Normalizar los rasgos suele aliviarlo.',
-            aim: 'Vas a hallar los dos autovalores de una covarianza con la traza y el determinante y a quedarte con el mayor. Verás cuánto varían los datos en la dirección en que más se extienden.',
-            takeaway:
-              'El mayor autovalor, $6$, es la varianza a lo largo del eje largo de la nube; el menor, $2$, la del eje corto. La razón entre ambos mide cuán alargada es la nube: cuanto más grande, peor condicionado está el problema, y más ayuda reescalar los rasgos antes de entrenar.',
-          },
-          prompt:
-            'Un **autovalor** de una matriz $C$ es un número $\\lambda$ por el que $C$ estira alguna dirección: $C\\vec{u}=\\lambda\\vec{u}$. Los de una matriz de $2\\times 2$ son las raíces de $\\lambda^2-t\\lambda+d=0$, con $t$ la suma de la diagonal y $d$ el determinante. Calcula el autovalor **mayor** de $C=\\begin{pmatrix}4&2\\\\2&4\\end{pmatrix}$.',
-          hints: [
-            'Aquí $t=4+4$ y $d=4\\cdot 4-2\\cdot 2$. Escribe la ecuación.',
-            'La ecuación $\\lambda^2-8\\lambda+12=0$ se factoriza buscando dos números que sumen $8$ y multipliquen $12$.',
-          ],
-          explain:
-            'Hay dos autovalores y se pide el mayor. Calcula el determinante con cuidado: es el producto de la diagonal menos el producto de las otras dos entradas, no su suma.',
-          solution:
-            '$t=8$ y $d=16-4=12$, luego $\\lambda^2-8\\lambda+12=0$ da $\\lambda=6$ y $\\lambda=2$. El mayor es $6$. Si $C$ es la covarianza de unos datos, $6$ es la varianza de los datos en la dirección $(1, 1)$, la dirección en que más varían; $2$ es la menor, en la dirección $(1, -1)$.',
-          answer: 6,
-          tol: 0,
-        },
-        {
           id: 'simetricas.ex01.5',
-          type: 'vector',
+          type: 'numero',
           purpose: {
-            why: 'Los ejes que devuelve `np.linalg.eigh` para una matriz simétrica son perpendiculares y de norma $1$. Eso permite calcular la coordenada de un dato en cada eje por separado, con un producto escalar, y descartar un eje sin tocar los demás. En $2\\times 2$, si ya tienes un eje, el otro sale sin resolver ninguna ecuación.',
-            aim: 'Vas a deducir el segundo autovector de una matriz que no conoces, solo por ser simétrica y por tener un autovector dado. Verás qué ángulo lo fija y cómo se escribe con un producto escalar.',
+            why: 'Para estudiar embeddings reales se calcula su matriz de covarianza, con una fila y una columna por coordenada. Con $768$ coordenadas, como en BERT base o en el GPT-2 pequeño, son más de medio millón de casillas, y la simetría ahorra casi la mitad.',
+            aim: 'Vas a contar cuántos números distintos hay que guardar de la covarianza de unos embeddings de $768$ coordenadas, aprovechando que es simétrica.',
             takeaway:
-              'Los autovectores de una matriz simétrica con autovalores distintos son perpendiculares, y el otro es $(-1, 2)$. Esa propiedad hace que los ejes de una covarianza sean perpendiculares y que las coordenadas de los datos en ellos no estén correlacionadas: por eso los métodos de reducción de dimensiones pueden quedarse con unos ejes y tirar el resto sin interferencias.',
+              'Son $295\\,296$: las $768$ varianzas de la diagonal y una sola vez cada covarianza de fuera. Las bibliotecas numéricas tienen formatos que guardan solo esa mitad de una matriz simétrica.',
           },
           prompt:
-            'Una matriz simétrica de $2\\times 2$ tiene a $(2, 1)$ como autovector, y sus dos autovalores son distintos. Da la dirección del otro autovector, escrita con primera componente $-1$.',
+            'Unos embeddings tienen $768$ coordenadas. Su matriz de covarianza es de $768\\times 768$: la varianza de cada coordenada en la diagonal y la covarianza de cada pareja fuera de ella. Como es simétrica, cada covarianza aparece dos veces.\n\n¿Cuántos números distintos hay que guardar, como mucho?',
           hints: [
-            'Los autovectores de una matriz simétrica con autovalores distintos tienen una relación geométrica entre sí. ¿Cuál?',
-            'Si el otro autovector es $(-1, b)$, su producto escalar con $(2, 1)$ tiene que ser $0$.',
+            'Cuenta por separado la diagonal, $768$ números, y las casillas de fuera, que son todas las demás.',
+            'Las de fuera van por parejas iguales, una a cada lado de la diagonal. Basta guardar una de cada pareja.',
           ],
           explain:
-            'No hace falta conocer la matriz: la simetría ya fija la dirección del otro autovector. Piensa qué ángulo forman los dos, y qué dice el producto escalar de ese ángulo.',
+            'La matriz tiene $768^2$ casillas. Las de la diagonal son únicas; las de fuera se repiten en espejo, así que cuentan la mitad. Con $n$ coordenadas, la cuenta corta es $n(n+1)/2$.',
           solution:
-            'Son perpendiculares, luego el producto escalar es $0$: $2\\cdot(-1)+1\\cdot b=0$ da $b=2$. El otro autovector es $(-1, 2)$. Se ve girando $(2, 1)$ un cuarto de vuelta, que da $(-1, 2)$.',
-          answer: [-1, 2],
+            'Fuera de la diagonal hay $768^2-768=589\\,056$ casillas, que forman $294\\,528$ parejas. Con las $768$ varianzas, $294\\,528+768=295\\,296$, que es $768\\cdot 769/2$. Sin aprovechar la simetría serían $589\\,824$.',
+          answer: 295296,
           tol: 0,
         },
       ],
