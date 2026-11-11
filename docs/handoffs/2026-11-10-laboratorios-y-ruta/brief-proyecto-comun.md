@@ -49,7 +49,7 @@ No toques nada más. En particular: ni `datos.ts`, ni `tests/content/lab-helpers
   - lo mismo con `W=390` delante.
   Lee con Read las diez imágenes de «Manipular» a 1100 px (abierta y `--cerrada`, que enseña la solución) y al menos tres a 390 px (acaban en `-m`). Comprueba: las palabras se leen y no se apilan, nada importante cae fuera de la ventana, la meta se entiende sin leer el `purpose`, y lo que cambia al mover se ve. Corrige y repite hasta que sea así.
 - Unas 60 llamadas a herramientas. Si a las 60 no has acabado, termina la pregunta que tengas a medias, deja las pruebas en verde o di cuáles están en rojo, y entrega el informe con lo que falta.
-- Al acabar, un commit solo con tus ficheros: `git commit -m "feat(matrices): <Proyecto> con laboratorios" -m "Co-Authored-By: Claude Fable 5.2 <noreply@anthropic.com>" -- <ruta1> <ruta2> <ruta3>`. Si git dice que el índice está bloqueado, repite la orden.
+- Al acabar, un commit solo con tus ficheros: `git commit -m "feat(matrices): <Proyecto> con laboratorios" -m "<la línea Co-Authored-By que te dé tu sistema>" -- <ruta1> <ruta2> <ruta3>`. Si git dice que el índice está bloqueado, repite la orden.
 
 ## El informe
 
