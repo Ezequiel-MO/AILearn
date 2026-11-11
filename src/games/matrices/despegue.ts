@@ -1,137 +1,179 @@
 import type { Question } from '../../content/schema';
 import { py } from '../py';
-import { transformPlane } from './plane';
+import { RESENAS_CUATRO, capaLab, type Cloud } from './datos';
 
+/** La neurona siguiente solo mira la primera salida de la capa: dice «positiva» si es mayor que 0. */
+const MIRA_SALIDA_1 = { w: [1, 0] as [number, number], b: 0 };
+
+/** Las cuatro reseñas y «normal», con los dos rasgos a 0: sin grupo, la neurona no la cuenta. */
+const RESENAS_Y_NORMAL: Cloud = {
+  ...RESENAS_CUATRO,
+  points: [...RESENAS_CUATRO.points, { id: 'normal', label: 'normal', x: 0, y: 0 }],
+};
+
+/**
+ * Despegue del juego 2: lo primero que ve quien no sabe qué es una matriz. Las preguntas 1 y 2 la
+ * presentan como la tabla de pesos de una capa; la 3 y la 5 son laboratorios con cuatro reseñas (la
+ * primera capa que hace acertar a una neurona, y una capa que borra el tono); la 4 y la 6, la cuenta
+ * de una neurona y lo que ninguna matriz puede hacer; de la 7 a la 9, NumPy; la 10, una capa real.
+ */
 export const launch: Question[] = [
   {
     id: 'despegue.1',
-    type: 'opcion',
+    type: 'numero',
+    purpose: {
+      why: 'Cada capa de una red neuronal guarda sus pesos en una matriz, y el tamaño de un modelo se cuenta en esos pesos. Saber cuántos números tiene una capa es saber cuánto ocupa y cuánto hay que entrenar.',
+      aim: 'Vas a contar los pesos de una capa pequeña a partir de cuántos números le entran y cuántos devuelve.',
+      takeaway:
+        'Una capa de 3 entradas y 2 salidas tiene $2\\times 3=6$ pesos: uno por cada pareja de entrada y salida. Con 768 entradas y 3072 salidas la cuenta es la misma, y salen más de dos millones.',
+    },
     prompt:
-      'Una **matriz** es una tabla de números ordenada en **filas** (las líneas horizontales) y **columnas** (las verticales). Su tamaño se dice «filas × columnas»: una matriz de 4 filas y 5 columnas es de $4\\times 5$.\n\n$$A=\\begin{pmatrix}2&-1&0\\\\3&4&5\\end{pmatrix}$$\n\n¿Qué tamaño tiene $A$?',
+      'Una **matriz** es una tabla de números en **filas** (las horizontales) y **columnas** (las verticales). Una capa de una red guarda así sus **pesos**: una fila por cada salida y una columna por cada entrada. Cada casilla dice cuánto cuenta esa entrada en esa salida.\n\nUna capa recibe 3 rasgos de cada palabra y devuelve 2 salidas. ¿Cuántos pesos tiene su matriz?',
     hints: [
-      'Cuenta las líneas horizontales de números: son las filas. Las verticales son las columnas.',
-      'El tamaño se dice siempre en el mismo orden: primero las filas y después las columnas.',
+      'Imagina la tabla: ¿cuántas filas tiene (una por salida) y cuántas columnas (una por entrada)?',
+      'Cada fila tiene una casilla por columna: multiplica filas por columnas.',
     ],
     explain:
-      'Las filas se cuentan de arriba abajo y las columnas de izquierda a derecha. El tamaño se escribe siempre con las filas primero.',
+      'Cada salida necesita un peso por cada entrada: así decide cuánto cuenta cada rasgo. El número de pesos es filas por columnas, no filas más columnas.',
     solution:
-      '$A$ tiene 2 filas y 3 columnas, así que es una matriz $2\\times 3$. Con 3 filas y 2 columnas se habría puesto el orden al revés: las filas van primero.',
-    options: [
-      '3 filas y 2 columnas',
-      '2 filas y 3 columnas',
-      '2 filas y 2 columnas',
-      '3 filas y 3 columnas',
-    ],
-    correct: 1,
+      'La matriz tiene 2 filas (las salidas) y 3 columnas (las entradas): es de $2\\times 3$, se dice «filas × columnas», y guarda $2\\cdot 3=6$ pesos. Sumar, $2+3=5$, contaría los bordes de la tabla y no sus casillas.',
+    answer: 6,
+    tol: 0,
   },
   {
     id: 'despegue.2',
     type: 'numero',
+    purpose: {
+      why: 'Leer una matriz de pesos es leer qué hace una capa: qué rasgos mira cada salida y si cuentan a favor o en contra. Es lo que hace un ingeniero cuando inspecciona un modelo para entender por qué decide algo.',
+      aim: 'Vas a encontrar en la tabla de una capa el peso que une un rasgo de entrada con una salida.',
+      takeaway:
+        'El peso $w_{ij}$ está en la fila de la salida $i$ y en la columna de la entrada $j$. Un peso positivo empuja la salida hacia arriba, uno negativo hacia abajo y un $0$ deja ese rasgo fuera.',
+    },
     prompt:
-      'Cada número de una matriz se nombra con dos subíndices: $b_{ij}$ es el que está en la fila $i$ y en la columna $j$ (primero la fila).\n\n$$B=\\begin{pmatrix}5&-2\\\\7&1\\\\0&4\\end{pmatrix}$$\n\n¿Cuánto vale $b_{21}$, el número de la fila 2 y la columna 1?',
+      'Esta es la matriz de una capa con 3 entradas, una por columna (**intensidad**, **tono** y **longitud** de una palabra, en ese orden), y 2 salidas, una por fila:\n\n$$W=\\begin{pmatrix}0{,}5&2&-1\\\\1&-3&0\\end{pmatrix}$$\n\n¿Cuánto pesa el tono en la salida 2?',
     hints: [
-      'Baja hasta la fila 2 y, dentro de ella, ve a la columna 1.',
-      'Los subíndices se leen en el orden fila, columna: $b_{12}$ sería otro número.',
+      'La salida 2 es la segunda fila. El tono es la segunda columna.',
+      'Busca la casilla donde se cruzan esa fila y esa columna. Un peso negativo también es un peso: cuenta en contra.',
     ],
     explain:
-      'El primer subíndice es la fila y el segundo es la columna. Localiza primero la fila y luego, dentro de ella, la columna.',
+      'Una fila son los pesos de una salida y una columna, los de una entrada. El peso de la entrada $j$ en la salida $i$ está en la fila $i$ y la columna $j$, y se escribe $w_{ij}$: primero la fila.',
     solution:
-      'La fila 2 es $7$ y $1$, y su columna 1 es el $7$: $b_{21}=7$. Con los subíndices al revés, $b_{12}$, saldría $-2$.',
-    answer: 7,
+      'La fila 2 es $1$, $-3$ y $0$, y su segunda columna es el $-3$: $w_{22}=-3$. El tono resta en la salida 2. El $2$ es el peso del tono en la salida 1, y la longitud no cuenta nada en la salida 2: su peso es $0$.',
+    answer: -3,
     tol: 0,
   },
   {
     id: 'despegue.3',
-    type: 'manipular',
+    type: 'laboratorio',
     purpose: {
-      why: 'Un modelo de IA trabaja con vectores: una frase, una imagen o un usuario se convierten en listas de números, y cada capa de una red neuronal transforma ese vector multiplicándolo por una **matriz** de pesos. Entrenar la red es ajustar los números de esas matrices. Este plano es la misma idea en pequeño: dos números entran, dos salen, y la matriz decide adónde va cada punto.',
-      aim: 'Vas a construir tu primera matriz moviendo solo dos flechas, y a ver que con ellas se transforma la rejilla entera: cuatro números deciden adónde va cada punto del plano.',
+      why: 'En una red neuronal, cada palabra llega como una lista de rasgos y una capa la transforma para que la neurona siguiente pueda decidir. Esa neurona solo ve lo que la capa le pone delante.',
+      aim: 'Vas a mover una columna de tu primera capa hasta que la neurona siguiente distinga las reseñas positivas de las negativas.',
       takeaway:
-        'Una matriz de $2\\times 2$ es la lista de adónde van $\\hat{\\imath}$ y $\\hat{\\jmath}$: sus columnas. Aquí, $\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$ duplica la primera coordenada de cada punto y deja la segunda. En una capa de red, una matriz así daría el doble de peso al primer número de la entrada que al segundo.',
+        'Cada columna de la matriz dice adónde manda la capa un rasgo. Al mover la del tono se mueven las cuatro palabras a la vez, cada una según su tono. Entrenar una capa es buscar columnas así.',
     },
     prompt:
-      'Una matriz de $2\\times 2$ **transforma el plano**, y queda decidida del todo por dos flechas: adónde va $\\hat{\\imath}=(1, 0)$ y adónde va $\\hat{\\jmath}=(0, 1)$. Sus coordenadas son las **columnas** de la matriz. La rejilla se deforma siguiendo esas dos flechas, y la lectura del panel muestra la matriz.\n\nEstira el plano al doble en horizontal: arrastra las puntas hasta que $\\hat{\\imath}$ quede en $(2, 0)$ y $\\hat{\\jmath}$ se quede en $(0, 1)$.',
+      'Cuatro reseñas de una palabra con dos rasgos: **intensidad** y **tono**. La capa las recoloca: su columna $\\hat{\\imath}$ dice adónde va la intensidad, y $\\hat{\\jmath}$, el tono. La neurona siguiente solo mira la salida 1 (el eje horizontal) y responde «positiva» a lo sombreado. Ahora le llega la intensidad, y lo dice de todas.\n\nMueve $\\hat{\\jmath}$ hasta que acierte con las cuatro.',
     hints: [
-      'Agarra la punta de $\\hat{\\imath}$ y llévala dos unidades a la derecha: la rejilla se estira con ella.',
-      'En la lectura de la matriz, la primera columna tiene que ser $2$ y $0$, y la segunda, $0$ y $1$.',
+      '«genial» y «horrible» tienen la misma intensidad y caen a la misma distancia horizontal. Lo que las distingue es el tono: tiene que llegar también a la salida 1.',
+      'Arrastra la punta de $\\hat{\\jmath}$ hacia la derecha y mira cómo las positivas avanzan y las negativas retroceden.',
     ],
     explain:
-      'Las columnas de la matriz son los sitios a los que van $\\hat{\\imath}$ y $\\hat{\\jmath}$. Mira cómo la rejilla entera sigue a esas dos flechas mientras las mueves.',
+      'La salida 1 de cada palabra es su intensidad más su tono por la primera coordenada de $\\hat{\\jmath}$. Si esa coordenada es pequeña, manda la intensidad; si es bastante grande, manda el tono, que es lo que separa las positivas de las negativas.',
     solution:
-      '$\\hat{\\imath}$ en $(2, 0)$ y $\\hat{\\jmath}$ en $(0, 1)$ dan la matriz $\\begin{pmatrix}2&0\\\\0&1\\end{pmatrix}$. Todo punto del plano acaba al doble de distancia en horizontal y a la misma altura.',
-    plane: transformPlane({ movable: true, readouts: ['matrix'] }),
+      'Con $\\hat{\\jmath}$ en $(1{,}5;\\ 1)$, la salida 1 de «horrible» es $2{,}5-1{,}5\\cdot 2=-0{,}5$ y la de «malo», $1-1{,}5=-0{,}5$: pasan al lado negativo y la neurona acierta las cuatro. Vale cualquier altura de $\\hat{\\jmath}$ y cualquier peso del tono desde $1{,}5$. Con $1$ no basta: «horrible» sigue en el lado positivo y «malo» queda justo en la frontera, que no cuenta como acierto.',
+    lab: capaLab(RESENAS_CUATRO, { range: 6, movable: 'j', readout: MIRA_SALIDA_1 }),
     goals: [
-      { metric: 'x', of: ['i'], target: 2, tol: 0.01 },
-      { metric: 'y', of: ['i'], target: 0, tol: 0.01 },
-      { metric: 'x', of: ['j'], target: 0, tol: 0.01 },
-      { metric: 'y', of: ['j'], target: 1, tol: 0.01 },
+      {
+        metric: 'acc',
+        op: 'gte',
+        target: 1,
+        label: 'Aciertos de la neurona siguiente',
+        format: 'percent',
+      },
     ],
+    solved: { jx: 1.5 },
   },
   {
     id: 'despegue.4',
-    type: 'vector',
+    type: 'numero',
+    purpose: {
+      why: 'Lo que hace una neurona es una suma con pesos: cada rasgo de la entrada por su peso, todo sumado. Es el producto escalar de su fila de la matriz con la palabra, la cuenta más repetida de una red.',
+      aim: 'Vas a calcular a mano la salida 1 de una capa para «genial» y a comprobarla después construyendo la capa en el laboratorio.',
+      takeaway:
+        'La salida 1 de «genial» es $1\\cdot 2{,}5+1{,}5\\cdot 2=5{,}5$: la fila 1 de pesos por los rasgos de la palabra. Cada salida usa su fila; las columnas dicen adónde va cada rasgo, y las dos lecturas dan lo mismo.',
+    },
     prompt:
-      'Este plano muestra una transformación ya hecha: $\\hat{\\imath}$ ha ido a un punto y $\\hat{\\jmath}$ a otro. Escribe su matriz: la **primera columna** son las coordenadas del punto al que ha ido $\\hat{\\imath}$ y la **segunda**, las de $\\hat{\\jmath}$. Rellena las cuatro casillas.',
+      'Una capa que hace acertar a la neurona tiene estos pesos (una fila por salida; columnas: intensidad y tono):\n\n$$A=\\begin{pmatrix}1&1{,}5\\\\0&1\\end{pmatrix}$$\n\n«genial» tiene intensidad $2{,}5$ y tono $2$. ¿Cuánto vale su salida 1? Después puedes construir la capa en el laboratorio y ver dónde cae.',
     hints: [
-      'Lee primero adónde ha ido $\\hat{\\imath}$ y escribe sus dos coordenadas de arriba abajo, en la primera columna.',
-      'Cuidado: las coordenadas de cada punto van en vertical, en una columna, no en horizontal, en una fila.',
+      'La salida 1 usa solo la fila 1 de $A$: un peso para la intensidad y otro para el tono.',
+      'Multiplica cada rasgo de «genial» por su peso de la fila 1 y suma los dos productos.',
     ],
     explain:
-      'Cada columna de la matriz es la imagen de una de las dos flechas: la primera, la de $\\hat{\\imath}$, y la segunda, la de $\\hat{\\jmath}$. Las filas se rellenan de arriba abajo.',
+      'La salida 1 es la fila 1 por la palabra: peso de la intensidad por intensidad más peso del tono por tono. Esa cuenta se llama **producto escalar**. La fila 2 es otra neurona, con su propia cuenta.',
     solution:
-      '$\\hat{\\imath}$ ha ido a $(1, 1)$ y $\\hat{\\jmath}$ a $(-1, 1)$, así que la matriz es $\\begin{pmatrix}1&-1\\\\1&1\\end{pmatrix}$: primera columna $(1, 1)$ y segunda columna $(-1, 1)$. Si pones esos pares como filas, sale la matriz traspuesta, que es otra transformación.',
-    plane: transformPlane({ i: [1, 1], j: [-1, 1] }),
-    shape: [2, 2],
-    answer: [1, -1, 1, 1],
+      '$1\\cdot 2{,}5+1{,}5\\cdot 2=2{,}5+3=5{,}5$. En el laboratorio, con $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(1{,}5;\\ 1)$, «genial» cae en $(5{,}5;\\ 2)$. Con la primera columna en vez de la primera fila saldría $1\\cdot 2{,}5+0\\cdot 2=2{,}5$, que es otra cuenta.',
+    lab: capaLab(RESENAS_CUATRO, { range: 6, readout: MIRA_SALIDA_1 }),
+    answer: 5.5,
     tol: 0,
   },
   {
     id: 'despegue.5',
-    type: 'manipular',
+    type: 'laboratorio',
     purpose: {
-      why: 'No todas las matrices deforman: un **giro** mueve el plano entero sin cambiar ninguna longitud ni ningún ángulo, y por eso conserva todos los cosenos. Si se girase todo el espacio de un modelo de embeddings, una búsqueda por similitud devolvería exactamente los mismos documentos. Lo que lleva el significado son los ángulos entre vectores, no el sitio de los ejes.',
-      aim: 'Vas a girar el plano un cuarto de vuelta moviendo solo $\\hat{\\imath}$ y $\\hat{\\jmath}$, y a ver que la rejilla gira entera sin deformarse: los cuadrados siguen siendo cuadrados del mismo tamaño.',
+      why: 'Una capa no solo recoloca: también puede tirar información. Si dos palabras distintas salen de la capa en el mismo punto, nada de lo que venga detrás podrá separarlas, por muchas capas que se añadan.',
+      aim: 'Vas a romper a propósito una capa que funciona, hasta que dos parejas de reseñas acaben en el mismo punto, y a mirar qué le pasa a la neurona.',
       takeaway:
-        'El giro de un cuarto de vuelta en sentido antihorario es $\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$, con columnas $(0, 1)$ y $(-1, 0)$. Un giro no estira ni encoge nada: los cosenos entre vectores salen igual antes y después, así que no altera ningún resultado que dependa solo de ellos.',
+        'Con $\\hat{\\jmath}$ en el origen, la capa borra el tono: «genial» y «horrible» caen en el mismo punto, y «bueno» y «malo» también. La neurona baja a la mitad de aciertos y ningún ajuste suyo lo arregla: lo borrado no vuelve.',
     },
     prompt:
-      'Gira el plano **un cuarto de vuelta en sentido antihorario** (contra las agujas del reloj). Un giro así lleva a $\\hat{\\imath}$, que apunta a la derecha, hasta arriba, y a $\\hat{\\jmath}$, que apunta arriba, hasta la izquierda.\n\nArrastra las puntas hasta que $\\hat{\\imath}$ quede en $(0, 1)$ y $\\hat{\\jmath}$ en $(-1, 0)$. Fíjate en la rejilla mientras giras: se mueve entera, sin deformarse, y la lectura del panel muestra la matriz del giro.',
+      'Esta capa hace acertar a la neurona con las cuatro reseñas. Ahora toca lo contrario: una capa también puede **destruir información**, y vas a ver cómo.\n\nMueve las columnas hasta que dos parejas de reseñas caigan cada una en un mismo punto, y mira qué les pasa a los aciertos de la neurona.',
     hints: [
-      'Imagina la flecha de $\\hat{\\imath}$ girando hacia arriba, como la aguja de un reloj que va hacia atrás.',
-      'Las dos flechas giran juntas y siguen siendo perpendiculares entre sí.',
+      'Busca las parejas que solo se diferencian en un rasgo: «genial» y «horrible» tienen la misma intensidad. ¿Qué rasgo tendría que borrar la capa para no distinguirlas?',
+      'Lleva la punta de $\\hat{\\jmath}$ (el tono) al origen. Juntar las palabras en una recta no basta: tienen que coincidir.',
     ],
     explain:
-      'Un cuarto de vuelta lleva a $\\hat{\\imath}$ de apuntar a la derecha a apuntar arriba, y a $\\hat{\\jmath}$ de arriba a la izquierda. La lectura de la matriz te dice cómo ha quedado cada columna.',
+      'Cada palabra sale en intensidad por $\\hat{\\imath}$ más tono por $\\hat{\\jmath}$. Si $\\hat{\\jmath}$ es cero, el tono deja de contar y solo queda la intensidad, que es igual en «genial» y «horrible», y en «bueno» y «malo».',
     solution:
-      '$\\hat{\\imath}$ en $(0, 1)$ y $\\hat{\\jmath}$ en $(-1, 0)$ dan la matriz $\\begin{pmatrix}0&-1\\\\1&0\\end{pmatrix}$, la del giro de un cuarto de vuelta en sentido antihorario.',
-    plane: transformPlane({ movable: true, readouts: ['matrix'] }),
+      'Con $\\hat{\\jmath}$ en $(0, 0)$ y $\\hat{\\imath}$ en $(1, 1)$, «genial» y «horrible» caen en $(2{,}5;\\ 2{,}5)$ y «bueno» y «malo» en $(1, 1)$: dos parejas fundidas, y la neurona acierta dos de cuatro. $\\hat{\\imath}$ puede ir a cualquier sitio: toda capa con $\\hat{\\jmath}$ en el origen borra el tono. Borrar la intensidad no funde ninguna pareja, y poner $\\hat{\\jmath}$ sobre la recta de $\\hat{\\imath}$ deja las palabras en fila, pero separadas.',
+    lab: capaLab(RESENAS_CUATRO, { range: 6, j: [1.5, 1], readout: MIRA_SALIDA_1 }),
     goals: [
-      { metric: 'x', of: ['i'], target: 0, tol: 0.01 },
-      { metric: 'y', of: ['i'], target: 1, tol: 0.01 },
-      { metric: 'x', of: ['j'], target: -1, tol: 0.01 },
-      { metric: 'y', of: ['j'], target: 0, tol: 0.01 },
+      {
+        metric: 'merged',
+        op: 'gte',
+        target: 2,
+        label: 'Parejas de reseñas que caen en el mismo punto',
+        format: 'integer',
+      },
     ],
+    solved: { iy: 1, jx: 0, jy: 0 },
   },
   {
     id: 'despegue.6',
     type: 'opcion',
+    purpose: {
+      why: 'Una capa sin sesgo es solo multiplicar por una matriz, y una entrada de ceros sale siempre en ceros. Por eso toda capa real lleva además un vector de sesgos $b$, que desplaza el resultado: la capa calcula $Wx+b$.',
+      aim: 'Vas a descubrir, moviendo las columnas de la capa, qué no puede hacer ninguna matriz con las palabras que le llegan.',
+      takeaway:
+        'Ninguna matriz mueve el origen: «normal», con los dos rasgos a $0$, se queda en $(0, 0)$ con cualquier capa. Para desplazarla hace falta el sesgo, que se suma después de la matriz.',
+    },
     prompt:
-      'Una transformación lineal deforma el plano entero a la vez, a partir de adónde mandan $\\hat{\\imath}$ y $\\hat{\\jmath}$, como las rejillas que acabas de mover. Pero no todo vale: hay cosas que ninguna matriz puede hacer.\n\n¿Cuál de estas cosas NO puede hacer una transformación lineal?',
+      'En el laboratorio hay una quinta palabra, «normal», con intensidad $0$ y tono $0$. Mueve las columnas de la capa como quieras y mira qué hace cada palabra.\n\n¿Cuál de estas cosas NO puede hacer ninguna capa sin sesgo, es decir, una matriz sola?',
     hints: [
-      'Mira las rejillas que has deformado: hay un punto que siempre se queda donde estaba.',
-      'Multiplicar el punto $(0, 0)$ por cualquier matriz da siempre el mismo resultado.',
+      'Prueba varias capas y fíjate en «normal»: ¿se ha movido alguna vez?',
+      'La salida es intensidad por $\\hat{\\imath}$ más tono por $\\hat{\\jmath}$. ¿Qué da eso si los dos rasgos son $0$?',
     ],
     explain:
-      'En todas las rejillas que has deformado hay un punto que no se mueve. Piensa cuál es y por qué ocurre.',
+      'La capa multiplica cada rasgo por su columna y suma. Si todos los rasgos son $0$, todos los productos son $0$, se muevan como se muevan las columnas.',
     solution:
-      'Ninguna matriz mueve el origen: sus dos coordenadas son $0$, y al multiplicarlas por cualquier número siguen siendo $0$, así que el resultado es siempre $(0, 0)$. Girar, reflejar, estirar e inclinar sí se pueden. Lo que tampoco puede una matriz es curvar las líneas de la rejilla: las rectas siguen siendo rectas.',
+      '«normal» sale en $0\\cdot\\hat{\\imath}+0\\cdot\\hat{\\jmath}=(0, 0)$ con cualquier matriz: no se puede mover. Las otras tres sí se pueden: alargar $\\hat{\\jmath}$ dobla el tono, inclinarla mezcla los dos rasgos en una salida y llevarla al origen junta «genial» y «horrible». Por eso una capa real suma un sesgo: $Wx+b$.',
+    lab: capaLab(RESENAS_Y_NORMAL),
     options: [
-      'Girar el plano un cuarto de vuelta alrededor del origen',
-      'Reflejar el plano, como si se mirara en un espejo',
-      'Mover el origen $(0, 0)$ a otro punto del plano',
-      'Inclinar el plano, de modo que los cuadrados pasen a ser paralelogramos',
+      'Hacer que el tono cuente el doble',
+      'Mezclar la intensidad y el tono en una misma salida',
+      'Mandar «genial» y «horrible» al mismo punto',
+      'Mover «normal» a otro punto del plano',
     ],
-    correct: 2,
+    correct: 3,
   },
   {
     id: 'despegue.7',
@@ -321,6 +363,12 @@ check((not _vec(imagen_i)) or np.allclose(imagen_i, [3, 2]), "\`imagen_i\` tiene
   {
     id: 'despegue.10',
     type: 'opcion',
+    purpose: {
+      why: 'Un clasificador de texto suele acabar en una capa lineal: recibe el embedding y devuelve una puntuación por clase. Montarla es elegir la forma de su matriz, y un error de formas es el fallo más corriente al escribir un modelo.',
+      aim: 'Vas a decidir la forma de la matriz de pesos de un clasificador de reseñas a partir del tamaño de lo que entra y de lo que sale.',
+      takeaway:
+        'La matriz es de $3\\times 768$: una fila por puntuación y una columna por componente del embedding, $2304$ pesos. En PyTorch, los pesos de una capa lineal se guardan con esa forma: (salidas, entradas).',
+    },
     prompt:
       'Una capa lineal de un modelo de IA es una matriz. Aquí, un clasificador de reseñas recibe el embedding de un texto, con 768 componentes, y devuelve 3 puntuaciones, una por clase («positiva», «neutra» y «negativa»). Lo hace multiplicando una matriz de pesos $W$ por el embedding.\n\n¿Qué forma, en filas × columnas, tiene $W$?',
     hints: [
