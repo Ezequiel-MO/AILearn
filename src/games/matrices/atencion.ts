@@ -1,29 +1,51 @@
-import type { PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
+import type { AtencionSpec, AtencionToken } from '../../engine/labs/atencion';
 import { py } from '../py';
 import { atencionWarmup } from './atencion.calentamiento';
-import { transformPlane } from './plane';
+import { FRASE_ANIMAL, FRASE_ANIMAL_MIRA } from './datos';
 
-/** Un vector del plano con su propia etiqueta. */
-const vec = (id: string, label: string, x: number, y: number, movable: boolean): PlaneVector => ({
-  id,
-  label,
-  x,
-  y,
-  movable,
-});
-
-/** Plano sin transformación: la consulta $q$ y las claves, para leer sus productos escalares. */
-const scorePlane: PlaneSpec = {
-  range: 3,
-  snap: 1,
-  vectors: [vec('k1', 'k₁', 2, 1, false), vec('k2', 'k₂', -1, 2, false), vec('q', 'q', 1, 0, true)],
-  readouts: ['dot'],
-  pair: ['q', 'k1'],
-};
+/** Índice de «cruzó» en `FRASE_ANIMAL`: quien mira en la pregunta de la máscara causal. */
+const CRUZO = 3;
+/** Índice de «cansado» en `FRASE_ANIMAL`: el token cuya clave se arrastra. */
+const CANSADO = 6;
 
 /**
- * Cuarto proyecto de la Órbita 3 de matrices: la atención como producto de matrices. Aquí, las
- * puntuaciones QKᵀ, el softmax por filas y la mezcla de valores; la parte de código, en la fase siguiente.
+ * El laboratorio de la frase del animal: mira «estaba», con la consulta (0; 1,5) del principio, que
+ * se va sobre todo a «cansado» (65,8 %) y no pisa ninguna clave. Cada pregunta cambia lo que hace falta.
+ */
+const frase = (extra: Partial<AtencionSpec> = {}): AtencionSpec => ({
+  kind: 'atencion',
+  tokens: FRASE_ANIMAL,
+  focus: FRASE_ANIMAL_MIRA,
+  query: [0, 1.5],
+  range: 3,
+  snap: 0.5,
+  ...extra,
+});
+
+/**
+ * «el gato duerme»: mira «duerme». Con la consulta (2, 0) las puntuaciones son 0, 2 y 0; el
+ * laboratorio empieza en (−1, 1), con 1, −1 y −1, para que la cuenta se compruebe moviéndola.
+ */
+const GATO_DUERME: AtencionToken[] = [
+  { id: 'el', text: 'el', key: [0, 1] },
+  { id: 'gato', text: 'gato', key: [1, 0] },
+  { id: 'duerme', text: 'duerme', key: [0, -1] },
+];
+
+/** «el perro come su pienso», con consulta en cada token, para el mapa completo de atención. */
+const PERRO_PIENSO: AtencionToken[] = [
+  { id: 'el', text: 'el', key: [-1, -1], query: [0, 1] },
+  { id: 'perro', text: 'perro', key: [0, 2], query: [1, 0] },
+  { id: 'come', text: 'come', key: [2, 0], query: [0, 2] },
+  { id: 'su', text: 'su', key: [-1, 1], query: [1, 1] },
+  { id: 'pienso', text: 'pienso', key: [1, -1], query: [2, 0] },
+];
+
+/**
+ * Cuarto proyecto de la Órbita 3 de matrices: la atención como producto de matrices. Un token decide a
+ * quién mirar comparando su consulta con la clave de cada uno; el softmax convierte las puntuaciones en
+ * pesos, y su salida es la mezcla de los valores con esos pesos.
  */
 export const atencion: Project = {
   id: 'atencion',
@@ -40,163 +62,168 @@ export const atencion: Project = {
       questions: [
         {
           id: 'atencion.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'En un modelo de lenguaje, cada palabra del contexto genera una **consulta** (lo que busca) y una **clave** (lo que ofrece). La puntuación con que una mira a otra es el producto escalar de la consulta con la clave. Entender qué consulta puntúa alto con qué clave es entender por qué una cabeza de atención se fija en unas palabras y no en otras.',
-            aim: 'Vas a mover una consulta $q$ hasta que puntúe lo pedido con dos claves a la vez, guiándote por la lectura de una de ellas y por lo que sabes del producto escalar.',
+            why: 'En un modelo de lenguaje, cada token busca en la frase los que le dan contexto. Lo que busca es su consulta; lo que ofrece cada token es su clave. El producto escalar de la consulta con cada clave decide a quién mira.',
+            aim: 'Vas a girar y alargar la consulta de «estaba» hasta que se fije en el token que de verdad estaba cansado.',
             takeaway:
-              'La consulta $(2, 1)$ puntúa $5$ con $k_1$ y $0$ con $k_2$: se alinea con la clave que quiere y es perpendicular a la que ignora. Lo que hace una capa de atención es, en el fondo, esto, repetido para todas las parejas de palabras del contexto.',
+              'Cada token puntúa su clave por la consulta: alto cuando apuntan hacia el mismo lado. El softmax da casi todo el peso a la puntuación mayor. Mirar a «animal» es lo que deja a «estaba» saber quién estaba cansado.',
           },
           prompt:
-            'En un modelo de **atención**, cada palabra del texto genera una **consulta** $q$ (lo que busca) y una **clave** $k$ (lo que ofrece). La **puntuación** con que una palabra mira a otra es el producto escalar $q\\cdot k$. Aquí hay dos claves fijas, $k_1=(2, 1)$ y $k_2=(-1, 2)$, y una consulta $q$ que parte de $(1, 0)$. El panel te enseña $q\\cdot k_1$; la puntuación con $k_2$ la calculas tú con las coordenadas de $q$. Mueve $q$ hasta que puntúe **5** con $k_1$ y **0** con $k_2$.',
+            'En «el animal no cruzó porque estaba cansado», el token «estaba» necesita saber quién estaba cansado. Cada flecha gris es la **clave** de un token: lo que ofrece. La amarilla es la **consulta** de «estaba»: lo que busca. Ahora apunta hacia arriba y la mayor parte de la atención se la lleva «cansado».\n\nMueve la consulta hasta que casi toda la atención vaya a «animal».',
           hints: [
-            'Una puntuación de $0$ con $k_2$ pide un $q$ perpendicular a $k_2$. Las dos claves son perpendiculares entre sí: ¿qué dirección es perpendicular a $k_2$?',
-            'Con $q$ en esa dirección, solo falta su longitud: la lectura con $k_1$ tiene que llegar a $5$.',
+            'Las barras dicen cuánto se lleva cada token y con qué puntuación. Puntúa más la clave que queda hacia donde apunta la consulta, y tanto más cuanto más larga es la flecha.',
+            'Gira la consulta hacia la clave de «animal», a la derecha. Si ya apunta hacia ella y no basta, alárgala.',
           ],
           explain:
-            'La puntuación es el producto escalar: grande y positiva si la consulta y la clave apuntan hacia el mismo lado, $0$ si son perpendiculares y negativa si apuntan en sentidos opuestos. Con dos claves perpendiculares, cada una fija una condición distinta sobre $q$.',
+            'La puntuación de un token es el producto escalar de su clave con la consulta: crece cuanto más alineadas y más largas son. El softmax convierte las puntuaciones en pesos que suman 1, y la mayor se lleva bastante más que su parte.',
           solution:
-            'Hay que poner $q=(2, 1)$. Entonces $q\\cdot k_1=2\\cdot 2+1\\cdot 1=5$ y $q\\cdot k_2=2\\cdot(-1)+1\\cdot 2=0$. Desde $(1, 0)$ las puntuaciones eran $2$ y $-1$. Como $q$ coincide con la dirección de $k_1$, que es perpendicular a $k_2$, ninguna otra posición de la rejilla cumple las dos condiciones.',
-          plane: scorePlane,
+            'Con la consulta en $(1{,}5;\\ 1)$, «animal» puntúa $4$ y se lleva el 90,7 %; sobre su misma clave, $(2, 1)$, el 96,6 %. También vale $(1, 1)$: puntúa $3$ y se lleva el 75,3 %. Con $(0{,}5;\\ 0{,}5)$ apunta bien pero es corta: puntúa $1{,}5$, las demás quedan cerca y «animal» se queda en el 45,6 %. No hace falta una consulta exacta: vale cualquiera que apunte hacia «animal» y sea bastante larga.',
+          lab: frase({ readouts: ['top'] }),
           goals: [
-            { metric: 'dot', of: ['q', 'k1'], target: 5, tol: 0.01 },
-            { metric: 'dot', of: ['q', 'k2'], target: 0, tol: 0.01 },
+            {
+              metric: 'w_animal',
+              op: 'gte',
+              target: 0.7,
+              label: 'Atención que «estaba» da a «animal»',
+              format: 'percent',
+            },
           ],
+          solved: { qx: 1.5, qy: 1 },
         },
         {
           id: 'atencion.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Las claves de todas las palabras se apilan, una por fila, en una matriz $K$. Multiplicar $K$ por una consulta da de golpe sus puntuaciones con todas las palabras. Y si se apilan también las consultas en una matriz $Q$, el producto $QK^{T}$ da la tabla de puntuaciones entera en una sola operación, que es lo que hace una GPU.',
-            aim: 'Vas a buscar la consulta $q$ cuyas dos puntuaciones, con dos claves, son las pedidas, leyendo el resultado de $K\\,q$ como un solo vector.',
+            why: 'Un softmax se afila o se suaviza dividiendo antes las puntuaciones entre una temperatura. En la atención, la división entre $\\sqrt{d_k}$ hace ese papel; al generar texto, la temperatura decide si el modelo elige casi siempre el token más probable.',
+            aim: 'Vas a cambiar la temperatura de la atención de «estaba», sin tocar su consulta, hasta que deje de repartirse entre todos los tokens.',
             takeaway:
-              'La consulta $(1, 1)$ da el vector de puntuaciones $(3, 1)$: la primera con $k_1$ y la segunda con $k_2$. Una matriz de claves convierte una consulta en todas sus puntuaciones, y apilar muchas consultas convierte esa operación en una tabla.',
+              'Bajar la temperatura separa las puntuaciones, y el softmax concentra el peso en la mayor; subirla lo reparte. Dividir entre la temperatura es como cambiar la longitud de la consulta: por eso una consulta corta mira de forma difusa.',
           },
           prompt:
-            'Apila las claves de dos palabras, $k_1=(2, 1)$ y $k_2=(0, 1)$, como **filas** de una matriz $K=\\begin{pmatrix}2&1\\\\0&1\\end{pmatrix}$. Entonces $K\\,q$ contiene en una sola columna las dos puntuaciones de la consulta $q$: la primera es $q\\cdot k_1$ y la segunda, $q\\cdot k_2$. El panel llama $A$ a esa matriz $K$ y dibuja $A\\,q$, la columna de puntuaciones. Mueve $q$, que parte de $(1, 0)$, hasta que puntúe **3** con $k_1$ y **1** con $k_2$.',
+            'La consulta de «estaba» ya apunta hacia «animal», pero es corta y no se puede mover. Antes del softmax, las puntuaciones se dividen entre la **temperatura**. Con la de ahora, la atención se reparte entre todos los tokens: la **entropía**, que mide lo repartida que está, pasa de 2 bits.\n\nMueve la temperatura hasta que la atención quede afilada.',
           hints: [
-            'La lectura $A\\,q$ tiene dos coordenadas: la primera es la puntuación con $k_1$ y la segunda, la puntuación con $k_2$. Mira cuál de las dos depende solo de una coordenada de $q$.',
-            'Como $k_2=(0, 1)$, la segunda puntuación es la $y$ de $q$. Con ella fijada, ajusta la $x$ para la primera.',
+            'Mira las puntuaciones de las barras al mover la temperatura: todas se acercan a 0 o se alejan de 0 a la vez. ¿Cuándo se separa más «animal» de las demás?',
+            'Baja la temperatura: dividir entre un número pequeño agranda las diferencias entre puntuaciones, y el softmax las exagera.',
           ],
           explain:
-            'Cada fila de $K$ multiplica a $q$ como un producto escalar, así que $K\\,q$ reúne todas las puntuaciones en un vector. Esto es una matriz que transforma un vector, como en la Órbita 0, solo que ahora sus filas son claves y su resultado, puntuaciones.',
+            'El softmax depende de las diferencias entre puntuaciones. Dividirlas entre una temperatura alta las junta, y los pesos se igualan; entre una baja, las separa, y casi todo el peso va a la mayor. La entropía vale 0 bits si un token se lo lleva todo y $\\log_2 7\\approx 2{,}81$ si se reparte por igual entre los siete.',
           solution:
-            'Hay que poner $q=(1, 1)$. Entonces $K\\,q=(2\\cdot 1+1\\cdot 1,\\ 0\\cdot 1+1\\cdot 1)=(3, 1)$. La segunda puntuación es solo la $y$ de $q$, porque $k_2=(0, 1)$, y la primera, $2x+y=3$, deja $x=1$. Con las consultas de todas las palabras como filas de una matriz $Q$, $QK^{T}$ reúne estas columnas de puntuaciones, una por consulta, en una tabla.',
-          plane: transformPlane({
-            i: [2, 0],
-            j: [1, 1],
-            extra: [vec('q', 'q', 1, 0, true)],
-            apply: ['q'],
-            readouts: ['matrix', 'image'],
-            range: 3,
+            'Con temperatura $0{,}75$ la entropía baja a $0{,}9$ bits y «animal» se lleva el 85,5 %; con $0{,}5$, a $0{,}28$ bits. Con $1$ no basta: $1{,}48$ bits. Fíjate: temperatura $0{,}5$ da los mismos pesos que la consulta $(2, 1)$ con temperatura $1$. Dividir las puntuaciones entre $0{,}5$ es lo mismo que alargar la consulta al doble.',
+          lab: frase({
+            query: [1, 0.5],
+            movable: 'none',
+            temperature: { min: 0.25, max: 3, step: 0.25, start: 2 },
+            readouts: ['w_max'],
           }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'q'], target: 3, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'q'], target: 1, tol: 0.01 },
+            {
+              metric: 'entropy',
+              op: 'lte',
+              target: 1,
+              label: 'Entropía de los pesos, en bits',
+            },
           ],
+          solved: { temp: 0.5 },
         },
         {
           id: 'atencion.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Una puntuación de atención no es un coseno: depende también de lo largas que sean la consulta y la clave. Por eso un modelo puede dar más peso a una palabra no solo por hacia dónde apunta su clave, sino por lo grande que es. Y por eso hay que controlar las longitudes, con el escalado y con la normalización, para que el softmax no se sature.',
-            aim: 'Vas a buscar una clave $k$ con una puntuación y un ángulo dados respecto de una consulta fija, y a ver cómo se reparten entre la longitud y la dirección.',
+            why: 'Un modelo que genera texto, como GPT, escribe un token cada vez y solo puede usar los que ya ha escrito. Al entrenarlo con frases enteras, una máscara tapa lo que viene después para que no aprenda a mirar el futuro.',
+            aim: 'Vas a activar la máscara causal y orientar la consulta de «cruzó» para que mire solo lo ya escrito, y sobre todo a quién cruzó.',
             takeaway:
-              'Una clave de longitud $2\\sqrt{2}$ a $45°$ de $q$ puntúa $4$, lo mismo que una clave de longitud $2$ perfectamente alineada. Para la atención, una clave más larga compensa un ángulo peor, cosa que el coseno del juego 1 no ve.',
+              'La máscara no baja unas puntuaciones: las saca del softmax, y lo que queda vuelve a sumar 1. Por eso el peso del futuro es 0 exacto y pasa a lo anterior. Ninguna consulta, por larga que sea, consigue ese 0.',
           },
           prompt:
-            'La consulta $q=(2, 0)$ queda fija. Mueve la clave $k$, que parte de $(1, 0)$, hasta que su puntuación con $q$ valga **4** y el ángulo entre las dos sea de **45°**. Recuerda que $q\\cdot k=|q|\\,|k|\\cos\\theta$.',
+            'Ahora mira «cruzó». Un modelo que escribe la frase token a token aún no ha escrito «porque estaba cansado» cuando llega a «cruzó», pero aquí su atención se va sobre todo a esos tokens. El interruptor activa la **máscara causal**.\n\nHaz que «cruzó» no mire nada de lo que viene detrás y que casi toda su atención vaya a «animal», el que cruzó.',
           hints: [
-            'Con $k=(1, 0)$ el ángulo es $0°$ y la puntuación, $2$. Para abrir el ángulo y no perder puntuación, ¿qué le pasa a la longitud de $k$?',
-            'A $45°$, el coseno vale $\\frac{\\sqrt{2}}{2}$, menos que $1$. Para compensar, $|k|$ tiene que crecer.',
+            'Los tokens posteriores a «cruzó» se llevan la mayor parte. Gira la consulta y mira sus barras: ninguna llega a quedarse en 0.',
+            'Activa la máscara y mira adónde va el peso que sobraba. Después gira la consulta hacia la clave de «animal».',
           ],
           explain:
-            'La puntuación depende de la longitud de $k$ y del ángulo con $q$. Para una puntuación fija hay muchas claves: una por cada ángulo, con la longitud que haga falta. Fijar además el ángulo deja solo dos, simétricas respecto de $q$.',
+            'La máscara quita del softmax a los tokens posteriores: su peso es 0, y lo que queda vuelve a sumar 1 entre «cruzó» y los anteriores. Sin máscara, una puntuación muy baja da un peso pequeño, pero nunca 0.',
           solution:
-            'Sirve $k=(2, 2)$: $q\\cdot k=2\\cdot 2+0\\cdot 2=4$ y su ángulo con $q$ es de $45°$. También sirve $(2, -2)$, el simétrico. La longitud de $k$ es $2\\sqrt{2}\\approx 2{,}83$: con $\\cos 45°=\\frac{\\sqrt{2}}{2}$, $|q|\\,|k|\\cos\\theta=2\\cdot 2\\sqrt{2}\\cdot\\frac{\\sqrt{2}}{2}=4$. Una clave alineada con $q$ habría necesitado longitud $2$.',
-          plane: {
-            range: 3,
-            snap: 1,
-            vectors: [vec('q', 'q', 2, 0, false), vec('k', 'k', 1, 0, true)],
-            readouts: ['dot', 'angle'],
-            pair: ['q', 'k'],
-          },
+            'Con la máscara, el peso que iba al futuro se reparte entre los cuatro primeros tokens, y «animal» pasa del 14,7 % al 77,9 %. Con la consulta en $(1, 1)$ llega al 94,8 %; en $(2, 1)$, al 99 %. Sin máscara, la consulta $(2, 1)$ da a «animal» el 96,6 %, pero un 2,4 % sigue yendo a lo que viene después: solo la máscara lo deja en 0.',
+          lab: frase({ focus: CRUZO, mask: 'toggle', readouts: ['masked'] }),
           goals: [
-            { metric: 'dot', of: ['q', 'k'], target: 4, tol: 0.01 },
-            { metric: 'angle', of: ['q', 'k'], target: 45, tol: 0.5 },
+            {
+              metric: 'future',
+              op: 'lte',
+              target: 0,
+              label: 'Atención sobre lo que viene después',
+              format: 'percent',
+            },
+            {
+              metric: 'w_animal',
+              op: 'gte',
+              target: 0.9,
+              label: 'Atención que «cruzó» da a «animal»',
+              format: 'percent',
+            },
           ],
+          solved: { mask: 1, qx: 1, qy: 1 },
         },
         {
           id: 'atencion.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La consulta de una palabra no es su embedding: es el resultado de multiplicarlo por una matriz $W_Q$ que el modelo aprende, y la clave sale de otra, $W_K$. Por eso una palabra puede mirar a otra cuyo embedding no se le parece en nada: lo que busca lo decide lo aprendido, no la dirección de su propio vector.',
-            aim: 'Vas a buscar el embedding $x$ cuya consulta, tras pasar por $W_Q$, coincide con una clave dada, y a comparar esa consulta con el propio $x$.',
+            why: 'Al entrenar, el modelo no solo aprende qué busca cada token: también qué ofrece. La matriz $W_K$ fabrica la clave de cada token a partir de su embedding, y cambiarla decide qué tokens atraen la atención de los demás.',
+            aim: 'Vas a mover la clave de «cansado», con la consulta de «estaba» fija, hasta que deje de quitarle la atención.',
             takeaway:
-              'El embedding $(2, 0)$ es perpendicular a la clave, con coseno $0$, y aun así su consulta $(0, 2)$ coincide con ella y puntúa $4$. Qué busca una palabra lo decide la matriz aprendida, no la dirección de su embedding; entrenar la atención es aprender esas matrices.',
+              'La clave es lo que un token ofrece. Con la misma consulta, cambiar una clave reparte de nuevo la atención: el token que la baja pierde peso y los demás lo ganan. Entrenar la atención es ajustar consultas y claves a la vez.',
           },
           prompt:
-            'La consulta no es el embedding $x$ de la palabra, sino $W_Q\\,x$. Aquí $W_Q$ gira $90°$: $\\hat{\\imath}=(0, 1)$ y $\\hat{\\jmath}=(-1, 0)$ son sus columnas (el panel la llama $A$). Una clave $k=(0, 2)$ queda fija. Mueve el embedding $x$, que parte de $(1, 0)$, hasta que su consulta $W_Q\\,x$ valga **$(0, 2)$**, igual que la clave. Fíjate en la lectura del coseno entre $x$ y $k$.',
+            'La consulta de «estaba» vuelve a la del principio, y ahora no se toca: lo que se ajusta es la **clave** de «cansado», lo que ese token ofrece a los demás. Con la clave de ahora, «cansado» se lleva casi dos tercios de la atención de «estaba».\n\nMueve la clave de «cansado» hasta que deje de llevársela.',
           hints: [
-            'Escribe $W_Q\\,x$ con $x=(a, b)$: la primera coordenada es $-b$ y la segunda, $a$. ¿Qué $a$ y qué $b$ dan $(0, 2)$?',
-            'Compara la dirección de $x$ con la de $k$ cuando lo tengas.',
+            'La consulta apunta hacia arriba. Mira la puntuación de «cansado» al mover su clave de lado y al moverla de arriba abajo: solo una de las dos cosas la cambia.',
+            'Baja la clave de «cansado» hasta la altura del origen o por debajo. Moverla de lado no cambia nada con esta consulta.',
           ],
           explain:
-            'La matriz $W_Q$ transforma el embedding antes de compararlo con las claves, así que lo que cuenta es la imagen $W_Q\\,x$, no $x$. Con un giro, $x$ y su consulta apuntan a sitios distintos.',
+            'La puntuación de «cansado» es su clave por la consulta. Como la consulta solo tiene componente vertical, solo cuenta la altura de la clave. Al bajarla, la puntuación cae y su peso pasa a los demás.',
           solution:
-            'Hay que poner $x=(2, 0)$. Entonces $W_Q\\,x=(0\\cdot 2+(-1)\\cdot 0,\\ 1\\cdot 2+0\\cdot 0)=(0, 2)$, que coincide con $k$ y puntúa $0\\cdot 0+2\\cdot 2=4$. Sin embargo, $x$ y $k$ son perpendiculares: su coseno es $0$. Lo que busca una palabra no se lee en su embedding, sino en lo que $W_Q$ hace con él.',
-          plane: {
-            ...transformPlane({
-              i: [0, 1],
-              j: [-1, 0],
-              extra: [vec('k', 'k', 0, 2, false), vec('x', 'x', 1, 0, true)],
-              apply: ['x'],
-              readouts: ['matrix', 'image', 'cos'],
-              range: 3,
-            }),
-            pair: ['x', 'k'],
-          },
+            'Con la clave en $(1, 0)$, «cansado» puntúa $0$ y se queda con el 8,7 %; más abajo, aún menos. Moverla a $(3, 2)$ no cambia nada: la altura sigue siendo $2$. Copiar la clave de «animal», $(2, 1)$, tampoco basta: empata con «animal» y «estaba» y se lleva el 30 %. Lo que recibe un token depende de su clave tanto como de la consulta de quien mira.',
+          lab: frase({ movable: 'key', keyOf: CANSADO, readouts: ['top'] }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'x'], target: 0, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'x'], target: 2, tol: 0.01 },
+            {
+              metric: 'w_cansado',
+              op: 'lte',
+              target: 0.1,
+              label: 'Atención que «estaba» da a «cansado»',
+              format: 'percent',
+            },
           ],
+          solved: { kx: 1, ky: 0 },
         },
         {
           id: 'atencion.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Después de las puntuaciones y del softmax, cada palabra recibe una salida que es una mezcla de los **valores** de las palabras del contexto, ponderada por sus pesos. Esa mezcla es lo que pasa a la capa siguiente: así una palabra incorpora información de las que ha mirado.',
-            aim: 'Vas a buscar los pesos con que hay que mezclar dos valores para obtener una salida dada, comprobando que los pesos suman $1$.',
+            why: 'Los pesos de atención no son el resultado: la capa siguiente recibe la mezcla de los valores con esos pesos. Así entra en «estaba» la información de «animal». En el GPT-2 pequeño, cada valor tiene 64 números por cabeza.',
+            aim: 'Vas a orientar la consulta de «estaba» para que su salida traiga todo lo posible del valor de «animal», y a ver hasta dónde se puede llegar.',
             takeaway:
-              'Los pesos $(0{,}75; 0{,}25)$ dan la salida $(3, 1)$, tres cuartos de $v_1$ y un cuarto de $v_2$. Con pesos que no son negativos y suman $1$, la salida queda en el segmento que une los valores: una media ponderada, y no una suma.',
+              'La salida es una media de los valores con los pesos de atención: queda siempre entre ellos y nunca pasa del mayor. Para traer la información de un solo token hace falta darle casi todo el peso. Por eso importa una atención afilada.',
           },
           prompt:
-            'Dos palabras tienen por **valores** $v_1=(4, 0)$ y $v_2=(0, 4)$, que son las columnas de la matriz del panel ($\\hat{\\imath}$ y $\\hat{\\jmath}$; el panel la llama $A$). Los **pesos** de atención $w=(w_1, w_2)$ mezclan los valores: la salida es $w_1\\,v_1+w_2\\,v_2=A\\,w$. Mueve $w$, que parte de $(0{,}5; 0{,}5)$, hasta que la salida valga **$(3, 1)$** y los pesos sumen **1**. El vector fijo $(1, 1)$ sirve para leer esa suma: el producto escalar $w\\cdot(1, 1)$ es $w_1+w_2$.',
+            'Cada token lleva también un **valor**: lo que entrega a quien lo mira. La salida de «estaba» es la mezcla de los valores con sus pesos, y pasa a la capa siguiente. El valor de «animal» es $(2, 2)$, el de primera coordenada más alta; el de «cansado», $(-2, 1)$.\n\nLleva la primera coordenada de la salida todo lo cerca que puedas de la de «animal».',
           hints: [
-            'Con los pesos de partida, la salida es $(2, 2)$: la media de los dos valores. Para acercarla a $v_1$ hay que darle más peso.',
-            'Como $v_1$ y $v_2$ son los ejes, cada coordenada de la salida es $4$ por el peso de su valor.',
+            'La salida es una media ponderada: cada peso que va a otro token la aparta de «animal». Ahora la mayor parte se la lleva «cansado», y la salida queda en negativo.',
+            'Gira la consulta hacia la clave de «animal» y alárgala hasta cerca del borde: cuanto más larga, menos les queda a los demás.',
           ],
           explain:
-            'La salida es una combinación de los valores con los pesos como coeficientes. Si los pesos son positivos y suman $1$, es una media ponderada, y queda entre los valores: cuanto más peso, más cerca del valor correspondiente.',
+            'La salida es $\\sum_j w_j\\,v_j$, una media ponderada de los valores, porque los pesos suman 1. Nunca pasa del valor más alto. Para acercarse a él hace falta que casi todo el peso vaya a ese token, y eso pide una puntuación muy por encima de las demás.',
           solution:
-            'Hay que poner $w=(0{,}75; 0{,}25)$. Entonces $A\\,w=0{,}75\\cdot(4, 0)+0{,}25\\cdot(0, 4)=(3, 0)+(0, 1)=(3, 1)$, y $w\\cdot(1, 1)=0{,}75+0{,}25=1$. La salida está a tres cuartos del camino de $v_2$ a $v_1$, sobre el segmento que los une.',
-          plane: {
-            ...transformPlane({
-              i: [4, 0],
-              j: [0, 4],
-              extra: [vec('w', 'w', 0.5, 0.5, true), vec('unos', '(1, 1)', 1, 1, false)],
-              apply: ['w'],
-              readouts: ['matrix', 'image', 'dot'],
-              range: 4,
-              snap: 0.25,
-            }),
-            pair: ['w', 'unos'],
-          },
+            'Con la consulta en $(2, 1)$, «animal» se lleva el 96,6 % y la primera coordenada de la salida llega a $1{,}94$: no basta. En $(3;\\ 1{,}5)$ se lleva el 99,6 % y la salida llega a $1{,}99$; también vale $(3, 1)$. Ninguna consulta llega a $2$, el valor de «animal»: siempre queda algo de peso en los demás. Es el límite de una media.',
+          lab: frase({ readouts: ['out_x', 'out_y'] }),
           goals: [
-            { metric: 'img_x', of: ['i', 'j', 'w'], target: 3, tol: 0.01 },
-            { metric: 'img_y', of: ['i', 'j', 'w'], target: 1, tol: 0.01 },
-            { metric: 'dot', of: ['w', 'unos'], target: 1, tol: 0.01 },
+            {
+              metric: 'out_x',
+              op: 'gte',
+              target: 1.98,
+              label: 'Primera coordenada de la salida de «estaba»',
+            },
           ],
+          solved: { qx: 3, qy: 1.5 },
         },
       ],
     },
@@ -207,66 +234,75 @@ export const atencion: Project = {
           id: 'atencion.ex01.1',
           type: 'numero',
           purpose: {
-            why: 'Cada vez que un modelo de lenguaje genera una palabra, cada capa de atención calcula la puntuación de la consulta con la clave de cada palabra del contexto, y las divide entre $\\sqrt{d_k}$, con $d_k$ el número de componentes de la consulta y de la clave. Es la fórmula del Transformer original (Vaswani et al., 2017), repetida para cada pareja.',
-            aim: 'Vas a calcular una puntuación escalada completa: el producto escalar de una consulta con una clave y su división entre $\\sqrt{d_k}$.',
+            why: 'Cada cabeza de atención calcula, para cada pareja de tokens, el producto escalar de una consulta con una clave. En el GPT-2 pequeño, consultas y claves tienen 64 números por cabeza; aquí tienen 2 y se ven en el plano.',
+            aim: 'Vas a calcular la puntuación que una consulta da a una clave, coordenada por coordenada, antes de comprobarla en el laboratorio.',
             takeaway:
-              'La puntuación escalada es $2$: el producto escalar, $4$, entre $\\sqrt{4}=2$. El escalado no cambia cuál es la clave que más puntúa para una consulta, porque divide todas por lo mismo; solo mantiene las puntuaciones en un tamaño con el que el softmax trabaja bien.',
+              'La puntuación es $1{,}5\\cdot 1+1\\cdot(-2)=-0{,}5$: negativa, porque la clave de «cruzó» apunta hacia abajo y la consulta, hacia arriba. Una puntuación negativa no anula el peso: solo lo hace pequeño.',
           },
           prompt:
-            'Una consulta $q=(1, 2, 0, 1)$ y una clave $k=(2, 1, 1, 0)$ tienen $d_k=4$ componentes. ¿Cuál es su **puntuación escalada** $\\dfrac{q\\cdot k}{\\sqrt{d_k}}$?',
+            'Si la consulta de «estaba» pasa a ser $(1{,}5;\\ 1)$, ¿qué puntuación da a «cruzó», cuya clave es $(1, -2)$? Calcúlala y después lleva la consulta a ese punto en el laboratorio para comprobarla en su barra.',
           hints: [
-            'Calcula primero el producto escalar: multiplica componente a componente y suma.',
-            'Después divide entre la raíz de $d_k$, no entre $d_k$.',
+            'La puntuación es el producto escalar: primera coordenada por primera coordenada, más segunda por segunda.',
+            'Cuida el signo de la segunda coordenada de la clave: ese producto resta.',
           ],
           explain:
-            'La puntuación es un producto escalar dividido entre la raíz del número de componentes. Dividir entre $d_k$ en vez de entre su raíz da otro número, y no escalar da el producto escalar a secas.',
+            'El producto escalar suma los productos de las coordenadas. Una clave que apunta hacia el lado contrario al de la consulta da una puntuación negativa.',
           solution:
-            '$q\\cdot k=1\\cdot 2+2\\cdot 1+0\\cdot 1+1\\cdot 0=4$ y $\\sqrt{4}=2$, así que la puntuación es $\\frac{4}{2}=2$. Si te sale $4$, falta dividir; si te sale $1$, has dividido entre $d_k$ y no entre su raíz.',
-          answer: 2,
+            '$1{,}5\\cdot 1+1\\cdot(-2)=1{,}5-2=-0{,}5$. En el laboratorio, con la consulta en $(1{,}5;\\ 1)$, la barra de «cruzó» marca esa puntuación y un peso pequeño. Si te sale $3{,}5$, has sumado el $2$ en vez de restarlo.',
+          lab: frase(),
+          answer: -0.5,
           tol: 0,
         },
         {
           id: 'atencion.ex01.2',
           type: 'vector',
           purpose: {
-            why: 'El softmax convierte las puntuaciones de una palabra en pesos de atención: números no negativos que suman $1$ y que dicen cuánto mira a cada palabra del contexto. Mirar esos pesos es la forma habitual de inspeccionar qué ha atendido una cabeza de atención.',
-            aim: 'Vas a calcular los pesos que salen de tres puntuaciones, con el exponencial de cada una dividido entre la suma de los exponenciales.',
+            why: 'El softmax convierte las puntuaciones de un token en pesos de atención: positivos y que suman 1. Las herramientas que enseñan «a qué mira» un modelo dibujan justamente estos pesos.',
+            aim: 'Vas a pasar tres puntuaciones por el softmax a mano: el exponencial de cada una, dividido entre la suma de los tres.',
             takeaway:
-              'Una puntuación mayor se queda con casi el $79\\,\\%$ del peso, aunque solo supera en dos puntos a las otras. El softmax exagera las diferencias, y por eso importa el tamaño de las puntuaciones; sus pesos, además, suman siempre $1$.',
+              'Dos puntos de diferencia bastan para que «gato» se lleve el 79 %: el softmax exagera las diferencias. Las dos puntuaciones iguales reciben el mismo peso, y los tres pesos suman 1.',
           },
           prompt:
-            'Una palabra tiene tres puntuaciones con las claves del contexto: $(2, 0, 0)$. El **softmax** las convierte en pesos: cada peso es $e^{s}$ dividido entre la suma de los tres $e^{s}$. Calcula los tres pesos (usa $e^{2}\\approx 7{,}39$) con dos decimales.',
+            'En «el gato duerme», mira «duerme». Con la consulta $(2, 0)$, sus puntuaciones con «el», «gato» y «duerme» son $0$, $2$ y $0$. ¿Qué pesos da el softmax? Escríbelos en ese orden, con dos decimales (usa $e^{2}\\approx 7{,}39$). Después lleva la consulta a ese punto y compruébalo.',
           hints: [
-            'Los exponenciales son $e^{2}\\approx 7{,}39$, $e^{0}=1$ y $e^{0}=1$. Súmalos.',
-            'Divide cada exponencial entre esa suma. Los tres pesos tienen que sumar $1$.',
+            'Los exponenciales son $e^{0}=1$, $e^{2}\\approx 7{,}39$ y $e^{0}=1$. Súmalos.',
+            'Divide cada exponencial entre esa suma. Los tres pesos tienen que sumar 1.',
           ],
           explain:
-            'Cada peso es positivo y la suma de los tres es $1$. Las dos puntuaciones iguales reciben el mismo peso, y la mayor se lleva mucho más que la mitad.',
+            'Cada peso es $e^{s}$ entre la suma de todos los $e^{s}$. El exponencial hace positivo cada peso, y dividir entre la suma hace que sumen 1.',
           solution:
-            'La suma de exponenciales es $7{,}39+1+1=9{,}39$, y los pesos son $\\frac{7{,}39}{9{,}39}\\approx 0{,}79$ y $\\frac{1}{9{,}39}\\approx 0{,}11$ para cada una de las otras dos. Con más decimales, $0{,}787$ y $0{,}107$. Si no te suman $1$, revisa que has dividido entre la suma de los tres exponenciales y no entre $e^{2}$ solo.',
-          answer: [0.79, 0.11, 0.11],
+            'La suma es $1+7{,}39+1=9{,}39$. Los pesos: $\\frac{1}{9{,}39}\\approx 0{,}11$ para «el», $\\frac{7{,}39}{9{,}39}\\approx 0{,}79$ para «gato» y $0{,}11$ para «duerme». Si no suman 1, has dividido entre $e^{2}$ en vez de entre la suma.',
+          lab: {
+            kind: 'atencion',
+            tokens: GATO_DUERME,
+            focus: 2,
+            query: [-1, 1],
+            range: 3,
+            snap: 0.5,
+          },
+          answer: [0.11, 0.79, 0.11],
           tol: 0.01,
         },
         {
           id: 'atencion.ex01.3',
           type: 'vector',
           purpose: {
-            why: 'La salida de una palabra en una capa de atención es la media de los valores de las demás ponderada por sus pesos, y es lo que se pasa a la capa siguiente. Es la manera en que un modelo mezcla información de unas palabras en otras: el resultado de una pregunta como «¿a qué se refiere este pronombre?» se construye así.',
-            aim: 'Vas a calcular la salida de una palabra a partir de sus pesos y de los valores de tres palabras, sumando cada valor multiplicado por su peso.',
+            why: 'Una cabeza de atención no calcula pareja por pareja: apila las consultas de todos los tokens en una matriz $Q$ y las claves en $K$, y un solo producto $QK^{T}$ da todas las puntuaciones. Es la operación que la GPU hace de golpe.',
+            aim: 'Vas a deducir la forma de la tabla de puntuaciones a partir de las formas de $Q$ y $K$ en una cabeza del GPT-2 pequeño.',
             takeaway:
-              'La salida es $(3, 2)$, más cerca de los valores con más peso. No es la suma de los valores ni su media sin más: cada uno entra en la proporción que marca la atención. En forma de matrices es $\\text{pesos}\\cdot V$, para todas las palabras a la vez.',
+              'La tabla es de $10\\times 10$: una fila por token que mira y una columna por token mirado. Los 64 números de cada consulta desaparecen en el producto: cada casilla es un producto escalar.',
           },
           prompt:
-            'Tres palabras tienen por valores $v_1=(4, 0)$, $v_2=(0, 4)$ y $v_3=(4, 4)$. Una palabra les reparte los pesos de atención $(0{,}5; 0{,}25; 0{,}25)$. ¿Cuál es su **salida**, la combinación de los valores con esos pesos? Escribe primero la $x$ y después la $y$.',
+            'En una cabeza de atención del GPT-2 pequeño, un texto de $10$ tokens da una matriz $Q$ de $10\\times 64$ (una fila por token) y una $K$ de la misma forma. ¿Qué forma tiene $QK^{T}$? Escribe primero las filas y después las columnas.',
           hints: [
-            'Multiplica cada valor por su peso: $0{,}5\\,v_1$, $0{,}25\\,v_2$ y $0{,}25\\,v_3$.',
-            'Suma los tres vectores resultantes, coordenada a coordenada.',
+            '$K^{T}$ es $K$ traspuesta: sus filas pasan a ser columnas. ¿Qué forma tiene?',
+            'En un producto, las filas salen del primer factor y las columnas, del segundo; el número del medio desaparece.',
           ],
           explain:
-            'La salida es la suma de cada valor por su peso. Como los pesos suman $1$, es una media ponderada y queda entre los valores, no fuera de ellos.',
+            'Una matriz de $a\\times b$ por una de $b\\times c$ da una de $a\\times c$. Aquí $b$ es 64, el tamaño de consultas y claves, y queda dentro de cada producto escalar.',
           solution:
-            '$0{,}5\\,(4, 0)+0{,}25\\,(0, 4)+0{,}25\\,(4, 4)=(2, 0)+(0, 1)+(1, 1)=(3, 2)$. Si sumas los valores sin pesos sale $(8, 8)$, y si los promedias a partes iguales, $(2{,}67; 2{,}67)$.',
-          answer: [3, 2],
+            '$Q$ es de $10\\times 64$ y $K^{T}$, de $64\\times 10$, así que $QK^{T}$ es de $10\\times 10$: la casilla de la fila $i$ y la columna $j$ es la puntuación con que el token $i$ mira al $j$. Si te sale $64\\times 64$, has multiplicado $K^{T}Q$. Sin la traspuesta, $QK$ ni se puede multiplicar: 64 columnas frente a 10 filas.',
+          answer: [10, 10],
           tol: 0,
         },
         {
@@ -293,30 +329,36 @@ export const atencion: Project = {
         },
         {
           id: 'atencion.ex01.5',
-          type: 'opcion',
+          type: 'numero',
           purpose: {
-            why: 'Las puntuaciones de atención se dividen entre $\\sqrt{d_k}$ antes del softmax. Quien implementa o ajusta un modelo se pregunta a menudo por qué esa raíz y no otro número, porque olvidarla, o cambiar $d_k$ sin cambiarla, empeora el entrenamiento aunque el código no dé ningún error.',
-            aim: 'Vas a decidir para qué sirve dividir entre $\\sqrt{d_k}$, descartando las funciones que corresponden a otros pasos de la atención.',
+            why: 'En un modelo que genera texto, la máscara causal se aplica en todas las cabezas de todos los bloques. Saber cuántos pesos anula dice cuánta tabla se calcula para nada, y por qué algunas implementaciones se ahorran ese triángulo.',
+            aim: 'Vas a contar cuántas casillas del mapa de atención de cinco tokens anula la máscara causal, fila a fila.',
             takeaway:
-              'Dividir entre $\\sqrt{d_k}$ compensa que el producto escalar de dos vectores sin relación crece en dispersión con el número de componentes. Sin esa división, las puntuaciones grandes saturan el softmax y casi todo el peso va a una sola clave. Es una cuestión de tamaños, no de probabilidades ni de longitudes.',
+              'Se anulan $4+3+2+1+0=10$ de los 25: el triángulo por encima de la diagonal. Quedan 15, con la diagonal, porque cada token sí puede mirarse a sí mismo. Con $n$ tokens se anulan $\\frac{n(n-1)}{2}$.',
           },
           prompt:
-            'En la atención, las puntuaciones $q\\cdot k$ se dividen entre $\\sqrt{d_k}$ antes del softmax. ¿**Para qué**?',
+            'Un modelo que genera texto procesa «el perro come su pienso» con máscara causal: cada token solo mira a sí mismo y a los anteriores. El mapa de atención tiene $5\\times 5=25$ pesos. ¿Cuántos quedan a $0$ por la máscara? Piénsalo y después activa la máscara en el laboratorio para contarlos.',
           hints: [
-            'Un producto escalar suma $d_k$ términos. ¿Qué le pasa a su tamaño típico cuando hay más términos?',
-            'Pregúntate qué hace el softmax con puntuaciones muy grandes, y qué paso del cálculo es el que convierte en probabilidades.',
+            'Cada fila del mapa es un token que mira. El primero no puede mirar a los cuatro siguientes; el segundo, a tres…',
+            'Suma lo que se anula en cada fila. La diagonal no se anula: un token sí puede mirarse a sí mismo.',
           ],
           explain:
-            'El producto escalar suma tantos términos como componentes, y esa suma se dispersa más cuanto mayor es $d_k$. Dividir entre su raíz mantiene las puntuaciones en un tamaño estable. Convertir en probabilidades lo hace el softmax, y normalizar la longitud es otra operación, la del coseno.',
+            'La máscara anula, en la fila de cada token, las columnas de los tokens que vienen después. Es el triángulo por encima de la diagonal, sin la diagonal.',
           solution:
-            'Para que las puntuaciones no crezcan con el número de componentes. Si las componentes son independientes y de tamaño parecido, la dispersión de $q\\cdot k$ crece como $\\sqrt{d_k}$; con puntuaciones muy grandes, el softmax pone casi todo el peso en una sola clave y su gradiente es casi nulo, de modo que el modelo aprende mal. Convertir en probabilidades es trabajo del softmax, y la división no vuelve unitarios los vectores ni acelera nada.',
-          options: [
-            'Para convertir las puntuaciones en probabilidades que suman $1$',
-            'Para que la consulta y la clave tengan longitud $1$, como en el coseno',
-            'Para que las puntuaciones no crezcan con el número de componentes y el softmax no ponga casi todo el peso en una sola clave',
-            'Para que la tabla de puntuaciones se calcule más deprisa',
-          ],
-          correct: 2,
+            'Fila a fila: $4+3+2+1+0=10$ pesos a $0$. Quedan $25-10=15$ distintos de $0$, la diagonal incluida. Si te sale $15$, has contado los que quedan en vez de los anulados.',
+          lab: {
+            kind: 'atencion',
+            tokens: PERRO_PIENSO,
+            focus: 4,
+            query: [1, 1],
+            movable: 'none',
+            range: 3,
+            snap: 0.5,
+            mask: 'toggle',
+            heatmap: true,
+          },
+          answer: 10,
+          tol: 0,
         },
       ],
     },

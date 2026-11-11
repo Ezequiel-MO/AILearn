@@ -1,13 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { checkProject, checkReachable, checkStartNotSolved } from '../../content/validate';
+import { checkProject } from '../../content/validate';
 import { grade } from '../../content/grade';
-import { measure } from '../../engine/vectors';
+import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import { labMeasure } from '../../engine/labs';
+import { atencionScene, type AtencionSpec } from '../../engine/labs/atencion';
 import {
-  bankEntrySchema,
-  type CodigoQ,
-  type ManipularQ,
-  type Question,
-} from '../../content/schema';
+  defineLabProjectTests,
+  labAt,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -23,25 +25,11 @@ const bankQuestions = examen3Atencion
 
 defineProseTests('proyecto atencion', projectQuestions(atencion));
 defineProseTests('banco examen-3 atencion', bankQuestions);
+defineLabProjectTests(atencion, examen3Atencion);
 
-type V = [number, number];
 type Graded = Exclude<Question, CodigoQ>;
-const dot = (a: V, b: V): number => a[0] * b[0] + a[1] * b[1];
-/** Producto A·v con las columnas î y ĵ. */
-const img = (i: V, j: V, v: V): V => [i[0] * v[0] + j[0] * v[1], i[1] * v[0] + j[1] * v[1]];
 
-const [ex00, ex01, ex02] = atencion.exercises;
-
-const manip = (k: number): ManipularQ => {
-  const q = ex00!.questions[k]!;
-  if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-  return q;
-};
-
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
+const [, ex01, ex02] = atencion.exercises;
 
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
@@ -51,11 +39,6 @@ const answerOf = (q: Question): unknown => {
 };
 
 describe('proyecto atencion', () => {
-  it('pasa checkProject sin problemas', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase B): checkProject(atencion) devuelve la lista vacía
-    expect(checkProject(atencion)).toEqual([]);
-  });
-
   it('tiene calentamiento de Python de 1 a 4 fichas', () => {
     // contract: encargo de la Órbita 3 de matrices (fase B): calentamiento de 1 a 4 fichas enlazado con warmup
     expect(atencion.warmup?.length).toBeGreaterThanOrEqual(1);
@@ -89,211 +72,196 @@ describe('proyecto atencion', () => {
   });
 });
 
-describe('ex00 de atencion: Manipular', () => {
-  it('metas de cada manipular', () => {
-    // contract: encargo de la Órbita 3 de matrices (atencion): dot(q,k1)=5 y dot(q,k2)=0; img (3, 1); dot 4 y ángulo 45 (tol 0,5); img (0, 2); img (3, 1) y dot(w,unos)=1
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['dot(q,k1)=5±0.01', 'dot(q,k2)=0±0.01'],
-      ['img_x(i,j,q)=3±0.01', 'img_y(i,j,q)=1±0.01'],
-      ['dot(q,k)=4±0.01', 'angle(q,k)=45±0.5'],
-      ['img_x(i,j,x)=0±0.01', 'img_y(i,j,x)=2±0.01'],
-      ['img_x(i,j,w)=3±0.01', 'img_y(i,j,w)=1±0.01', 'dot(w,unos)=1±0.01'],
-    ]);
+describe('atencion, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(atencion);
+  const lab = (k: number) => labQuestion(all, `atencion.ex00.${k}`);
+
+  it('ex00.1: al empezar «cansado» se lleva la mayor parte; girar y alargar la consulta hacia «animal» resuelve', () => {
+    const start = labAt(lab(1));
+    // contract: enunciado de ex00.1: «la mayor parte de la atención se la lleva «cansado»» (índice 6 de la frase)
+    expect(start.top).toBe(6);
+    expect(start.w_cansado).toBeCloseTo(0.658, 3);
+    // contract: solution de ex00.1: (1,5; 1) da a «animal» el 90,7 %, (2, 1) el 96,6 % y (1, 1), el 75,3 %
+    expect(solves(lab(1), { qx: 1.5, qy: 1 })).toBe(true);
+    expect(labAt(lab(1), { qx: 1.5, qy: 1 }).w_animal).toBeCloseTo(0.907, 3);
+    expect(solves(lab(1), { qx: 2, qy: 1 })).toBe(true);
+    expect(labAt(lab(1), { qx: 2, qy: 1 }).w_animal).toBeCloseTo(0.966, 3);
+    expect(solves(lab(1), { qx: 1, qy: 1 })).toBe(true);
+    expect(labAt(lab(1), { qx: 1, qy: 1 }).w_animal).toBeCloseTo(0.753, 3);
+    // contract: tentadora y mala (solution): (0,5; 0,5) apunta bien pero es corta y se queda en el 45,6 %
+    expect(labAt(lab(1), { qx: 0.5, qy: 0.5 }).w_animal).toBeCloseTo(0.456, 3);
+    expect(solves(lab(1), { qx: 0.5, qy: 0.5 })).toBe(false);
   });
 
-  it('los planos son los del encargo', () => {
-    const shape = ex00!.questions.map((_, k) => {
-      const p = manip(k).plane;
+  it('ex00.2: la entropía pasa de 2 bits; bajar la temperatura afila y 1 no basta', () => {
+    // contract: enunciado de ex00.2: «la entropía pasa de 2 bits» al empezar
+    expect(labAt(lab(2)).entropy).toBeGreaterThan(2);
+    // contract: solution de ex00.2: con 0,75 la entropía baja a 0,9 bits y «animal» se lleva el 85,5 %; con 0,5, a 0,28
+    expect(solves(lab(2), { temp: 0.75 })).toBe(true);
+    expect(labAt(lab(2), { temp: 0.75 }).entropy).toBeCloseTo(0.903, 3);
+    expect(labAt(lab(2), { temp: 0.75 }).w_animal).toBeCloseTo(0.855, 3);
+    expect(solves(lab(2), { temp: 0.5 })).toBe(true);
+    expect(labAt(lab(2), { temp: 0.5 }).entropy).toBeCloseTo(0.276, 3);
+    // contract: tentadora y mala (solution): con temperatura 1, 1,48 bits
+    expect(labAt(lab(2), { temp: 1 }).entropy).toBeCloseTo(1.481, 3);
+    expect(solves(lab(2), { temp: 1 })).toBe(false);
+    // contract: solution de ex00.2: temperatura 0,5 da los mismos pesos que la consulta (2, 1) con temperatura 1
+    expect(labAt(lab(2), { temp: 0.5 }).w_animal).toBeCloseTo(
+      labAt(lab(1), { qx: 2, qy: 1 }).w_animal,
+      12,
+    );
+  });
+
+  it('ex00.3: solo la máscara deja el futuro en 0; con ella, girar la consulta lleva «animal» por encima del 90 %', () => {
+    const start = labAt(lab(3));
+    // contract: enunciado de ex00.3: la atención de «cruzó» se va sobre todo a los tokens posteriores; «animal», el 14,7 %
+    expect(start.future).toBeGreaterThan(0.5);
+    expect(start.w_animal).toBeCloseTo(0.147, 3);
+    // contract: solution de ex00.3: con la máscara sola, «animal» pasa al 77,9 % y el futuro a 0, pero no basta
+    const masked = labAt(lab(3), { mask: 1 });
+    expect([masked.future, masked.masked]).toEqual([0, 3]);
+    expect(masked.w_animal).toBeCloseTo(0.779, 3);
+    expect(solves(lab(3), { mask: 1 })).toBe(false);
+    // contract: solution de ex00.3: con la máscara, (1, 1) llega al 94,8 % y (2, 1), al 99 %
+    expect(solves(lab(3), { mask: 1, qx: 1, qy: 1 })).toBe(true);
+    expect(labAt(lab(3), { mask: 1, qx: 1, qy: 1 }).w_animal).toBeCloseTo(0.948, 3);
+    expect(solves(lab(3), { mask: 1, qx: 2, qy: 1 })).toBe(true);
+    expect(labAt(lab(3), { mask: 1, qx: 2, qy: 1 }).w_animal).toBeCloseTo(0.99, 3);
+    // contract: tentadora y mala (solution): sin máscara, (2, 1) da a «animal» el 96,6 % y deja un 2,4 % en el futuro
+    const unmasked = labAt(lab(3), { qx: 2, qy: 1 });
+    expect(unmasked.w_animal).toBeCloseTo(0.966, 3);
+    expect(unmasked.future).toBeCloseTo(0.024, 3);
+    expect(solves(lab(3), { qx: 2, qy: 1 })).toBe(false);
+  });
+
+  it('ex00.4: bajar la clave de «cansado» le quita la atención; moverla de lado o copiar la de «animal», no', () => {
+    // contract: enunciado de ex00.4: «cansado» se lleva casi dos tercios al empezar
+    expect(labAt(lab(4)).w_cansado).toBeCloseTo(0.658, 3);
+    // contract: solution de ex00.4: con la clave en (1, 0), el 8,7 %; más abajo, aún menos
+    expect(solves(lab(4), { kx: 1, ky: 0 })).toBe(true);
+    expect(labAt(lab(4), { kx: 1, ky: 0 }).w_cansado).toBeCloseTo(0.087, 3);
+    expect(labAt(lab(4), { kx: 1, ky: -1 }).w_cansado).toBeLessThan(0.087);
+    expect(solves(lab(4), { kx: 2, ky: -1.5 })).toBe(true);
+    // contract: tentadora y mala (solution): (3, 2) no cambia nada; la clave de «animal» empata y se lleva el 30 %
+    expect(labAt(lab(4), { kx: 3, ky: 2 }).w_cansado).toBeCloseTo(0.658, 3);
+    expect(labAt(lab(4), { kx: 2, ky: 1 }).w_cansado).toBeCloseTo(0.3, 3);
+    expect(solves(lab(4), { kx: 2, ky: 1 })).toBe(false);
+  });
+
+  it('ex00.5: la salida queda en negativo al empezar, (2, 1) no basta y ninguna consulta llega a 2', () => {
+    // contract: hint 1 de ex00.5: al empezar la mayor parte va a «cansado» y la salida queda en negativo
+    expect(labAt(lab(5)).out_x).toBeLessThan(0);
+    // contract: solution de ex00.5: (3; 1,5) da el 99,6 % y 1,99; también vale (3, 1)
+    expect(solves(lab(5), { qx: 3, qy: 1.5 })).toBe(true);
+    expect(labAt(lab(5), { qx: 3, qy: 1.5 }).w_animal).toBeCloseTo(0.996, 3);
+    expect(labAt(lab(5), { qx: 3, qy: 1.5 }).out_x).toBeCloseTo(1.99, 2);
+    expect(solves(lab(5), { qx: 3, qy: 1 })).toBe(true);
+    // contract: tentadora y mala (solution): la consulta (2, 1) llega a 1,94
+    expect(labAt(lab(5), { qx: 2, qy: 1 }).out_x).toBeCloseTo(1.943, 3);
+    expect(solves(lab(5), { qx: 2, qy: 1 })).toBe(false);
+    // contract: solution de ex00.5 (el límite, regla 4 de la guía): en toda la rejilla la salida no llega a 2, el valor de «animal»
+    let best = -Infinity;
+    for (let qx = -3; qx <= 3; qx += 0.5)
+      for (let qy = -3; qy <= 3; qy += 0.5) best = Math.max(best, labAt(lab(5), { qx, qy }).out_x!);
+    expect(best).toBeLessThan(2);
+    expect(best).toBeGreaterThan(1.98);
+  });
+
+  it('las cinco comparten la frase del animal y cambian una cosa cada vez', () => {
+    const shape = [1, 2, 3, 4, 5].map((k) => {
+      const spec = lab(k).lab;
+      if (spec.kind !== 'atencion') throw new Error('ex00 usa el laboratorio atencion');
       return [
-        p.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        p.readouts,
-        p.range,
-        p.snap,
-        p.transform?.apply,
-        p.pair,
+        spec.tokens.length,
+        spec.focus,
+        spec.movable ?? 'query',
+        !!spec.temperature,
+        spec.mask ?? 'none',
       ];
     });
-    // contract: encargo de la Órbita 3 de matrices (atencion): k1 = (2, 1), k2 = (−1, 2) fijas y q móvil desde (1, 0); K con filas (2, 1) y (0, 1), es decir î = (2, 0) y ĵ = (1, 1); q = (2, 0) fija y k móvil desde (1, 0); W_Q = giro de 90° (î = (0, 1), ĵ = (−1, 0)) con k = (0, 2) fija y x móvil desde (1, 0); valores v1 = (4, 0), v2 = (0, 4), pesos móviles desde (0,5; 0,5) con snap 0,25, range 4 y el vector fijo (1, 1)
+    // contract: brief-juego-2.md, Atención como matriz: consulta, temperatura, máscara (mira «cruzó», índice 3), clave y valores, con la misma frase
     expect(shape).toEqual([
-      [
-        ['k1=(2, 1) false', 'k2=(-1, 2) false', 'q=(1, 0) true'],
-        ['dot'],
-        3,
-        1,
-        undefined,
-        ['q', 'k1'],
-      ],
-      [
-        ['i=(2, 0) false', 'j=(1, 1) false', 'q=(1, 0) true'],
-        ['matrix', 'image'],
-        3,
-        1,
-        ['q'],
-        undefined,
-      ],
-      [['q=(2, 0) false', 'k=(1, 0) true'], ['dot', 'angle'], 3, 1, undefined, ['q', 'k']],
-      [
-        ['i=(0, 1) false', 'j=(-1, 0) false', 'k=(0, 2) false', 'x=(1, 0) true'],
-        ['matrix', 'image', 'cos'],
-        3,
-        1,
-        ['x'],
-        ['x', 'k'],
-      ],
-      [
-        ['i=(4, 0) false', 'j=(0, 4) false', 'w=(0.5, 0.5) true', 'unos=(1, 1) false'],
-        ['matrix', 'image', 'dot'],
-        4,
-        0.25,
-        ['w'],
-        ['w', 'unos'],
-      ],
+      [7, 5, 'query', false, 'none'],
+      [7, 5, 'none', true, 'none'],
+      [7, 3, 'query', false, 'toggle'],
+      [7, 5, 'key', false, 'none'],
+      [7, 5, 'query', false, 'none'],
     ]);
-  });
-
-  it('todos alcanzables, ninguno resuelto al empezar y los vectores fijos caben en range', () => {
-    for (const q of ex00!.questions) {
-      if (q.type !== 'manipular') continue;
-      // contract: reglas del contenido (CLAUDE.md): meta alcanzable en la rejilla y no resuelta al inicio
-      expect(checkReachable(q)).toEqual([]);
-      expect(checkStartNotSolved(q)).toEqual([]);
-      const outside = q.plane.vectors
-        .filter((v) => !v.movable && Math.max(Math.abs(v.x), Math.abs(v.y)) > q.plane.range)
-        .map((v) => v.id);
-      // contract: revisión de la Órbita 2 (un vector fijo fuera de range deja la flecha fuera de la vista)
-      expect(outside).toEqual([]);
-    }
-  });
-
-  it('las posiciones de las soluciones cumplen las metas y recalculan las lecturas', () => {
-    const k1: V = [2, 1];
-    const k2: V = [-1, 2];
-    // contract: solution de ex00.1: q = (2, 1) puntúa 4 + 1 = 5 con k1 y −2 + 2 = 0 con k2
-    expect(grade(manip(0), { type: 'manipular', vectors: { q: [2, 1] } })).toBe(true);
-    expect(dot([2, 1], k1)).toBe(5);
-    expect(dot([2, 1], k2)).toBe(0);
-    // contract: solution de ex00.2: K·(1, 1) = (2 + 1, 0 + 1) = (3, 1), con î = (2, 0) y ĵ = (1, 1)
-    expect(grade(manip(1), { type: 'manipular', vectors: { q: [1, 1] } })).toBe(true);
-    expect(img([2, 0], [1, 1], [1, 1])).toEqual([3, 1]);
-    // contract: solution de ex00.3: k = (2, 2) o (2, −2) puntúa 4 y forma 45° con q = (2, 0); |k| = 2√2
-    for (const k of [
-      [2, 2],
-      [2, -2],
-    ] as V[]) {
-      expect(grade(manip(2), { type: 'manipular', vectors: { k } })).toBe(true);
-      expect(measure('dot', ['q', 'k'], { q: [2, 0], k })).toBeCloseTo(4, 12);
-      expect(measure('angle', ['q', 'k'], { q: [2, 0], k })).toBeCloseTo(45, 9);
-    }
-    // contract: solution de ex00.4: W_Q·(2, 0) = (0, 2) = k, puntúa 4, y el coseno de x con k es 0
-    expect(grade(manip(3), { type: 'manipular', vectors: { x: [2, 0] } })).toBe(true);
-    expect(img([0, 1], [-1, 0], [2, 0])).toEqual([0, 2]);
-    expect(dot(img([0, 1], [-1, 0], [2, 0]), [0, 2])).toBe(4);
-    expect(measure('cos', ['x', 'k'], { x: [2, 0], k: [0, 2] })).toBeCloseTo(0, 12);
-    // contract: solution de ex00.5: A·(0,75; 0,25) = 0,75·(4, 0) + 0,25·(0, 4) = (3, 1) y la suma de pesos es 1
-    expect(grade(manip(4), { type: 'manipular', vectors: { w: [0.75, 0.25] } })).toBe(true);
-    expect(img([4, 0], [0, 4], [0.75, 0.25])).toEqual([3, 1]);
-    expect(0.75 + 0.25).toBe(1);
-  });
-
-  it('las posiciones erróneas didácticas no se dan por buenas', () => {
-    // contract: el error didáctico de cada pregunta: q alineada con k1 pero larga o corta, q perpendicular a k2 solo; K·q = (2, 0) de partida y q = (1, 2); k alineada con q (ángulo 0), o a 45° con longitud 1; x = (0, 2) con consulta (−2, 0); pesos (0,5; 0,5) y (0,5; 0,25) que no suman 1
-    const wrong: [number, Record<string, V>][] = [
-      [0, { q: [1, 0] }],
-      [0, { q: [4, 2] }],
-      [0, { q: [-1, 2] }],
-      [1, { q: [1, 0] }],
-      [1, { q: [0, 1] }],
-      [1, { q: [2, 1] }],
-      [2, { k: [1, 0] }],
-      [2, { k: [2, 0] }],
-      [2, { k: [1, 1] }],
-      [3, { x: [1, 0] }],
-      [3, { x: [0, 2] }],
-      [3, { x: [-2, 0] }],
-      [4, { w: [0.5, 0.5] }],
-      [4, { w: [1, 0] }],
-      [4, { w: [0.75, 0] }],
-    ];
-    for (const [k, vectors] of wrong) {
-      const q = manip(k);
-      // contract: una posición que incumple alguna meta no se da por buena
-      expect(grade(q, { type: 'manipular', vectors }), `${q.id} ${JSON.stringify(vectors)}`).toBe(
-        false,
-      );
-    }
-    // contract: cada error se explica con su valor recalculado: (1, 0) puntúa 2 y −1; K·(1, 0) = (2, 0); k = (1, 1) puntúa 2 con q = (2, 0)
-    expect([dot([1, 0], [2, 1]), dot([1, 0], [-1, 2])]).toEqual([2, -1]);
-    expect(img([2, 0], [1, 1], [1, 0])).toEqual([2, 0]);
-    expect(dot([2, 0], [1, 1])).toBe(2);
   });
 });
 
-describe('ex01 de atencion: Calcular', () => {
-  it('tipos y respuestas', () => {
-    // contract: encargo de la Órbita 3 de matrices (atencion): 2; softmax (2, 0, 0) ≈ (0,79; 0,11; 0,11) con tol 0,01; salida (3, 2); 16; opción 2 (para que no crezcan con las componentes)
+describe('atencion, «Calcular»: las respuestas se recalculan', () => {
+  it('pasa checkProject sin problemas (incluye checkLab en cada laboratorio)', () => {
+    // contract: encargo común (2026-11-10): checkProject(atencion) devuelve la lista vacía
+    expect(checkProject(atencion)).toEqual([]);
+  });
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 3): 1,5·1 + 1·(−2); softmax de (0, 2, 0); QKᵀ de 10×10; 4000² / 1000² (ex01.4 se conserva); 4 + 3 + 2 + 1 pesos anulados
     expect(ex01!.questions.map(answerOf)).toEqual([
-      [2, 0],
-      [[0.79, 0.11, 0.11], 0.01],
-      [[3, 2], 0],
+      [1.5 * 1 + 1 * -2, 0],
+      [[0.11, 0.79, 0.11], 0.01],
+      [[10, 10], 0],
       [16, 0],
-      2,
+      [4 + 3 + 2 + 1, 0],
     ]);
     expect(ex01!.questions.map((q) => q.type)).toEqual([
       'numero',
       'vector',
       'vector',
       'numero',
-      'opcion',
+      'numero',
     ]);
   });
 
-  it('las respuestas se recalculan', () => {
-    // contract: ex01.1: q·k = 2 + 2 + 0 + 0 = 4 con q = (1, 2, 0, 1) y k = (2, 1, 1, 0), entre √4 = 2
-    const q = [1, 2, 0, 1];
-    const k = [2, 1, 1, 0];
-    const s = q.reduce((t, a, n) => t + a * k[n]!, 0);
-    expect(s / Math.sqrt(q.length)).toBe(2);
-    // contract: ex01.2: softmax de (2, 0, 0): e² / (e² + 2) ≈ 0,787 y 1 / (e² + 2) ≈ 0,107, que suman 1
-    const e = [2, 0, 0].map(Math.exp);
-    const tot = e.reduce((a, b) => a + b, 0);
-    const w = e.map((x) => x / tot);
-    expect(w[0]).toBeCloseTo(0.787, 3);
-    expect(w[1]).toBeCloseTo(0.107, 3);
-    expect(w[0]! + w[1]! + w[2]!).toBeCloseTo(1, 12);
-    // contract: ex01.3: 0,5·(4, 0) + 0,25·(0, 4) + 0,25·(4, 4) = (3, 2)
-    const vs: V[] = [
-      [4, 0],
-      [0, 4],
-      [4, 4],
-    ];
-    const ps = [0.5, 0.25, 0.25];
-    expect([0, 1].map((c) => vs.reduce((t, v, n) => t + ps[n]! * v[c]!, 0))).toEqual([3, 2]);
-    // contract: ex01.4: n² puntuaciones: (4000² / 1000²) = 16
-    expect(4000 ** 2 / 1000 ** 2).toBe(16);
+  it('ex01.1 y ex01.2: la cuenta coincide con la barra al llevar la consulta al punto del enunciado, y no al empezar', () => {
+    const [q1, q2] = ex01!.questions;
+    if (q1?.type !== 'numero' || !q1.lab) throw new Error('ex01.1 es numero con lab');
+    if (q2?.type !== 'vector' || !q2.lab) throw new Error('ex01.2 es vector con lab');
+    // contract: ex01.1: con la consulta (1,5; 1), la puntuación de «cruzó» es −0,5; al empezar es otra
+    expect(labMeasure(q1.lab, { qx: 1.5, qy: 1 }).s_cruzo).toBe(-0.5);
+    expect(labMeasure(q1.lab, {}).s_cruzo).not.toBe(-0.5);
+    // contract: ex01.2: con la consulta (2, 0), las puntuaciones son 0, 2 y 0 y los pesos 0,107; 0,787; 0,107
+    const at = labMeasure(q2.lab, { qx: 2, qy: 0 });
+    expect([at.s_el, at.s_gato, at.s_duerme]).toEqual([0, 2, 0]);
+    expect(at.w_gato).toBeCloseTo(0.787, 3);
+    expect(at.w_el).toBeCloseTo(0.107, 3);
+    // contract: guía de contenido 2026-11-10: el laboratorio no empieza enseñando la respuesta
+    expect(labMeasure(q2.lab, {}).w_gato).not.toBeCloseTo(0.79, 2);
+  });
+
+  it('ex01.5: con la máscara, el mapa de cinco tokens tiene 10 ceros; sin ella, ninguno', () => {
+    const q = ex01!.questions[4]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'atencion')
+      throw new Error('ex01.5 es numero con atencion');
+    const zeros = (mask: number) =>
+      atencionScene(q.lab as AtencionSpec, { mask })
+        .heat.flat()
+        .filter((w) => w === 0).length;
+    // contract: solution de ex01.5: 4 + 3 + 2 + 1 + 0 = 10 pesos a 0 con la máscara
+    expect(zeros(1)).toBe(10);
+    expect(zeros(0)).toBe(0);
   });
 
   it('las respuestas se califican como correctas', () => {
-    // contract: la respuesta declarada de cada pregunta de Calcular se da por buena, y una respuesta ajena no
     const [a, b, c, d, f] = ex01!.questions as Graded[] as [Graded, Graded, Graded, Graded, Graded];
-    expect(grade(a, { type: 'numero', value: 2 })).toBe(true);
-    expect(grade(a, { type: 'numero', value: 4 })).toBe(false);
-    expect(grade(b, { type: 'vector', value: [0.787, 0.107, 0.107] })).toBe(true);
-    expect(grade(b, { type: 'vector', value: [1 / 3, 1 / 3, 1 / 3] })).toBe(false);
-    expect(grade(c, { type: 'vector', value: [3, 2] })).toBe(true);
-    expect(grade(c, { type: 'vector', value: [8, 8] })).toBe(false);
+    // contract: la respuesta declarada de cada pregunta de Calcular se da por buena, y el error que nombra su solución no
+    expect(grade(a, { type: 'numero', value: -0.5 })).toBe(true);
+    expect(grade(a, { type: 'numero', value: 3.5 })).toBe(false);
+    expect(grade(b, { type: 'vector', value: [0.107, 0.787, 0.107] })).toBe(true);
+    expect(grade(b, { type: 'vector', value: [0.79, 0.11, 0.11] })).toBe(false);
+    expect(grade(c, { type: 'vector', value: [10, 10] })).toBe(true);
+    expect(grade(c, { type: 'vector', value: [64, 64] })).toBe(false);
     expect(grade(d, { type: 'numero', value: 16 })).toBe(true);
     expect(grade(d, { type: 'numero', value: 4 })).toBe(false);
-    expect(grade(f, { type: 'opcion', index: 2 })).toBe(true);
-    expect(grade(f, { type: 'opcion', index: 0 })).toBe(false);
+    expect(grade(f, { type: 'numero', value: 10 })).toBe(true);
+    expect(grade(f, { type: 'numero', value: 15 })).toBe(false);
   });
 
-  it('ex01.5: la opción correcta es la del tamaño de las puntuaciones', () => {
-    const q = ex01!.questions[4]!;
-    // contract: encargo de la Órbita 3 de matrices (atencion): la correcta dice que las puntuaciones no crezcan con el número de componentes y el softmax no ponga casi todo el peso en una clave
-    expect(q.type === 'opcion' ? q.options[q.correct] : '').toBe(
-      'Para que las puntuaciones no crezcan con el número de componentes y el softmax no ponga casi todo el peso en una sola clave',
-    );
-    expect(q.type === 'opcion' ? q.options.length : 0).toBe(4);
+  it('ex01.4 se conserva: el coste crece con n²', () => {
+    // contract: encargo de atencion (2026-11-10): conservar atencion.ex01.4; 4000² / 1000² = 16
+    expect(4000 ** 2 / 1000 ** 2).toBe(16);
+    expect(ex01!.questions[3]!.id).toBe('atencion.ex01.4');
   });
 
   it('ex02: cinco preguntas de código', () => {
@@ -424,24 +392,49 @@ describe('banco examen-3 de atencion', () => {
   });
 
   it('tres entradas fijas, del proyecto y con ids únicos', () => {
-    // contract: encargo de la Órbita 3 de matrices (fase B): una opcion, un numero y un codigo, project atencion, ids examen-3.<tema>
+    // contract: guía de contenido 2026-11-10 (petición de Oliver): un laboratorio con otra frase, una cuenta del estilo nuevo y el código, que se conserva
     expect(examen3Atencion.map((e) => [e.project, e.question.id, e.question.type])).toEqual([
-      ['atencion', 'examen-3.mascara-causal', 'opcion'],
-      ['atencion', 'examen-3.pesos-no-nulos', 'numero'],
+      ['atencion', 'examen-3.vaso-roto', 'laboratorio'],
+      ['atencion', 'examen-3.pesos-por-bloque', 'numero'],
       ['atencion', 'examen-3.palabra-mas-dispersa', 'codigo'],
     ]);
+    const projectIds = new Set(projectQuestions(atencion).map((q) => q.id));
+    // contract: los ids del banco no chocan con los del proyecto
+    expect(examen3Atencion.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
-  it('respuestas del banco', () => {
-    const [op, nu] = bankQuestions.slice(0, 2) as [Graded, Graded];
-    // contract: máscara causal: peso 0 sobre las posteriores y la fila sigue sumando 1 (opción 1)
-    expect(answerOf(op)).toBe(1);
-    // contract: 6 palabras con máscara causal: 1 + 2 + 3 + 4 + 5 + 6 = 21 entradas posibles de 36
-    expect(answerOf(nu)).toEqual([21, 0]);
-    expect([1, 2, 3, 4, 5, 6].reduce((a, b) => a + b, 0)).toBe(21);
-    expect(grade(op, { type: 'opcion', index: 1 })).toBe(true);
-    expect(grade(nu, { type: 'numero', value: 21 })).toBe(true);
-    expect(grade(nu, { type: 'numero', value: 15 })).toBe(false);
+  it('vaso-roto: «vaso» queda entre dos vecinas y no pasa del 78,5 %', () => {
+    const q = labQuestion(bankQuestions, 'examen-3.vaso-roto');
+    const start = labAt(q);
+    // contract: enunciado de vaso-roto: al empezar reparte su atención entre «niña» y «estaba», empatadas
+    expect(start.w_nina).toBeCloseTo(0.402, 3);
+    expect(start.w_estaba).toBeCloseTo(start.w_nina!, 12);
+    // contract: solution de vaso-roto: (3, −1) da el 78,5 %; también (3; −1,5) y (2,5; −1)
+    expect(solves(q, { qx: 3, qy: -1 })).toBe(true);
+    expect(labAt(q, { qx: 3, qy: -1 }).w_vaso).toBeCloseTo(0.785, 3);
+    expect(solves(q, { qx: 3, qy: -1.5 })).toBe(true);
+    expect(solves(q, { qx: 2.5, qy: -1 })).toBe(true);
+    // contract: tentadora y mala (solution): apuntar justo a la clave de «vaso» da el 65,5 %, y (2, 0) empata con «niña»
+    expect(labAt(q, { qx: 2, qy: -1 }).w_vaso).toBeCloseTo(0.655, 3);
+    expect(solves(q, { qx: 2, qy: -1 })).toBe(false);
+    const tie = labAt(q, { qx: 2, qy: 0 });
+    expect(tie.w_vaso).toBeCloseTo(tie.w_nina!, 12);
+    // contract: solution de vaso-roto («lo más que se consigue en la rejilla»): el máximo de la rejilla está en (3, −1)
+    let best = { w: -1, at: '' };
+    for (let qx = -3; qx <= 3; qx += 0.5)
+      for (let qy = -3; qy <= 3; qy += 0.5) {
+        const w = labAt(q, { qx, qy }).w_vaso!;
+        if (w > best.w) best = { w, at: `${qx},${qy}` };
+      }
+    expect(best.at).toBe('3,-1');
+  });
+
+  it('pesos-por-bloque: 12 cabezas por 500² pesos', () => {
+    const q = bankQuestions[1]!;
+    // contract: solution de pesos-por-bloque: 12 · 500 · 500 = 3 000 000; 12 · 500 = 6000 es el error que nombra
+    expect(answerOf(q)).toEqual([12 * 500 * 500, 0]);
+    expect(12 * 500 * 500).toBe(3000000);
+    expect(grade(q as Graded, { type: 'numero', value: 6000 })).toBe(false);
   });
 
   it('palabra-mas-dispersa: los pesos y la posición se recalculan', () => {
