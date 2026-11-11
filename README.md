@@ -50,7 +50,7 @@ src/
   ui/         Marco, plano de vectores, editor, tipos de pregunta, pantallas y textos fijos.
   games/      Registro de juegos (index.ts) y, por juego, su contenido.
     vectores/ Juego 1: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, embeddings de juguete.
-    matrices/ Juego 2: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen y `plane.ts` (plano con î y ĵ como columnas).
+    matrices/ Juego 2: Despegue, proyectos de las Órbitas 0 a 3, sus bancos de examen, `datos.ts` (las nubes de palabras y demás datos de sus laboratorios) y `plane.ts` (plano con î y ĵ como columnas).
     gradiente/ Juego 3: Despegue, proyectos de la Órbita 0 y su banco de examen.
     network.ts Fichas de las piezas de la red que dibuja «La red por dentro» (`#/red`).
 tests/
@@ -82,17 +82,26 @@ Las preguntas, los proyectos y los juegos son objetos serializables validados co
 
 Tipos de pregunta y qué ejercicio los admite:
 
-| Tipo        | Ejercicio | Campos propios                                                                               |
-| ----------- | --------- | -------------------------------------------------------------------------------------------- |
-| `manipular` | manipular | `plane` (vectores, `range`, `snap`, lecturas) y `goals` (métrica, vectores, `target`, `tol`) |
-| `curva`     | manipular | `graph` (plano de curvas) y `goals` (métrica, puntos, `target`, `tol`)                       |
-| `numero`    | calcular  | `answer`, `tol`, `plane` o `graph` opcional                                                  |
-| `vector`    | calcular  | `answer` (lista), `tol`, `plane` o `graph` opcional                                          |
-| `opcion`    | calcular  | `options`, `correct` (índice), `plane` o `graph` opcional                                    |
-| `codigo`    | programar | `starter`, `checks`, `reference`, `requirements`                                             |
-| `revision`  | hojas     | `format` (`codigo` o `texto`), `lines`, `faultyLine` (índice, o `null` si está bien)         |
+| Tipo          | Ejercicio | Campos propios                                                                               |
+| ------------- | --------- | -------------------------------------------------------------------------------------------- |
+| `manipular`   | manipular | `plane` (vectores, `range`, `snap`, lecturas) y `goals` (métrica, vectores, `target`, `tol`) |
+| `curva`       | manipular | `graph` (plano de curvas) y `goals` (métrica, puntos, `target`, `tol`)                       |
+| `laboratorio` | manipular | `lab` (un laboratorio), `goals` (métrica, `gte`/`lte`/`eq`, objetivo, rótulo) y `solved`     |
+| `numero`      | calcular  | `answer`, `tol`, `plane`, `graph` o `lab` opcional                                           |
+| `vector`      | calcular  | `answer` (lista), `tol`, `plane`, `graph` o `lab` opcional                                   |
+| `opcion`      | calcular  | `options`, `correct` (índice), `plane`, `graph` o `lab` opcional                             |
+| `codigo`      | programar | `starter`, `checks`, `reference`, `requirements`                                             |
+| `revision`    | hojas     | `format` (`codigo` o `texto`), `lines`, `faultyLine` (índice, o `null` si está bien)         |
 
 Los decimales se muestran con coma y se aceptan con coma o con punto. En el texto, los pares con algún decimal se separan con «; ».
+
+Laboratorios (pregunta `laboratorio`, petición de Oliver del 2026-11-10: datos de IA a la vista y metas que son consecuencias, no posiciones):
+
+- Un laboratorio es un `kind` (`capa`, `atencion`, `compresion`, `descenso`, `lora`) con su modelo puro en `src/engine/labs/<kind>.ts` (la cabecera lista sus mandos y sus métricas), su esquema en `src/content/labs/` y su dibujo en `src/ui/labs/`. Muestras de cada uno en `#/dev/labs`.
+- La pregunta lleva de 1 a 3 `goals` sobre métricas del laboratorio y `solved`, un estado de los mandos que las cumple. `checkLab` exige que `solved` se alcance con los mandos y cumpla, que el estado inicial no, y que cada meta nombre una métrica que el laboratorio mide. En «Calcular», `lab` es una figura para explorar, sin la lectura que da la respuesta.
+- El juego 2 está escrito así. Sus datos (nubes de palabras con dos rasgos, la frase de atención, las tablas que se comprimen) viven en `src/games/matrices/datos.ts`, con `capaLab(nube, opciones)` para armar un laboratorio `capa`; `datos.test.ts` afirma lo que cada dato promete. Las reglas comunes de un proyecto con laboratorios las comprueba `defineLabProjectTests(proyecto, banco)` (`tests/content/lab-helpers.ts`), que cada `<proyecto>.test.ts` llama; `labAt` y `solves` sirven para afirmar lo que cuenta cada enunciado.
+- Para ver el contenido de un proyecto de un tirón: `#/dev/contenido/<juego>/<proyecto|despegue>` (en desarrollo), con cada pregunta abierta y, si es laboratorio, cerrada con «Ver una solución».
+- Cómo se diseña una pregunta de laboratorio (las cinco reglas), el catálogo y cómo construir uno nuevo: `docs/handoffs/2026-11-10-laboratorios-y-ruta/`.
 
 Matrices en el plano y en las respuestas:
 
