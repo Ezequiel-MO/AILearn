@@ -1,52 +1,61 @@
 import type { BankEntry } from '../../content/schema';
+import { ANIMALES, capaLab } from './datos';
 
 /**
- * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «PCA». La entrada generada la
- * añade otro paso. Ids: `examen-2.<tema>`, únicos en todo el juego (también frente a las preguntas
+ * Entradas fijas del banco de examen de la Órbita 2 para el proyecto «PCA»: un laboratorio (la
+ * coordenada que más conserva, con otros datos), una cuenta de memoria y una de código. La entrada
+ * generada la añade otro paso. Ids: `examen-2.<tema>`, únicos en todo el juego (también frente a las preguntas
  * de proyecto).
  */
 export const examen2Pca: BankEntry[] = [
   {
     project: 'pca',
     question: {
-      id: 'examen-2.coordenada-componente',
-      type: 'numero',
+      id: 'examen-2.pca-animales',
+      type: 'laboratorio',
       prompt:
-        'Unos datos tienen media $(1, 2)$ y su primera componente principal es $u=(0{,}6; 0{,}8)$, de norma $1$. ¿Cuál es la coordenada en esa componente del dato $(4, 6)$?',
+        'Seis animales con dos rasgos: **tamaño** y **domesticidad**. Quieres guardar una sola coordenada de cada uno: su sombra sobre la recta de $v$, que ahora va en horizontal y solo recoge el tamaño.\n\nGira $v$ hasta que esa coordenada conserve casi toda la varianza de los seis.',
       hints: [
-        'Antes de proyectar hay que centrar el dato: restarle la media.',
-        'La coordenada en una componente de norma $1$ es el producto escalar del dato centrado con ella.',
+        'Mira qué rasgo separa más a los animales entre sí: el tamaño o la domesticidad.',
+        'Lleva $v$ hacia la vertical, un poco inclinada hacia la izquierda.',
       ],
       explain:
-        'La coordenada se calcula con el dato centrado, no con el dato original: la componente describe direcciones respecto de la media de los datos. Con el dato sin centrar sale otro número.',
+        'La coordenada que más conserva sigue la dirección en que los datos más se extienden. Aquí es la domesticidad, con un poco de tamaño en contra: las mascotas son domésticas y más pequeñas.',
       solution:
-        'El dato centrado es $(4-1,\\ 6-2)=(3, 4)$ y su coordenada es $0{,}6\\cdot 3+0{,}8\\cdot 4=1{,}8+3{,}2=5$. Si proyectas el dato sin centrar sale $0{,}6\\cdot 4+0{,}8\\cdot 6=7{,}2$.',
-      answer: 5,
-      tol: 0,
+        'Vale $v$ en $(-0{,}5;\\ 1{,}5)$, que conserva el $93{,}5\\,\\%$, o rectas cercanas como la de $(-1;\\ 2{,}5)$ o la de $(-1;\\ 3{,}5)$. La vertical pura, $(0, 1)$, conserva el $85{,}2\\,\\%$, y la horizontal, el $14{,}8\\,\\%$.',
+      lab: capaLab(ANIMALES, {
+        movable: 'none',
+        probe: { x: 2, y: 0, movable: true, on: 'input' },
+      }),
+      goals: [
+        {
+          metric: 'var_frac',
+          op: 'gte',
+          target: 0.93,
+          label: 'Parte de la varianza que conserva la coordenada',
+          format: 'percent',
+        },
+      ],
+      solved: { vx: -0.5, vy: 1.5 },
     },
   },
   {
     project: 'pca',
     question: {
-      id: 'examen-2.signo-componente',
-      type: 'opcion',
+      id: 'examen-2.memoria-pca',
+      type: 'numero',
       prompt:
-        'Dos programas calculan la primera componente principal de los mismos datos. El primero da $(0{,}6; 0{,}8)$ y el segundo, $(-0{,}6; -0{,}8)$. ¿Cuál de los dos está mal?',
+        'Un buscador guarda $10\\,000$ embeddings de $384$ números y los reduce con PCA a $32$ componentes. Guarda las coordenadas de cada embedding y, para reducir las consultas nuevas, la media ($384$ números) y las $32$ componentes ($384$ números cada una).\n\n¿Cuántos números guarda en total?',
       hints: [
-        'Compara las dos direcciones: ¿en qué se diferencian los dos vectores?',
-        'Si $v$ es un autovector, ¿lo es también $-v$?',
+        'Coordenadas: un número por embedding y por componente.',
+        'Suma la media y las componentes: $32$ vectores de $384$ números.',
       ],
       explain:
-        'Un autovector solo fija una dirección: si $A\\vec{v}=\\lambda\\vec{v}$, también $A(-\\vec{v})=\\lambda(-\\vec{v})$. El signo lo decide el algoritmo, y no cambia qué recta es la componente.',
+        'Lo que se ahorra son las coordenadas. La media y las componentes son un coste fijo, que no crece con el número de embeddings.',
       solution:
-        'Ninguno está mal. $(0{,}6; 0{,}8)$ y $(-0{,}6; -0{,}8)$ son la misma recta recorrida en sentidos contrarios, y los dos son autovectores del mismo autovalor. Lo único que cambia es el signo de las coordenadas de los datos en esa componente, y eso no altera cuánta varianza explica. Por eso se comparan componentes con el valor absoluto del coseno o con $A\\vec{v}=\\lambda\\vec{v}$, y no componente a componente.',
-      options: [
-        'El primero, porque la primera componente tiene que apuntar hacia valores positivos',
-        'El segundo, porque una componente principal no puede tener coordenadas negativas',
-        'Ninguno: las dos describen la misma recta, y el signo de una componente es arbitrario',
-        'Los dos, porque dos programas correctos tendrían que dar exactamente el mismo vector',
-      ],
-      correct: 2,
+        '$10\\,000\\cdot 32=320\\,000$ coordenadas, $384$ de la media y $32\\cdot 384=12\\,288$ de las componentes: $332\\,672$ números, frente a los $3\\,840\\,000$ de guardarlos enteros. Sin la media o sin las componentes no se podría reducir una consulta nueva igual que los datos.',
+      answer: 332672,
+      tol: 0,
     },
   },
   {

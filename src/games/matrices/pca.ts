@@ -1,33 +1,30 @@
-import type { Goal, PlaneSpec, PlaneVector, Project } from '../../content/schema';
+import type { Project } from '../../content/schema';
 import { py } from '../py';
 import { pcaWarmup } from './pca.calentamiento';
-import { transformPlane, type TransformPlaneOptions } from './plane';
+import {
+  NUBE_ALARGADA,
+  NUBE_CLASES_CRUZADAS,
+  NUBE_CON_ATIPICO,
+  NUBE_SIN_ATIPICO,
+  capaLab,
+} from './datos';
 
-/** Un vector de datos del plano. */
-const vec = (id: string, x: number, y: number, movable: boolean): PlaneVector => ({
-  id,
-  label: id,
-  x,
-  y,
-  movable,
-});
+/** La recta de v sobre la nube de entrada, que el jugador gira, sin capa que mover. */
+const recta = (x: number, y: number, movable = true) =>
+  ({ movable: 'none', probe: { x, y, movable, on: 'input' } }) as const;
 
-/** Plano de covarianza: la matriz C fija en las columnas î y ĵ y la elipse imagen de la circunferencia unidad. */
-const covPlane = (o: TransformPlaneOptions): PlaneSpec => ({
-  ...transformPlane(o),
-  circle: 1,
-  circleImage: true,
-});
+/** Lo que mide casi toda meta de este proyecto: la parte de la varianza que guarda una coordenada. */
+const CONSERVA = {
+  metric: 'var_frac',
+  label: 'Parte de la varianza que conserva la coordenada',
+  format: 'percent',
+} as const;
 
-/** Meta sobre la varianza (el cociente de Rayleigh) en la dirección de un vector. */
-const varianceGoal = (id: string, target: number): Goal => ({
-  metric: 'rayleigh',
-  of: ['i', 'j', id],
-  target,
-  tol: 0.01,
-});
-
-/** Tercer proyecto de la Órbita 2 de matrices: componentes principales y PCA. */
+/**
+ * Tercer proyecto de la Órbita 2 de matrices: PCA como quedarse con una sola coordenada de cada dato,
+ * eligiendo la dirección que menos pierde, y sus dos trampas: no sabe de etiquetas y un dato atípico
+ * secuestra la primera componente. Al final, PCA como la capa que gira la nube.
+ */
 export const pca: Project = {
   id: 'pca',
   name: 'PCA',
@@ -43,159 +40,144 @@ export const pca: Project = {
       questions: [
         {
           id: 'pca.ex00.1',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Los embeddings tienen cientos de dimensiones y una pantalla, dos. Para ver cómo se agrupan, se proyectan sobre las dos direcciones en las que más se separan los puntos, y esas son las dos primeras componentes de **PCA**. Elegir la dirección de mayor varianza conserva en el dibujo la mayor dispersión posible.',
-            aim: 'Vas a girar $v$ buscando la dirección en la que los datos varían más, guiándote por la lectura de la varianza y por la forma de la elipse.',
+            why: 'Para dibujar embeddings de cientos de números en una pantalla, o para guardarlos más pequeños, uno se queda con pocas coordenadas por dato. Cada coordenada es la sombra del dato sobre una recta, y lo que no cae en la sombra se pierde.',
+            aim: 'Vas a girar la recta de $v$ hasta que, guardando una sola coordenada por palabra, se pierda lo menos posible de la nube.',
             takeaway:
-              'La varianza máxima, $4$, está en la recta de $(1, 1)$, que es un autovector de $C$: la primera componente principal es el autovector del autovalor mayor de la covarianza. Una biblioteca de PCA calcula exactamente eso, solo que en cientos de dimensiones.',
+              'Lo que pierde cada palabra es su distancia a la recta: la línea fina que la une a su sombra. La recta que las deja más cortas sigue el eje largo de la nube, y es la primera componente principal. Elegirla es lo primero que hace PCA.',
           },
           prompt:
-            'El análisis de componentes principales (**PCA**) busca las direcciones en las que más varían unos datos. Unos datos centrados tienen matriz de **covarianza** $C=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$: la diagonal dice cuánto varía cada variable y los otros números, cuánto varían juntas. En el plano, sus columnas son $\\hat{\\imath}$ y $\\hat{\\jmath}$, y la elipse es lo que queda de la circunferencia unidad al aplicarle $C$.\n\nLa lectura $v^{T}Av\\,/\\,v^{T}v$ del panel, con $A=C$, es la **varianza de los datos en la dirección de $v$**, y no depende de la longitud de $v$. Mueve $v$ hasta que esa varianza valga **4**, la mayor posible.',
+            'Siete palabras de tres temas, con dos coordenadas cada una. Quieres guardar **una sola**: la sombra de cada palabra sobre la recta de $v$, unida a ella por una línea fina. Lo que esa sombra no recoge se pierde. Ahora la recta va en vertical y se pierde casi todo.\n\nGira $v$ hasta que se pierda muy poco.',
           hints: [
-            'Prueba primero $v=(1, 0)$ y $v=(0, 1)$, las dos variables sueltas, y mira la lectura. ¿Está entre las dos la dirección que da más?',
-            'La varianza es mayor donde la elipse se estira más. Alinea $v$ con su eje largo.',
+            'Mira las líneas finas: cada una es lo que pierde una palabra. Con la recta en vertical son largas, porque la nube se extiende de izquierda a derecha.',
+            'Tumba $v$ hacia la derecha, sin llegar a la horizontal, hasta que la recta pase a lo largo de la nube, de «perro» a «coche».',
           ],
           explain:
-            'La varianza depende de la dirección de $v$, no de su longitud: duplicar $v$ no cambia la lectura. Aquí, la dirección de máxima varianza no es la de ninguna de las dos variables sueltas: es la que mejor resume cómo varían las dos juntas.',
+            'La varianza de la nube se reparte entre la recta y su perpendicular: lo que se conserva más lo que se pierde da siempre el total. Por eso buscar la recta que menos pierde es lo mismo que buscar la que más conserva.',
           solution:
-            'Sirve cualquier $v$ sobre la recta de $(1, 1)$: $(1, 1)$, $(2, 2)$ o $(-1, -1)$. Con $v=(1, 1)$, $Cv=(4, 4)=4v$: $C$ solo estira esa flecha, sin girarla, por un factor $4$. Un vector así es un **autovector** de $C$ y $4$, su **autovalor**. La varianza mínima, $2$, está en la recta perpendicular: $C(1, -1)=(2, -2)=2\\,(1, -1)$. La dirección de máxima varianza es la primera **componente principal**.',
-          plane: covPlane({
-            i: [3, 1],
-            j: [1, 3],
-            extra: [vec('v', 1, 0, true)],
-            apply: ['v'],
-            readouts: ['matrix', 'rayleigh'],
-            range: 4,
-          }),
-          goals: [varianceGoal('v', 4)],
+            'Vale $v$ en $(2, 1)$, o en $(4, 2)$ o $(-2, -1)$, que dan la misma recta: se pierde $0{,}17$ de una varianza total de $5{,}14$. También valen rectas cercanas, como la de $(2{,}5;\\ 1{,}5)$ o la de $(3{,}5;\\ 2)$. La diagonal, $(1, 1)$, a ojo, pierde $0{,}64$, y la horizontal, $1{,}14$.',
+          lab: capaLab(NUBE_ALARGADA, { ...recta(0, 2), readouts: ['var_v'] }),
+          goals: [
+            {
+              metric: 'lost',
+              op: 'lte',
+              target: 0.25,
+              label: 'Varianza que se pierde al guardar una coordenada',
+            },
+          ],
+          solved: { vx: 2, vy: 1 },
         },
         {
           id: 'pca.ex00.2',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'PCA elige las direcciones con más varianza, y la varianza depende de las unidades: un rasgo medido en euros varía mucho más, en números, que uno medido en años, y acapara la primera componente solo por eso. Por eso, antes de PCA, se suele **normalizar** cada rasgo para que todos tengan varianza $1$, salvo que sus escalas sean comparables de verdad.',
-            aim: 'Vas a buscar la dirección de máxima varianza cuando las dos variables no están correladas y a ver cómo queda la elipse en ese caso.',
+            why: 'Que una sola coordenada baste depende de la forma de los datos. Si la nube es casi redonda, cualquier recta deja fuera mucho, y PCA lo avisa: la parte de la varianza que conserva la primera componente dice si hacen falta más.',
+            aim: 'Vas a buscar cuánto, como mucho, puede conservar una sola coordenada de una nube de frutas que no forma una línea.',
             takeaway:
-              'Sin correlación, las componentes principales son los propios ejes y PCA solo ordena las variables por su varianza: aquí gana la primera, con $4$ frente a $1$. Si esa diferencia viene de las unidades y no de los datos, la componente no dice nada útil.',
+              'Ninguna recta pasa del $78\\,\\%$: es el máximo, y lo da la horizontal. El $22\\,\\%$ restante está en la otra dirección y una sola coordenada no lo puede guardar. Por eso PCA se queda con varias componentes cuando la primera no basta.',
           },
           prompt:
-            'Dos variables **sin correlación** tienen covarianza $0$ fuera de la diagonal. Aquí $C=\\begin{pmatrix}4&0\\\\0&1\\end{pmatrix}$: varianza $4$ en la primera variable y $1$ en la segunda. La elipse es lo que $C$ hace con la circunferencia unidad. La lectura $v^{T}Av\\,/\\,v^{T}v$, con $A=C$, es la varianza de los datos en la dirección de $v$. Ahora $v$ parte de $(1, 1)$. Muévelo hasta que la varianza en su dirección valga **4**.',
+            'Seis frutas, apiñadas sin formar una línea. Vuelves a guardar una sola coordenada de cada una: su sombra sobre la recta de $v$. El medidor dice qué parte de la varianza de la nube conserva esa sombra.\n\nNo hay recta que lo conserve todo. Busca la que conserva más: la meta pide ese máximo.',
           hints: [
-            'En $(1, 1)$ la lectura es $2{,}5$, un promedio de $4$ y $1$. Busca una dirección donde no se mezclen.',
-            'La elipse queda alineada con los ejes. ¿Cuál de los dos es el largo?',
+            'Mira hacia dónde se extienden más las frutas: de «manzana» a «melón» hay más distancia que de «uva» a «pera».',
+            'Gira $v$ poco a poco y mira el medidor: sube al acercarte a la horizontal y baja al pasarla.',
           ],
           explain:
-            'Si la covarianza es $0$, las variables no se mezclan, y las direcciones de varianza extrema son las de las propias variables: los ejes. En cualquier dirección intermedia la varianza es un promedio de las dos y queda entre ellas.',
+            'La parte que conserva una recta es su varianza entre la varianza total. Es máxima sobre la primera componente principal, y aquí ese máximo es bajo porque la nube es ancha en las dos direcciones.',
           solution:
-            'Hay que poner $v$ sobre el eje $x$: $(1, 0)$, $(2, 0)$ o $(-1, 0)$. Entonces $Cv=(4a, 0)=4v$ y la varianza es $4$, la de la primera variable. El eje $y$ da la mínima, $1$, y $(1, 1)$ da $\\frac{4+1}{2}=2{,}5$. Sin correlación, las componentes principales son los propios ejes de partida.',
-          plane: covPlane({
-            i: [4, 0],
-            j: [0, 1],
-            extra: [vec('v', 1, 1, true)],
-            apply: ['v'],
-            readouts: ['rayleigh'],
-            range: 4,
-          }),
-          goals: [varianceGoal('v', 4)],
+            'El máximo, $77{,}9\\,\\%$, está en la horizontal: $v$ en $(1, 0)$, $(2, 0)$ o $(-1{,}5;\\ 0)$, que dan la misma recta. Basta inclinarla un poco, a $(2;\\ 0{,}5)$, para bajar al $74{,}6\\,\\%$. La diagonal conserva solo el $50\\,\\%$, y la vertical, el $22\\,\\%$.',
+          lab: capaLab(NUBE_SIN_ATIPICO, { ...recta(0, 1.5), range: 2 }),
+          goals: [{ ...CONSERVA, op: 'gte', target: 0.77 }],
+          solved: { vx: 2, vy: 0 },
         },
         {
           id: 'pca.ex00.3',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Una componente principal se lee por sus pesos, los números de su dirección: si dos rasgos tienen pesos del mismo signo, la componente mide cuánto suben juntos; si los tienen de signo contrario, mide un contraste entre ellos. Leer así las primeras componentes es una forma habitual de averiguar qué ha encontrado PCA en unos datos o en un conjunto de embeddings.',
-            aim: 'Vas a sacar $v$ de la dirección de mínima varianza y a buscar la de máxima, en unos datos donde una variable baja cuando la otra sube.',
+            why: 'Es habitual reducir los datos con PCA antes de entrenar un clasificador. PCA elige las direcciones sin mirar las etiquetas: si lo que distingue las clases varía poco, puede ser lo primero que tira.',
+            aim: 'Vas a buscar una coordenada que deje separar las reseñas positivas de las negativas, y a ver cuánta varianza conserva.',
             takeaway:
-              'Con covarianza negativa, la primera componente es descendente, la recta de $(1, -1)$ con varianza $3$, y la diagonal ascendente se queda con la mínima, $1$. Sus pesos de signo contrario dicen que esa componente mide un contraste entre las dos variables.',
+              'La coordenada que separa las clases conserva menos del $15\\,\\%$ de la varianza, y la de PCA, el $90\\,\\%$ sin separar nada. Ninguna recta da las dos cosas. PCA no sabe de etiquetas: antes de clasificar, comprueba que no ha tirado lo que importa.',
           },
           prompt:
-            'Cuando una variable sube y la otra baja, la covarianza es **negativa**. Aquí $C=\\begin{pmatrix}2&-1\\\\-1&2\\end{pmatrix}$, con $\\hat{\\imath}=(2, -1)$ y $\\hat{\\jmath}=(-1, 2)$; la elipse es lo que $C$ hace con la circunferencia unidad. El vector $v$ parte de $(1, 1)$, donde la varianza es la **mínima**. Llévalo a una dirección donde la varianza valga **3**, la máxima. La lectura $A\\,v$ te dice adónde lo manda $C$.',
+            'Ocho reseñas de comida y de tecnología, positivas y negativas. La recta de $v$ empieza en la dirección de PCA, la que más conserva, y una regla que solo mire esa coordenada confunde la mitad.\n\nGira $v$ hasta que, mirando solo su coordenada, se separen todas las positivas de las negativas.',
           hints: [
-            'En $(1, 1)$ la varianza vale $1$ y $C$ no cambia su dirección. Prueba direcciones que no estén sobre los ejes ni sobre esa diagonal.',
-            'Si una variable sube cuando la otra baja, la nube de datos cae de izquierda a derecha. Mira hacia dónde se estira la elipse.',
+            'Mira las sombras sobre la recta: positivas y negativas se alternan. Lo que más varía aquí es el tema, comida abajo y tecnología arriba, no la opinión.',
+            'Lleva $v$ a la perpendicular de la nube: hacia arriba a la izquierda, cruzándola a lo ancho.',
           ],
           explain:
-            'La elipse se estira a lo largo de la dirección en que los datos varían más. Con covarianza negativa esa dirección es descendente, y la diagonal ascendente, la de partida, es justo la de menor varianza.',
+            'PCA ordena las direcciones por varianza, y la varianza no sabe de grupos. Aquí la opinión mueve las palabras poco, en perpendicular al tema: esa dirección conserva poca varianza y es la que separa.',
           solution:
-            'Sirve cualquier $v$ sobre la recta de $(1, -1)$: $(1, -1)$, $(2, -2)$ o $(-1, 1)$. Con $v=(1, -1)$, $Cv=(2+1,\\ -1-2)=(3, -3)=3v$, así que la varianza es $3$. En $(1, 1)$, $Cv=(1, 1)$ y la varianza es $1$. La primera componente principal es descendente porque cuando una variable sube, la otra baja.',
-          plane: covPlane({
-            i: [2, -1],
-            j: [-1, 2],
-            extra: [vec('v', 1, 1, true)],
-            apply: ['v'],
-            readouts: ['rayleigh', 'image'],
-            range: 3,
-          }),
-          goals: [varianceGoal('v', 3)],
+            'Vale $v$ en $(-1, 1)$: las positivas quedan a un lado y las negativas al otro, con el $9{,}8\\,\\%$ de la varianza. También valen $(-2;\\ 1{,}5)$ o $(-3;\\ 2{,}5)$. En la dirección de PCA, $(1, 1)$, se conserva el $90\\,\\%$ y la regla acierta la mitad.',
+          lab: capaLab(NUBE_CLASES_CRUZADAS, recta(2, 2)),
+          goals: [
+            {
+              metric: 'acc_v',
+              op: 'gte',
+              target: 1,
+              label: 'Aciertos mirando solo la coordenada',
+              format: 'percent',
+            },
+            { ...CONSERVA, op: 'lte', target: 0.5 },
+          ],
+          solved: { vx: -1, vy: 1 },
         },
         {
           id: 'pca.ex00.4',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'Para abaratar un índice de búsqueda se puede guardar cada embedding como sus coordenadas en unas pocas componentes principales, en vez de en sus cientos de dimensiones. Esas coordenadas son proyecciones, y su signo depende del sentido de la componente: dos ejecuciones o dos bibliotecas pueden devolver la misma componente con el sentido cambiado.',
-            aim: 'Vas a orientar $u$ en la dirección de máxima varianza y a elegir su sentido para que la coordenada del dato $p$ salga positiva.',
+            why: 'Entre miles de embeddings siempre se cuela alguno roto: un texto basura, un error de codificación. Como la varianza eleva al cuadrado las distancias, un solo dato muy lejos puede pesar más que todos los demás juntos.',
+            aim: 'Vas a buscar la coordenada que más conserva de las seis frutas cuando entre ellas se ha colado un texto basura, lejos de todas.',
             takeaway:
-              'La coordenada de $p$ en la primera componente es $2{,}83$ o $-2{,}83$ según el sentido de $u$, y las dos describen lo mismo. Al comprimir embeddings, la consulta y los documentos se proyectan siempre con la misma matriz de componentes, guardada una vez, para que los signos casen.',
+              'La primera componente pasa a apuntar a «asdf»: conserva más del $90\\,\\%$ y no dice nada de las frutas, que caen casi en el mismo sitio. Un dato atípico secuestra PCA. Por eso se limpian los datos raros antes de ajustarlo.',
           },
           prompt:
-            'Con $C=\\begin{pmatrix}3&1\\\\1&3\\end{pmatrix}$, un dato centrado $p=(3, 1)$ queda fijo. La **coordenada** de un dato en una dirección es su proyección sobre ella: la lectura «proy de p sobre u». Mueve $u$, que parte de $(0, 1)$, hasta que apunte en la dirección de **máxima varianza** (lectura $u^{T}Au\\,/\\,u^{T}u$ igual a $4$, con $A=C$) y que la coordenada de $p$ en esa dirección valga **$2{,}83$**, positiva.',
+            'Las seis frutas y un texto basura, «asdf», lejos de ellas. La recta de $v$ empieza en la horizontal, la que mejor resume las frutas solas: ahora conserva poco más de la mitad de la varianza.\n\nGira $v$ hasta que su coordenada conserve casi toda la varianza, y mira hacia dónde apunta.',
           hints: [
-            'La varianza $4$ se da en una recta, y en ella hay dos sentidos. Mira cuál de los dos da una proyección positiva.',
-            'La proyección de $p$ sobre $u$ solo depende de la dirección de $u$, no de su longitud, pero sí de su sentido.',
+            'La varianza mide distancias al cuadrado: «asdf» está tan lejos que su sombra pesa más que las de todas las frutas.',
+            'Lleva $v$ hacia «asdf», arriba a la derecha, y mira dónde caen entonces las sombras de las frutas.',
           ],
           explain:
-            'Una componente principal es una dirección, y $u$ y $-u$ son la misma dirección. La coordenada de un dato en ella cambia de signo con el sentido elegido, y el valor absoluto no cambia.',
+            'Cada dato aporta a la varianza su distancia al centro al cuadrado. «asdf» está a más de tres unidades del centro; las frutas, a menos de dos. La recta que más conserva es la que recoge a «asdf».',
           solution:
-            'Hay que poner $u$ en un múltiplo positivo de $(1, 1)$: $(1, 1)$ o $(2, 2)$. La varianza es $4$ y la proyección de $p$ vale $\\frac{3\\cdot 1+1\\cdot 1}{\\sqrt{2}}=\\frac{4}{\\sqrt{2}}\\approx 2{,}83$. Con $(-1, -1)$ la varianza sigue siendo $4$ y la coordenada sale $-2{,}83$: el signo de una componente principal es una elección, y las dos valen.',
-          plane: {
-            ...covPlane({
-              i: [3, 1],
-              j: [1, 3],
-              extra: [vec('p', 3, 1, false), vec('u', 0, 1, true)],
-              apply: ['u'],
-              readouts: ['rayleigh', 'projection'],
-              range: 4,
-            }),
-            pair: ['p', 'u'],
-          },
-          goals: [
-            varianceGoal('u', 4),
-            { metric: 'proj', of: ['p', 'u'], target: 2.83, tol: 0.01 },
-          ],
+            'Vale $v$ en $(3;\\ 2{,}5)$, hacia «asdf», que conserva el $91{,}6\\,\\%$, o en $(1, 1)$ o $(2;\\ 1{,}5)$. La horizontal, la mejor para las frutas solas, baja al $56\\,\\%$. Sobre la nueva recta, las seis frutas caen apiñadas y «asdf», lejos: la coordenada solo dice «raro o no».',
+          lab: capaLab(NUBE_CON_ATIPICO, recta(2, 0)),
+          goals: [{ ...CONSERVA, op: 'gte', target: 0.9 }],
+          solved: { vx: 3, vy: 2.5 },
         },
         {
           id: 'pca.ex00.5',
-          type: 'manipular',
+          type: 'laboratorio',
           purpose: {
-            why: 'La pregunta práctica de PCA es con cuántas componentes quedarse. Se responde con la **varianza explicada**: el autovalor de cada componente dividido entre la suma de todos. Es habitual quedarse con las suficientes para explicar, por ejemplo, el $90\\,\\%$ de la varianza, y saber así cuánto se pierde al comprimir.',
-            aim: 'Vas a construir una covarianza con las varianzas de la diagonal fijadas y una dirección propia dada, y a leer en la elipse cuánto domina esa dirección.',
+            why: 'PCA es también una capa lineal: gira los datos para que la primera salida sea la primera componente y la segunda, la siguiente, sin relación entre ellas. Quedarse con $k$ componentes es quedarse con las primeras $k$ salidas.',
+            aim: 'Vas a construir la capa que hace PCA con la nube alargada: que casi toda la variación salga por la primera salida y que las dos salidas no tengan relación.',
             takeaway:
-              'Sale $C=\\begin{pmatrix}3&2\\\\2&3\\end{pmatrix}$, con autovalores $5$ y $1$: la primera componente explica $\\frac{5}{6}\\approx 83\\,\\%$ de la varianza. Proyectar estos datos sobre una sola recta conserva la mayor parte de su variación y pierde el $17\\,\\%$ restante.',
+              'La capa cuyas filas siguen los ejes de la nube la deja tumbada: la primera salida lleva casi todo, la segunda casi nada, y su covarianza es cero. Tirar la segunda salida es reducir a una coordenada. Aplicar PCA a un dato nuevo es esa multiplicación.',
           },
           prompt:
-            'Construye una matriz de covarianza. Mueve $\\hat{\\imath}$ y $\\hat{\\jmath}$ (sus coordenadas son las columnas de la matriz) hasta que las dos varianzas, los números de la diagonal, valgan **3**; que $v=(1, 1)$, fijo, **no gire** al aplicarle la matriz (la lectura de su ángulo con $A\\,v$ vale $0$°); y que la varianza en la dirección de $v$ valga **5**. La elipse, imagen de la circunferencia unidad, cambia con la matriz que vas formando.',
+            'La nube alargada pasa por una capa cuyas columnas puedes mover. Ahora es la identidad: las dos salidas suben a la vez, porque la nube va en diagonal, y la variación se reparte entre ellas.\n\nCambia la capa para que casi toda la variación salga por la primera salida, la segunda varíe muy poco y las dos queden sin relación.',
           hints: [
-            'La diagonal fija la $x$ de $\\hat{\\imath}$ y la $y$ de $\\hat{\\jmath}$. Quedan libres la $y$ de $\\hat{\\imath}$ y la $x$ de $\\hat{\\jmath}$. Llámalas $c$ y $b$.',
-            'Con $A=\\begin{pmatrix}3&b\\\\c&3\\end{pmatrix}$, $A\\,v=(3+b,\\ c+3)$. Que esté en la recta de $v$ obliga a que sus dos coordenadas coincidan.',
+            'La nube va en diagonal: por eso, cuando sube la salida 1, sube la 2. Hay que tumbarla sobre el eje horizontal.',
+            'La salida 1 tiene que leer la dirección larga de la nube y la 2, la corta. Baja $\\hat{\\imath}$ un poco por debajo del eje y lleva $\\hat{\\jmath}$ hacia arriba, inclinada a la derecha.',
           ],
           explain:
-            'Que $v$ no gire pide que $A\\,v$ vaya en su misma dirección, y eso relaciona los dos números libres. La varianza en la dirección de $v$ fija después su suma. Piensa también qué relación guardan entre sí los números de fuera de la diagonal en una covarianza.',
+            'La salida 1 es la fila 1 de la capa por la palabra: si esa fila apunta a lo largo de la nube, recoge su dirección larga. Si la fila 2 es perpendicular a ella, recoge la corta, y la covarianza entre las dos salidas se anula.',
           solution:
-            'Con $A=\\begin{pmatrix}3&b\\\\c&3\\end{pmatrix}$ y $v=(1, 1)$, $A\\,v=(3+b,\\ c+3)$. Sobre la recta de $v$, $3+b=c+3$, luego $b=c$. La varianza es $\\frac{v^{T}Av}{v^{T}v}=\\frac{6+b+c}{2}=5$, luego $b+c=4$ y $b=c=2$: $\\hat{\\imath}=(3, 2)$ y $\\hat{\\jmath}=(2, 3)$. La matriz es simétrica, como toda covarianza, con autovalores $5$ y $1$: la primera componente explica $\\frac{5}{6}\\approx 83\\,\\%$ de la varianza.',
-          plane: covPlane({
-            movable: true,
-            extra: [vec('v', 1, 1, false)],
-            apply: ['v'],
-            readouts: ['matrix', 'img_angle', 'rayleigh'],
-            range: 5,
-            snap: 1,
-          }),
+            'Vale $\\hat{\\imath}$ en $(1;\\ -0{,}5)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 1)$: filas $(1;\\ 0{,}5)$ y $(-0{,}5;\\ 1)$, perpendiculares. La salida 1 varía $6{,}21$, la 2 solo $0{,}21$ y la covarianza es $0{,}02$. Con $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 0)$ la segunda salida se anula: es quedarse con una componente, y también vale. Un giro de 45° a ojo deja covarianza $-2{,}86$.',
+          lab: capaLab(NUBE_ALARGADA),
           goals: [
-            { metric: 'x', of: ['i'], target: 3, tol: 0.01 },
-            { metric: 'y', of: ['j'], target: 3, tol: 0.01 },
-            { metric: 'img_angle', of: ['i', 'j', 'v'], target: 0, tol: 0.5 },
-            varianceGoal('v', 5),
+            { metric: 'spread_x', op: 'gte', target: 5, label: 'Varianza de la primera salida' },
+            { metric: 'spread_y', op: 'lte', target: 0.25, label: 'Varianza de la segunda salida' },
+            {
+              metric: 'cov_xy',
+              op: 'eq',
+              target: 0,
+              tol: 0.05,
+              label: 'Covarianza entre las dos salidas',
+            },
           ],
+          solved: { ix: 1, iy: -0.5, jx: 0.5, jy: 1 },
         },
       ],
     },
@@ -204,90 +186,93 @@ export const pca: Project = {
       questions: [
         {
           id: 'pca.ex01.1',
-          type: 'vector',
+          type: 'numero',
           purpose: {
-            why: 'PCA busca la dirección en que los datos varían más, pero solo si antes se les ha restado la media. Sin centrar, la primera componente tiende a apuntar hacia el centro de la nube, no hacia su dispersión. Con embeddings se hace igual: se resta el embedding medio del conjunto antes de nada.',
-            aim: 'Vas a calcular la media de cada variable y a restarla del primer dato. Verás cuánto se aleja ese dato del centro de la nube, que es lo que PCA va a analizar.',
+            why: 'Todo informe de PCA da la parte de la varianza que explica cada componente; en scikit-learn, `explained_variance_ratio_`. Dice si un mapa de pocas coordenadas es fiel a los datos o engaña.',
+            aim: 'Vas a buscar en el laboratorio la recta que más conserva de la nube alargada y a calcular, con lo que conserva y lo que pierde, qué parte del total es.',
             takeaway:
-              'El dato centrado dice dónde cae respecto al centro de la nube. PCA analiza esas desviaciones, no los valores en bruto. Las bibliotecas como scikit-learn centran por dentro, pero hay que guardar la media: se necesita para centrar igual cualquier dato nuevo y para deshacer la reducción.',
+              'La primera componente explica el $96{,}7\\,\\%$: la nube es casi una línea y una coordenada la resume bien. Lo conservado y lo perdido suman el total, así que el porcentaje es lo conservado entre esa suma.',
           },
           prompt:
-            'Antes de buscar direcciones, los datos se **centran**: a cada dato se le resta la media de cada variable. Tres datos tienen dos variables cada uno: $(2, 3)$, $(4, 5)$ y $(6, 10)$. Calcula la media de cada variable y escribe el **primer dato centrado**: primero la $x$ y después la $y$.',
+            'En el laboratorio, la nube alargada y la recta de $v$, que puedes girar. El panel da la varianza que conserva la sombra sobre la recta y la que se pierde.\n\nPon $v$ en la recta que más conserva. ¿Qué **porcentaje** de la varianza total explica esa primera componente? Escribe el número con un decimal, sin el símbolo %.',
           hints: [
-            'La media de cada variable es la suma de sus valores entre el número de datos: una para las $x$ y otra para las $y$.',
-            'Resta a cada coordenada del primer dato la media de su propia variable.',
+            'Gira $v$ hasta que la varianza sobre la recta sea la mayor posible: es la del eje largo de la nube.',
+            'La varianza total es la conservada más la perdida. Divide la conservada entre esa suma y multiplica por $100$.',
           ],
           explain:
-            'Centrar es restar un vector de medias, uno por variable, no un único número para todo. Tras centrar, la media de cada variable es $0$.',
+            'Cada componente explica su varianza entre la varianza total. La total no depende de la recta: es lo conservado más lo perdido, en cualquier posición de $v$.',
           solution:
-            'Las medias son $\\frac{2+4+6}{3}=4$ y $\\frac{3+5+10}{3}=6$, es decir, $(4, 6)$. El primer dato centrado es $(2-4,\\ 3-6)=(-2, -3)$. Si te sale $(2, 3)$ no has restado nada; si restas una sola media a las dos coordenadas, la segunda sale mal.',
-          answer: [-2, -3],
-          tol: 0,
+            'Sobre la recta de $(2, 1)$ se conservan $4{,}97$ y se pierden $0{,}17$, de un total de $5{,}14$: $\\frac{4{,}97}{5{,}14}\\approx 0{,}967$, el $96{,}7\\,\\%$. Si divides $4{,}97$ entre $0{,}17$ comparas las dos componentes entre sí, que es otra cosa.',
+          lab: capaLab(NUBE_ALARGADA, { ...recta(0, 2), readouts: ['var_v', 'lost'] }),
+          answer: 96.7,
+          tol: 0.1,
         },
         {
           id: 'pca.ex01.2',
           type: 'numero',
           purpose: {
-            why: 'Todo informe de PCA enseña la proporción de varianza que explica cada componente. Si la primera domina, los datos son casi una línea y varios rasgos están repitiendo la misma información. Si se reparte entre muchas, los datos usan el espacio entero y comprimir cuesta más.',
-            aim: 'Vas a dividir el autovalor mayor entre la suma de los dos autovalores. Verás qué parte de la dispersión recoge una sola recta.',
+            why: 'Para reducir un dato nuevo con PCA se hace un producto escalar por componente: el dato centrado por un vector de norma $1$. Es lo que hace `transform` en scikit-learn, y el número que se guarda en lugar del dato.',
+            aim: 'Vas a calcular la coordenada de «coche» en la primera componente de la nube alargada: el único número que se guarda de esa palabra.',
             takeaway:
-              'Si la primera componente explica el $75\\,\\%$, una sola recta describe tres cuartas partes de la variación de los datos. Es la cifra que sale en el atributo `explained_variance_ratio_` de scikit-learn. Cuanto más cerca de $100\\,\\%$, más redundantes son los rasgos originales.',
+              '«coche» queda en $3{,}13$, en un extremo de la recta, lejos de los animales, que caen en negativo. Con una coordenada, la palabra sigue en su sitio respecto a las demás, aunque se pierda su pequeño desvío fuera de la recta.',
           },
           prompt:
-            'La matriz de covarianza de unos datos tiene autovalores $6$ y $2$. Cada autovalor es la varianza de los datos a lo largo de su componente principal. ¿Qué **porcentaje** de la varianza total explica la primera componente, la del autovalor mayor? Escribe solo el número, sin el símbolo %.',
+            'La primera componente de la nube alargada es la recta de $(2, 1)$; con norma $1$, $u\\approx(0{,}894;\\ 0{,}447)$. La nube está centrada, y «coche» es el dato $(3, 1)$.\n\n¿Cuál es su coordenada en esa componente? En el laboratorio ves su sombra sobre la recta.',
           hints: [
-            'La varianza total es la suma de los dos autovalores.',
-            'La fracción que explica una componente es su autovalor entre esa suma.',
+            'La coordenada sobre una dirección de norma $1$ es el producto escalar del dato con ella.',
+            'Multiplica cada coordenada de «coche» por la de $u$ y suma.',
           ],
           explain:
-            'La varianza total es la suma de todos los autovalores, y cada componente explica su parte de ella. Dividir el autovalor mayor entre el menor compara las dos componentes entre sí, que es otra cosa.',
+            'La sombra de un dato sobre la recta de $u$ está, con signo, a una distancia del origen igual a $u\\cdot p$. Con $(2, 1)$ tal cual, sin dividir entre su norma, sale un número $\\sqrt{5}$ veces mayor.',
           solution:
-            '$\\frac{6}{6+2}=0{,}75$, es decir, el $75\\,\\%$. Si te sale $300$, has dividido $6$ entre $2$; si te sale $25$, has calculado lo que explica la segunda componente.',
-          answer: 75,
-          tol: 0,
+            '$0{,}894\\cdot 3+0{,}447\\cdot 1\\approx 2{,}683+0{,}447=3{,}13$. Exacto: $\\frac{2\\cdot 3+1\\cdot 1}{\\sqrt{5}}=\\frac{7}{\\sqrt{5}}\\approx 3{,}13$. Con $(2, 1)$ sin normalizar saldría $7$.',
+          lab: capaLab(NUBE_ALARGADA, recta(2, 1, false)),
+          answer: 3.13,
+          tol: 0.01,
         },
         {
           id: 'pca.ex01.3',
           type: 'numero',
           purpose: {
-            why: 'Una vez ajustado PCA con los datos de entrenamiento, cada consulta o dato nuevo se reduce con las mismas componentes y la misma media. Su coordenada en cada componente es un producto escalar con un vector de norma $1$. Cambiar la media o las componentes en producción haría incomparables los vectores nuevos con los guardados.',
-            aim: 'Vas a calcular el producto escalar del dato centrado con la primera componente. Verás qué número representa al dato cuando se reduce a una sola coordenada.',
+            why: 'PCA también sirve para vigilar: se ajusta con datos buenos y, a cada dato nuevo, se mide cuánto pierde al reducirlo. Un dato que pierde mucho no se parece a nada de lo visto: un aviso de dato raro o de texto basura.',
+            aim: 'Vas a calcular cuánto pierde «asdf» al quedarse con su coordenada en la componente de las frutas: su distancia a la recta.',
             takeaway:
-              'La coordenada es la longitud con signo de la sombra del dato sobre la componente. Es el número que se guarda en lugar de las coordenadas originales. Con embeddings se hace una vez por componente, y siempre con la media y las componentes ajustadas con los datos de entrenamiento, nunca recalculadas con los nuevos.',
+              '«asdf» pierde $3$, y ninguna fruta pierde más de $0{,}5$. Por eso el error de reconstrucción de PCA sirve para detectar datos raros: lo que no cabe en las componentes de los datos normales salta a la vista.',
           },
           prompt:
-            'La primera componente principal de unos datos es el vector $u=(0{,}6; 0{,}8)$, de norma $1$. Un dato centrado es $(2, 1)$. ¿Cuál es su **coordenada** en la primera componente?',
+            'PCA se ajustó con las seis frutas, y su primera componente es la recta horizontal. Llega «asdf», el dato $(3, 3)$. Al guardar solo su coordenada en esa componente, lo que se pierde es su distancia a la recta.\n\n¿Cuánto vale esa distancia? En el laboratorio, la línea fina de cada dato hasta su sombra es lo que pierde.',
           hints: [
-            'La coordenada de un dato en una dirección de norma $1$ es su proyección sobre ella, es decir, un producto escalar.',
-            'Multiplica componente a componente y suma.',
+            'La sombra de «asdf» sobre la recta horizontal es el punto de la recta justo debajo de él.',
+            'La distancia de un punto a la recta horizontal que pasa por el origen es su altura, en valor absoluto.',
           ],
           explain:
-            'La coordenada en una componente es el producto escalar del dato centrado con la componente, que tiene norma $1$. Es un solo número por dato, no un vector.',
+            'Lo que se pierde al reducir es la parte del dato perpendicular a la componente. Con la componente horizontal, esa parte es la segunda coordenada; en las frutas nunca pasa de $0{,}5$.',
           solution:
-            '$0{,}6\\cdot 2+0{,}8\\cdot 1=1{,}2+0{,}8=2$. Con la componente $-u$ saldría $-2$: la misma recta con el sentido contrario.',
-          answer: 2,
+            'La sombra de $(3, 3)$ es $(3, 0)$: se pierde la distancia entre los dos, $3$. Es seis veces lo que pierde la fruta que más pierde. Si respondes $3\\sqrt{2}\\approx 4{,}24$, has medido la distancia al origen, no a la recta.',
+          lab: capaLab(NUBE_CON_ATIPICO, recta(2, 0, false)),
+          answer: 3,
           tol: 0,
         },
         {
           id: 'pca.ex01.4',
           type: 'numero',
           purpose: {
-            why: 'PCA se usa también como paso previo a otro modelo: se conservan las componentes que explican la mayor parte de la varianza y se descartan las demás, que suelen ser sobre todo ruido. Se entrena más deprisa y a veces se generaliza mejor. Un umbral de varianza, como el $90\\,\\%$, es una regla práctica habitual.',
-            aim: 'Vas a ir sumando los autovalores de mayor a menor hasta pasar del $90\\,\\%$ del total. Verás cuántas direcciones de las cuatro hacen falta.',
+            why: 'Al comprimir con PCA, quien diseña el sistema decide cuántas componentes guarda. Una regla común: las primeras, hasta explicar una parte fijada de la varianza, por ejemplo el $90\\,\\%$. Cada componente de más es memoria y cálculo.',
+            aim: 'Vas a acumular la varianza explicada por las componentes, de la primera en adelante, hasta llegar al $90\\,\\%$.',
             takeaway:
-              'Con tres componentes se conserva el $95\\,\\%$ de la varianza, y con dos solo el $80\\,\\%$. El umbral del $90\\,\\%$ es una convención, no una ley: en la práctica se afina probando el modelo posterior con distintos números de componentes y viendo cuál rinde mejor.',
+              'Con cinco componentes se llega al $95\\,\\%$; con cuatro, solo al $88\\,\\%$. La sexta no hace falta. El umbral es una decisión: se prueba el modelo que viene detrás con distintos números de componentes.',
           },
           prompt:
-            'Unos datos con cuatro variables tienen una covarianza con autovalores $5$, $3$, $1{,}5$ y $0{,}5$. Se conservan las primeras componentes, de mayor a menor autovalor. ¿Cuántas hacen falta, como mínimo, para conservar al menos el $90\\,\\%$ de la varianza?',
+            'Un PCA sobre unos datos de seis rasgos da estas partes de la varianza, de la primera componente a la última: $40\\,\\%$, $25\\,\\%$, $15\\,\\%$, $8\\,\\%$, $7\\,\\%$ y $5\\,\\%$.\n\n¿Cuántas componentes hay que guardar, como mínimo, para conservar al menos el $90\\,\\%$ de la varianza?',
           hints: [
-            'La varianza total es la suma de los cuatro autovalores.',
-            'Acumula los autovalores de mayor a menor y mira en qué componente se pasa del $90\\,\\%$ del total.',
+            'Suma las partes empezando por la primera y para en cuanto llegues al $90\\,\\%$.',
+            'Cuenta cuántas has sumado, no la posición de la última empezando en $0$.',
           ],
           explain:
-            'Se suman los autovalores empezando por el mayor, y se para en el primero cuyo acumulado llega al $90\\,\\%$ del total. Contar posiciones desde $0$ da una componente menos de las que hacen falta.',
+            'Las componentes salen ordenadas de más a menos varianza, así que las primeras son las que más conservan. Se acumula hasta el umbral y se cuentan las que hacen falta.',
           solution:
-            'El total es $10$. El acumulado es $5$ ($50\\,\\%$), $8$ ($80\\,\\%$) y $9{,}5$ ($95\\,\\%$): con dos componentes no se llega al $90\\,\\%$ y con tres sí. Hacen falta $3$. Con todas las componentes se conservaría el $100\\,\\%$, pero no se ganaría nada.',
-          answer: 3,
+            'Acumulados: $40$, $65$, $80$, $88$ y $95\\,\\%$. Con cuatro no se llega al $90\\,\\%$; con cinco, sí: hacen falta $5$. Se tira solo la última, que explica el $5\\,\\%$.',
+          answer: 5,
           tol: 0,
         },
         {
@@ -297,7 +282,7 @@ export const pca: Project = {
             why: 'Los mapas de embeddings en dos dimensiones, de palabras o de documentos de una base de consulta, se usan para explorar grupos y detectar rarezas. Pero un mapa es una sombra: tira la varianza de casi todas las direcciones, y dos puntos que se tocan en la sombra pueden estar lejos en el espacio real.',
             aim: 'Vas a decidir qué se puede afirmar de dos palabras juntas en un mapa de dos componentes. Verás si la cercanía en el dibujo basta para hablar de parecido.',
             takeaway:
-              'La cercanía en un mapa de PCA es una pista, no una prueba. Para saber si dos embeddings se parecen, se calcula el coseno en el espacio original, con todas sus componentes. El mapa sirve para explorar y para dar ideas; la decisión se toma con los vectores completos.',
+              'La cercanía en un mapa de PCA es una pista, no una prueba. Para saber si dos embeddings se parecen, se calcula el coseno en el espacio original, con todas sus componentes. El mapa sirve para explorar y dar ideas; la decisión se toma con los vectores completos.',
           },
           prompt:
             'Se dibujan en un plano embeddings de 384 dimensiones con PCA, quedándose con las dos primeras componentes. En ese mapa, dos palabras quedan muy juntas. ¿Qué se puede concluir con seguridad?',

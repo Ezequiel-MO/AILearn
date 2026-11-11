@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { checkProject } from '../../content/validate';
-import { grade } from '../../content/grade';
 import { bankEntrySchema, type CodigoQ, type Question } from '../../content/schema';
+import {
+  defineLabProjectTests,
+  labAt,
+  labQuestion,
+  solves,
+} from '../../../tests/content/lab-helpers';
 import {
   checkMessages,
   defineProseTests,
@@ -17,19 +22,10 @@ const bankQuestions = examen2Pca
 
 defineProseTests('proyecto pca', projectQuestions(pca));
 defineProseTests('banco examen-2 pca', bankQuestions);
+defineLabProjectTests(pca, examen2Pca);
 
 type V = [number, number];
 type M = [[number, number], [number, number]];
-/** Producto C·v de una matriz 2×2 por un vector. */
-const apply = (c: M, v: V): V => [c[0][0] * v[0] + c[0][1] * v[1], c[1][0] * v[0] + c[1][1] * v[1]];
-const dot = (a: V, b: V): number => a[0] * b[0] + a[1] * b[1];
-/** Cociente vᵀCv / vᵀv. */
-const rayleigh = (c: M, v: V): number => dot(v, apply(c, v)) / dot(v, v);
-/** Ángulo en grados entre v y C·v. */
-const angleWith = (c: M, v: V): number => {
-  const w = apply(c, v);
-  return (Math.acos(dot(v, w) / Math.sqrt(dot(v, v) * dot(w, w))) * 180) / Math.PI;
-};
 /** Autovalores de una matriz simétrica 2×2, de menor a mayor. */
 const eig2 = (c: M): [number, number] => {
   const tr = c[0][0] + c[1][1];
@@ -50,10 +46,12 @@ const cov2 = (xs: V[]): M => {
     [f(1, 0), f(1, 1)],
   ];
 };
+/** Redondeo a `d` decimales, para comparar lo que enseña un texto. */
+const round = (n: number, d: number): number => Math.round(n * 10 ** d) / 10 ** d;
 
 describe('proyecto pca', () => {
   it('pasa checkProject sin problemas', () => {
-    // contract: encargo de la Órbita 2 de matrices: checkProject(pca) devuelve la lista vacía
+    // contract: encargo común de la Órbita 2 de matrices: checkProject(pca) devuelve la lista vacía (incluye checkLab en cada laboratorio)
     expect(checkProject(pca)).toEqual([]);
   });
 
@@ -70,7 +68,7 @@ describe('proyecto pca', () => {
   });
 
   it('los ids siguen el patrón pca.exNN.k y pca.hoja.k', () => {
-    // contract: encargo de la Órbita 2 de matrices: ids `<id>.ex00.1`…`<id>.ex02.5` y `<id>.hoja.1`…`<id>.hoja.3`
+    // contract: traspaso 2026-11-10: los ids se conservan al reescribir (el progreso guardado los nombra)
     expect(projectQuestions(pca).map((q) => q.id)).toEqual([
       ...[0, 1, 2].flatMap((e) => [1, 2, 3, 4, 5].map((k) => `pca.ex0${e}.${k}`)),
       'pca.hoja.1',
@@ -86,11 +84,6 @@ describe('proyecto pca', () => {
   });
 });
 
-const goalsOf = (q: Question): string[] =>
-  q.type === 'manipular'
-    ? q.goals.map((g) => `${g.metric}(${g.of.join(',')})=${g.target}±${g.tol}`)
-    : [];
-
 const answerOf = (q: Question): unknown => {
   if (q.type === 'numero' || q.type === 'vector') return [q.answer, q.tol];
   if (q.type === 'opcion') return q.correct;
@@ -98,221 +91,187 @@ const answerOf = (q: Question): unknown => {
   return undefined;
 };
 
-/** Covarianzas fijas de las cuatro primeras preguntas de manipular. */
-const C33: M = [
-  [3, 1],
-  [1, 3],
-];
-const C41: M = [
-  [4, 0],
-  [0, 1],
-];
-const C2m: M = [
-  [2, -1],
-  [-1, 2],
-];
+describe('pca, «Manipular»: lo que cuenta cada pregunta se mide con el laboratorio', () => {
+  const all = projectQuestions(pca);
+  const lab = (k: number) => labQuestion(all, `pca.ex00.${k}`);
 
-describe('valores de la tabla del proyecto pca', () => {
-  const [ex00, ex01, ex02] = pca.exercises;
-  const manip = (k: number) => {
-    const q = ex00!.questions[k]!;
-    if (q.type !== 'manipular') throw new Error('ex00 solo tiene preguntas de manipular');
-    return q;
-  };
+  it('ex00.1: con la recta en vertical se pierde casi todo; la del eje largo pierde poco', () => {
+    const start = labAt(lab(1));
+    // contract: enunciado de ex00.1: «la recta va en vertical y se pierde casi todo» (4 de 5,14)
+    expect([round(start.lost!, 2), round(start.lost! + start.var_v!, 2)]).toEqual([4, 5.14]);
+    // contract: solution de ex00.1: v en (2, 1), (4, 2) o (−2, −1) pierde 0,17
+    expect(round(labAt(lab(1), { vx: 2, vy: 1 }).lost!, 2)).toBe(0.17);
+    for (const v of [
+      [2, 1],
+      [4, 2],
+      [-2, -1],
+    ])
+      expect(solves(lab(1), { vx: v[0]!, vy: v[1]! }), `v = ${v}`).toBe(true);
+    // contract: regla 3 de la guía (varias soluciones) y solution: también valen las rectas de (2,5; 1,5) y (3,5; 2)
+    expect(solves(lab(1), { vx: 2.5, vy: 1.5 })).toBe(true);
+    expect(solves(lab(1), { vx: 3.5, vy: 2 })).toBe(true);
+    // contract: tentadora y mala (solution): la diagonal a ojo pierde 0,64 y la horizontal, 1,14
+    expect(round(labAt(lab(1), { vx: 1, vy: 1 }).lost!, 2)).toBe(0.64);
+    expect(round(labAt(lab(1), { vx: 1, vy: 0 }).lost!, 2)).toBe(1.14);
+    expect(solves(lab(1), { vx: 1, vy: 1 })).toBe(false);
+  });
 
-  it('ex00: metas de cada manipular', () => {
-    // contract: encargo de la Órbita 2 de matrices (P3-pca): rayleigh 4; rayleigh 4; rayleigh 3; rayleigh de u 4 y proj de p sobre u 2,83; x de î 3, y de ĵ 3, ángulo 0 y rayleigh 5
-    expect(ex00!.questions.map(goalsOf)).toEqual([
-      ['rayleigh(i,j,v)=4±0.01'],
-      ['rayleigh(i,j,v)=4±0.01'],
-      ['rayleigh(i,j,v)=3±0.01'],
-      ['rayleigh(i,j,u)=4±0.01', 'proj(p,u)=2.83±0.01'],
-      ['x(i)=3±0.01', 'y(j)=3±0.01', 'img_angle(i,j,v)=0±0.5', 'rayleigh(i,j,v)=5±0.01'],
+  it('ex00.2: el máximo que conserva una coordenada de las frutas es el 77,9 %, en la horizontal', () => {
+    // contract: enunciado de ex00.2: «no hay recta que lo conserve todo»; solution: la vertical, de partida, conserva el 22 %
+    expect(round(labAt(lab(2)).var_frac!, 2)).toBe(0.22);
+    // contract: takeaway de ex00.2 (el límite, regla 4): ninguna recta de la rejilla pasa del 77,9 %, y solo la horizontal llega a la meta (la unicidad es la lección: la meta pide el máximo)
+    let best = 0;
+    const reach: string[] = [];
+    for (let vx = -2; vx <= 2; vx += 0.5)
+      for (let vy = -2; vy <= 2; vy += 0.5) {
+        if (vx === 0 && vy === 0) continue;
+        best = Math.max(best, labAt(lab(2), { vx, vy }).var_frac!);
+        if (solves(lab(2), { vx, vy })) reach.push(`${vx},${vy}`);
+      }
+    expect(round(best, 3)).toBe(0.779);
+    expect(reach.every((r) => r.endsWith(',0'))).toBe(true);
+    // contract: solution de ex00.2: valen (1, 0), (2, 0) y (−1,5; 0), la misma recta; (2; 0,5) baja al 74,6 %
+    for (const v of [
+      [1, 0],
+      [2, 0],
+      [-1.5, 0],
+    ])
+      expect(solves(lab(2), { vx: v[0]!, vy: v[1]! }), `v = ${v}`).toBe(true);
+    expect(round(labAt(lab(2), { vx: 2, vy: 0.5 }).var_frac!, 3)).toBe(0.746);
+    expect(solves(lab(2), { vx: 2, vy: 0.5 })).toBe(false);
+    // contract: tentadora y mala (solution): la diagonal conserva el 50 %
+    expect(round(labAt(lab(2), { vx: 1, vy: 1 }).var_frac!, 3)).toBe(0.5);
+    expect(solves(lab(2), { vx: 1, vy: 1 })).toBe(false);
+  });
+
+  it('ex00.3: la dirección de PCA conserva el 90 % y confunde la mitad; la perpendicular separa', () => {
+    const start = labAt(lab(3));
+    // contract: enunciado de ex00.3: empieza en la dirección de PCA y la regla «confunde la mitad»; solution: conserva el 90 %
+    expect([start.acc_v, round(start.var_frac!, 2)]).toEqual([0.5, 0.9]);
+    // contract: solution de ex00.3: v en (−1, 1) separa todas con el 9,8 % de la varianza
+    expect(solves(lab(3), { vx: -1, vy: 1 })).toBe(true);
+    expect(round(labAt(lab(3), { vx: -1, vy: 1 }).var_frac!, 3)).toBe(0.098);
+    // contract: regla 3 de la guía y solution: también valen (−2; 1,5) y (−3; 2,5)
+    expect(solves(lab(3), { vx: -2, vy: 1.5 })).toBe(true);
+    expect(solves(lab(3), { vx: -3, vy: 2.5 })).toBe(true);
+    // contract: takeaway de ex00.3: la coordenada que separa conserva menos del 15 %: ninguna recta da las dos cosas
+    for (let vx = -4; vx <= 4; vx += 0.5)
+      for (let vy = -4; vy <= 4; vy += 0.5) {
+        const m = labAt(lab(3), { vx, vy });
+        if (m.acc_v === 1) expect(m.var_frac!, `v = (${vx}, ${vy})`).toBeLessThan(0.15);
+      }
+    // contract: tentadora y mala: la horizontal, un rasgo suelto, acierta la mitad
+    expect(labAt(lab(3), { vx: 1, vy: 0 }).acc_v).toBe(0.5);
+  });
+
+  it('ex00.4: con «asdf», la horizontal baja al 56 % y la recta que más conserva apunta al dato raro', () => {
+    // contract: enunciado de ex00.4: la horizontal «conserva poco más de la mitad»; solution: el 56 %
+    expect(round(labAt(lab(4)).var_frac!, 2)).toBe(0.56);
+    // contract: solution de ex00.4: (3; 2,5) conserva el 91,6 %; también valen (1, 1) y (2; 1,5)
+    expect(round(labAt(lab(4), { vx: 3, vy: 2.5 }).var_frac!, 3)).toBe(0.916);
+    for (const v of [
+      [3, 2.5],
+      [1, 1],
+      [2, 1.5],
+    ])
+      expect(solves(lab(4), { vx: v[0]!, vy: v[1]! }), `v = ${v}`).toBe(true);
+    // contract: tentadora y mala: la respuesta de ex00.2 (la horizontal) ya no vale
+    expect(solves(lab(4), { vx: 1, vy: 0 })).toBe(false);
+  });
+
+  it('ex00.5: la identidad reparte la variación; la capa que gira la nube cumple las tres metas', () => {
+    const start = labAt(lab(5));
+    // contract: enunciado de ex00.5: con la identidad las dos salidas suben a la vez (covarianza positiva)
+    expect(start.cov_xy).toBeGreaterThan(1);
+    expect(solves(lab(5))).toBe(false);
+    // contract: solution de ex00.5: î en (1; −0,5) y ĵ en (0,5; 1): varianzas 6,21 y 0,21, covarianza 0,02
+    const solved = labAt(lab(5), { ix: 1, iy: -0.5, jx: 0.5, jy: 1 });
+    expect([solved.spread_x, solved.spread_y, solved.cov_xy].map((n) => round(n!, 2))).toEqual([
+      6.21, 0.21, 0.02,
     ]);
+    expect(solves(lab(5), { ix: 1, iy: -0.5, jx: 0.5, jy: 1 })).toBe(true);
+    // contract: regla 3 de la guía y solution: también vale anular la segunda salida, î en (1, 0) y ĵ en (0,5; 0), y la capa con los signos cambiados
+    expect(solves(lab(5), { ix: 1, iy: 0, jx: 0.5, jy: 0 })).toBe(true);
+    expect(solves(lab(5), { ix: -1, iy: 0.5, jx: -0.5, jy: -1 })).toBe(true);
+    // contract: tentadora y mala (solution): un giro de 45° a ojo deja covarianza −2,86
+    expect(round(labAt(lab(5), { ix: 1, iy: -1, jx: 1, jy: 1 }).cov_xy!, 2)).toBe(-2.86);
+    expect(solves(lab(5), { ix: 1, iy: -1, jx: 1, jy: 1 })).toBe(false);
+    // contract: encargo de pca: la capa nula no cumple (anula la covarianza, pero no deja variación)
+    expect(solves(lab(5), { ix: 0, iy: 0, jx: 0, jy: 0 })).toBe(false);
   });
 
-  it('ex00: las matrices de los planos son las covarianzas del encargo, con la elipse imagen', () => {
-    const shape = ex00!.questions.map((q, k) => {
-      const p = manip(k).plane;
-      return [
-        p.vectors.map((v) => `${v.id}=(${v.x}, ${v.y}) ${v.movable}`),
-        p.readouts,
-        p.range,
-        p.snap,
-        p.transform?.apply,
-        p.circle,
-        p.circleImage,
-        p.pair,
-        q.id,
-      ];
-    });
-    // contract: encargo de la Órbita 2 de matrices (P3-pca): C = (3 1; 1 3), (4 0; 0 1), (2 −1; −1 2) y (3 1; 1 3) en las columnas î y ĵ, v móvil desde (1, 0), (1, 1), (1, 1) y u desde (0, 1) con p = (3, 1) fijo; en la última î y ĵ móviles desde la identidad y v = (1, 1) fijo; circle 1 y circleImage Revisión de la Órbita 2: range 4 en ex00.1 y ex00.4 (C = (3 1; 1 3): la elipse, de semieje 4, se ve entera) y en ex00.2 (î = (4, 0) cabe) y 5 en ex00.5 (la elipse de la solución, de semieje 5, se ve entera).
-    expect(shape).toEqual([
-      [
-        ['i=(3, 1) false', 'j=(1, 3) false', 'v=(1, 0) true'],
-        ['matrix', 'rayleigh'],
-        4,
-        1,
-        ['v'],
-        1,
-        true,
-        undefined,
-        'pca.ex00.1',
-      ],
-      [
-        ['i=(4, 0) false', 'j=(0, 1) false', 'v=(1, 1) true'],
-        ['rayleigh'],
-        4,
-        1,
-        ['v'],
-        1,
-        true,
-        undefined,
-        'pca.ex00.2',
-      ],
-      [
-        ['i=(2, -1) false', 'j=(-1, 2) false', 'v=(1, 1) true'],
-        ['rayleigh', 'image'],
-        3,
-        1,
-        ['v'],
-        1,
-        true,
-        undefined,
-        'pca.ex00.3',
-      ],
-      [
-        ['i=(3, 1) false', 'j=(1, 3) false', 'p=(3, 1) false', 'u=(0, 1) true'],
-        ['rayleigh', 'projection'],
-        4,
-        1,
-        ['u'],
-        1,
-        true,
-        ['p', 'u'],
-        'pca.ex00.4',
-      ],
-      [
-        ['i=(1, 0) true', 'j=(0, 1) true', 'v=(1, 1) false'],
-        ['matrix', 'img_angle', 'rayleigh'],
-        5,
-        1,
-        ['v'],
-        1,
-        true,
-        undefined,
-        'pca.ex00.5',
-      ],
-    ]);
-  });
-
-  it('ex00: las posiciones de las soluciones cumplen las metas y recalculan la varianza', () => {
-    // contract: solution de cada pregunta: v sobre la recta de (1, 1) (también (2, 2) y (−1, −1)); v sobre el eje x; v sobre la recta de (1, −1); u múltiplo positivo de (1, 1); î = (3, 2) y ĵ = (2, 3)
-    const solved: [number, string, V][] = [
-      [0, 'v', [1, 1]],
-      [0, 'v', [2, 2]],
-      [0, 'v', [-1, -1]],
-      [1, 'v', [1, 0]],
-      [1, 'v', [-2, 0]],
-      [2, 'v', [1, -1]],
-      [2, 'v', [-2, 2]],
-      [3, 'u', [1, 1]],
-      [3, 'u', [2, 2]],
-    ];
-    const target = [4, 4, 4, 4, 4, 3, 3, 4, 4];
-    const mats: M[] = [C33, C33, C33, C41, C41, C2m, C2m, C33, C33];
-    solved.forEach(([k, id, v], n) => {
-      const q = manip(k);
-      // contract: la solución de la tabla cumple todas las metas
-      expect(grade(q, { type: 'manipular', vectors: { [id]: v } }), `${q.id} ${v}`).toBe(true);
-      // contract: encargo de la Órbita 2 de matrices: el cociente vᵀCv/vᵀv de la solución es el de la meta, recalculado a mano
-      expect(rayleigh(mats[n]!, v), `${q.id} ${v}`).toBeCloseTo(target[n]!, 9);
-    });
-    // contract: solution de ex00.5: con î = (3, 2) y ĵ = (2, 3), A·(1, 1) = (5, 5) (ángulo 0) y el cociente vale (6 + 2 + 2)/2 = 5
-    const A: M = [
-      [3, 2],
-      [2, 3],
-    ];
-    expect(grade(manip(4), { type: 'manipular', vectors: { i: [3, 2], j: [2, 3] } })).toBe(true);
-    expect(apply(A, [1, 1])).toEqual([5, 5]);
-    expect(angleWith(A, [1, 1])).toBeCloseTo(0, 6);
-    expect(rayleigh(A, [1, 1])).toBe(5);
-    // contract: solution de ex00.5: autovalores 5 y 1, y la primera componente explica 5/6 ≈ 83 %
-    expect(eig2(A)).toEqual([1, 5]);
-    expect(5 / (5 + 1)).toBeCloseTo(0.8333, 4);
-  });
-
-  it('ex00: las posiciones erróneas didácticas no se dan por buenas', () => {
-    // contract: el error didáctico de cada pregunta: la posición de partida, la dirección perpendicular a la máxima, el promedio 2,5, la mínima, la componente con el sentido contrario, y una diagonal sin la covarianza pedida
-    const wrong: [number, Record<string, V>][] = [
-      [0, { v: [1, 0] }],
-      [0, { v: [1, -1] }],
-      [1, { v: [1, 1] }],
-      [1, { v: [0, 1] }],
-      [2, { v: [1, 1] }],
-      [2, { v: [1, 0] }],
-      [3, { u: [0, 1] }],
-      [3, { u: [-1, -1] }],
-      [3, { u: [1, -1] }],
-      [4, { i: [3, 0], j: [0, 3] }],
-      [4, { i: [3, 3], j: [3, 3] }],
-      [4, { i: [3, 1], j: [1, 3] }],
-      [4, { i: [2, 2], j: [2, 3] }],
-      [4, { i: [3, 2], j: [2, 2] }],
-    ];
-    for (const [k, vectors] of wrong) {
-      const q = manip(k);
-      // contract: una posición que incumple alguna meta no se da por buena
-      expect(grade(q, { type: 'manipular', vectors }), `${q.id} ${JSON.stringify(vectors)}`).toBe(
-        false,
-      );
+  it('con v = (0, 0) ningún laboratorio de recta cumple ninguna meta', () => {
+    for (const q of [1, 2, 3, 4].map(lab)) {
+      for (const g of q.goals) {
+        // contract: aviso del encargo de pca: v = (0, 0) no cumple ninguna meta
+        expect(solves({ ...q, goals: [g] }, { vx: 0, vy: 0 }), `${q.id} ${g.metric}`).toBe(false);
+      }
     }
-    // contract: cada error se explica con su valor recalculado: 3, 2, 2,5, 1, 1 y 2 en las preguntas 1 a 4
-    expect(rayleigh(C33, [1, 0])).toBe(3);
-    expect(rayleigh(C33, [1, -1])).toBe(2);
-    expect(rayleigh(C41, [1, 1])).toBe(2.5);
-    expect(rayleigh(C41, [0, 1])).toBe(1);
-    expect(rayleigh(C2m, [1, 1])).toBe(1);
-    expect(rayleigh(C2m, [1, 0])).toBe(2);
-    // contract: P3-pca ex00.4: con u = (−1, −1) la proyección de p = (3, 1) sale −2,83
-    expect(dot([3, 1], [-1, -1]) / Math.sqrt(2)).toBeCloseTo(-2.83, 2);
-    expect(dot([3, 1], [1, 1]) / Math.sqrt(2)).toBeCloseTo(2.83, 2);
+    // contract: lo mismo en el banco
+    const bank = labQuestion(bankQuestions, 'examen-2.pca-animales');
+    expect(solves(bank, { vx: 0, vy: 0 })).toBe(false);
+  });
+});
+
+describe('pca, «Calcular»: las respuestas se recalculan', () => {
+  const [, ex01] = pca.exercises;
+  const all = projectQuestions(pca);
+
+  it('respuestas de calcular', () => {
+    // contract: petición de Oliver 2026-11-10 (sustituye la tabla de la Órbita 2): 96,7 %; 7/√5 ≈ 3,13; 3; 5 componentes; ex01.5 se conserva (opción 2, «nada seguro»)
+    expect(ex01!.questions.map(answerOf)).toEqual([[96.7, 0.1], [3.13, 0.01], [3, 0], [5, 0], 2]);
   });
 
-  it('ex01: respuestas de calcular', () => {
-    // contract: encargo de la Órbita 2 de matrices (P3-pca): primer dato centrado (−2, −3); 75; 2; 3; opción 2 (nada seguro)
-    expect(ex01!.questions.map(answerOf)).toEqual([[[-2, -3], 0], [75, 0], [2, 0], [3, 0], 2]);
-    expect(ex01!.questions.map((q) => q.type)).toEqual([
-      'vector',
-      'numero',
-      'numero',
-      'numero',
-      'opcion',
-    ]);
+  it('ex01.1: la mejor recta del laboratorio conserva 4,97 y pierde 0,17, el 96,7 %', () => {
+    const q = ex01!.questions[0]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.1 es numero con capa');
+    const best = labAt({ ...labQuestion(all, 'pca.ex00.1'), lab: q.lab }, { vx: 2, vy: 1 });
+    // contract: solution de ex01.1: se conservan 4,97 y se pierden 0,17
+    expect([round(best.var_v!, 2), round(best.lost!, 2)]).toEqual([4.97, 0.17]);
+    // contract: solution de ex01.1: 4,97 / 5,14 ≈ 96,7 %, dentro de la tolerancia, con los valores exactos y con los redondeados
+    expect(Math.abs(best.var_frac! * 100 - q.answer)).toBeLessThanOrEqual(q.tol);
+    expect(Math.abs((4.97 / 5.14) * 100 - q.answer)).toBeLessThanOrEqual(q.tol);
+    // contract: guía de contenido: var_frac, la respuesta, no está entre las lecturas
+    expect(q.lab.readouts).toEqual(['var_v', 'lost']);
   });
 
-  it('ex01: las respuestas se recalculan', () => {
-    // contract: ex01.1: datos (2, 3), (4, 5), (6, 10): media (4, 6) y primer dato centrado (−2, −3)
-    const datos: V[] = [
-      [2, 3],
-      [4, 5],
-      [6, 10],
-    ];
-    const media = [0, 1].map((a) => datos.reduce((s, p) => s + p[a]!, 0) / datos.length);
-    expect(media).toEqual([4, 6]);
-    expect([datos[0]![0] - media[0]!, datos[0]![1] - media[1]!]).toEqual([-2, -3]);
-    // contract: ex01.2: autovalores 6 y 2: la primera explica 6/8 = 75 %
-    expect((6 / (6 + 2)) * 100).toBe(75);
-    // contract: ex01.3: (0,6; 0,8) · (2, 1) = 1,2 + 0,8 = 2, con u de norma 1
-    expect(dot([0.6, 0.8], [2, 1])).toBeCloseTo(2, 12);
-    expect(Math.hypot(0.6, 0.8)).toBeCloseTo(1, 12);
-    // contract: ex01.4: autovalores 5, 3, 1,5 y 0,5 (total 10): acumulados 50 %, 80 % y 95 %; hacen falta 3 para el 90 %
-    const vals = [5, 3, 1.5, 0.5];
-    const total = vals.reduce((s, v) => s + v, 0);
-    let acum = 0;
-    const acumulados = vals.map((v) => (acum += v) / total);
-    expect(acumulados).toEqual([0.5, 0.8, 0.95, 1]);
-    expect(acumulados.findIndex((a) => a >= 0.9) + 1).toBe(3);
+  it('ex01.2: la coordenada de «coche» sobre (2, 1) es 7/√5', () => {
+    const q = ex01!.questions[1]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.2 es numero con capa');
+    const coche = q.lab.points.find((p) => p.id === 'coche')!;
+    // contract: enunciado de ex01.2: «coche» es (3, 1), como en NUBE_ALARGADA, y la nube está centrada
+    expect([coche.x, coche.y]).toEqual([3, 1]);
+    const xs = q.lab.points.map((p) => p.x);
+    const ys = q.lab.points.map((p) => p.y);
+    expect([xs.reduce((s, x) => s + x, 0), ys.reduce((s, y) => s + y, 0)]).toEqual([0, 0]);
+    // contract: solution de ex01.2: 0,894·3 + 0,447·1 ≈ 3,13 y 7/√5 ≈ 3,13
+    expect(Math.abs(0.894 * 3 + 0.447 - q.answer)).toBeLessThanOrEqual(q.tol);
+    expect(Math.abs(7 / Math.sqrt(5) - q.answer)).toBeLessThanOrEqual(q.tol);
+    // contract: enunciado: u ≈ (0,894; 0,447) es (2, 1) con norma 1
+    expect([2, 1].map((c) => round(c / Math.sqrt(5), 3))).toEqual([0.894, 0.447]);
+  });
+
+  it('ex01.3: «asdf» pierde 3 sobre la horizontal y ninguna fruta más de 0,5', () => {
+    const q = ex01!.questions[2]!;
+    if (q.type !== 'numero' || q.lab?.kind !== 'capa') throw new Error('ex01.3 es numero con capa');
+    const raro = q.lab.points.find((p) => p.label === 'asdf')!;
+    // contract: enunciado de ex01.3: «asdf» es (3, 3) y la componente, la horizontal; lo perdido es su altura
+    expect([raro.x, raro.y, q.lab.probe?.y]).toEqual([3, 3, 0]);
+    expect(Math.abs(raro.y)).toBe(q.answer);
+    // contract: takeaway de ex01.3: ninguna fruta pierde más de 0,5 (seis veces menos)
+    const frutas = q.lab.points.filter((p) => p.label !== 'asdf');
+    expect(Math.max(...frutas.map((p) => Math.abs(p.y)))).toBe(0.5);
+    // contract: solution de ex01.3: la distancia al origen, el error típico, es 3√2 ≈ 4,24
+    expect(round(Math.hypot(3, 3), 2)).toBe(4.24);
+  });
+
+  it('ex01.4: acumulados 40, 65, 80, 88 y 95 %: hacen falta 5', () => {
+    const parts = [40, 25, 15, 8, 7, 5];
+    let acc = 0;
+    const acumulados = parts.map((p) => (acc += p));
+    // contract: solution de ex01.4: acumulados 40, 65, 80, 88, 95 (y 100); el primero que llega al 90 es el quinto
+    expect(acumulados).toEqual([40, 65, 80, 88, 95, 100]);
+    expect(acumulados.findIndex((a) => a >= 90) + 1).toBe(5);
   });
 
   it('ex01.5: la opción correcta es la que dice que no se puede concluir nada seguro', () => {
@@ -323,6 +282,10 @@ describe('valores de la tabla del proyecto pca', () => {
     );
     expect(q.type === 'opcion' ? q.options.length : 0).toBe(4);
   });
+});
+
+describe('pca: «Programar» y hojas', () => {
+  const [, , ex02] = pca.exercises;
 
   it('ex02: cinco preguntas de código', () => {
     // contract: encargo de la Órbita 2 de matrices: ex02 programar, cinco preguntas de código
@@ -415,11 +378,11 @@ describe('valores de la tabla del proyecto pca', () => {
 
 describe('banco de examen 2 del proyecto pca', () => {
   it('tiene tres entradas fijas del proyecto pca, con ids examen-2.*', () => {
-    // contract: encargo de la Órbita 2 de matrices (P3-pca): 3 entradas `{ project: 'pca', question }` con ids examen-2.coordenada-componente, examen-2.signo-componente y examen-2.componentes-para-95
+    // contract: guía de contenido 2026-11-10 (petición de Oliver): una entrada laboratorio y una cuenta del estilo nuevo; la de código se conserva («Programar» no se toca)
     expect(examen2Pca.map((e) => e.project)).toEqual(['pca', 'pca', 'pca']);
     expect(examen2Pca.map((e) => e.question.id)).toEqual([
-      'examen-2.coordenada-componente',
-      'examen-2.signo-componente',
+      'examen-2.pca-animales',
+      'examen-2.memoria-pca',
       'examen-2.componentes-para-95',
     ]);
   });
@@ -432,39 +395,34 @@ describe('banco de examen 2 del proyecto pca', () => {
   });
 
   it('ninguna entrada es generada, hay variedad de tipos y los ids no chocan con los del proyecto', () => {
-    // contract: encargo de la Órbita 2 de matrices: tres fijas, un número, una opción y un código; ids únicos en el juego
+    // contract: guía de contenido 2026-11-10: un laboratorio, un numero y un codigo; las generadas las añade el ensamblado
     expect(examen2Pca.some((e) => e.question.type === 'generada')).toBe(false);
-    expect(examen2Pca.map((e) => e.question.type)).toEqual(['numero', 'opcion', 'codigo']);
+    expect(examen2Pca.map((e) => e.question.type)).toEqual(['laboratorio', 'numero', 'codigo']);
     const projectIds = new Set(projectQuestions(pca).map((q) => q.id));
     expect(examen2Pca.filter((e) => projectIds.has(e.question.id))).toEqual([]);
   });
 
   it('respuestas del banco', () => {
-    const [coord, signo] = examen2Pca.map((e) => e.question);
-    // contract: examen-2.coordenada-componente: dato (4, 6) − media (1, 2) = (3, 4); 0,6·3 + 0,8·4 = 5
-    expect(coord!.type === 'numero' ? [coord!.answer, coord!.tol] : []).toEqual([5, 0]);
-    expect(dot([0.6, 0.8], [4 - 1, 6 - 2])).toBeCloseTo(5, 12);
-    // contract: examen-2.coordenada-componente: sin centrar saldría 0,6·4 + 0,8·6 = 7,2
-    expect(dot([0.6, 0.8], [4, 6])).toBeCloseTo(7.2, 12);
-    // contract: examen-2.signo-componente: la opción correcta es la 2, «ninguno»
-    expect(
-      signo!.type === 'opcion' ? [signo!.correct, signo!.options[signo!.correct]] : [],
-    ).toEqual([
-      2,
-      'Ninguno: las dos describen la misma recta, y el signo de una componente es arbitrario',
-    ]);
-    // contract: examen-2.signo-componente: una covarianza con autovector (0,6; 0,8) y autovalor 5 (5·uuᵀ + vvᵀ) lo tiene también en su opuesto
-    const A: M = [
-      [2.44, 1.92],
-      [1.92, 3.56],
-    ];
-    const u: V = [0.6, 0.8];
-    const w = apply(A, u);
-    expect(w[0]).toBeCloseTo(5 * 0.6, 9);
-    expect(w[1]).toBeCloseTo(5 * 0.8, 9);
-    const wn = apply(A, [-0.6, -0.8]);
-    expect(wn[0]).toBeCloseTo(5 * -0.6, 9);
-    expect(wn[1]).toBeCloseTo(5 * -0.8, 9);
+    const animales = labQuestion(bankQuestions, 'examen-2.pca-animales');
+    // contract: examen-2.pca-animales: la horizontal, de partida, solo recoge el tamaño (14,8 %)
+    expect(round(labAt(animales).var_frac!, 3)).toBe(0.148);
+    // contract: solution: (−0,5; 1,5) conserva el 93,5 %; también (−1; 2,5) y (−1; 3,5)
+    expect(round(labAt(animales, { vx: -0.5, vy: 1.5 }).var_frac!, 3)).toBe(0.935);
+    for (const v of [
+      [-0.5, 1.5],
+      [-1, 2.5],
+      [-1, 3.5],
+    ])
+      expect(solves(animales, { vx: v[0]!, vy: v[1]! }), `v = ${v}`).toBe(true);
+    // contract: tentadora y mala (solution): la vertical pura, solo la domesticidad, conserva el 85,2 %
+    expect(round(labAt(animales, { vx: 0, vy: 1 }).var_frac!, 3)).toBe(0.852);
+    expect(solves(animales, { vx: 0, vy: 1 })).toBe(false);
+    const memoria = bankQuestions[1]!;
+    // contract: examen-2.memoria-pca: 10 000·32 coordenadas + 384 de la media + 32·384 de las componentes
+    expect(answerOf(memoria)).toEqual([10000 * 32 + 384 + 32 * 384, 0]);
+    expect(10000 * 32 + 384 + 32 * 384).toBe(332672);
+    // contract: solution: guardarlos enteros son 10 000·384 = 3 840 000 números
+    expect(10000 * 384).toBe(3840000);
   });
 
   it('componentes-para-95: los acumulados son 60 %, 80 %, 90 % y 96 % y k95 = 4', () => {
