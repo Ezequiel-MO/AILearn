@@ -37,7 +37,10 @@ export const capaSchema = z
     j: pair,
     movable: z.enum(['ij', 'i', 'j', 'none']).optional(),
     before: z.strictObject({ i: pair, j: pair }).optional(),
-    readout: z.strictObject({ w: pair, b: z.number() }).optional(),
+    inputs: z.tuple([z.string().min(1), z.string().min(1)]).optional(),
+    readout: z
+      .strictObject({ w: pair, b: z.number(), says: z.string().min(1).optional() })
+      .optional(),
     probe: z
       .strictObject({
         x: z.number(),

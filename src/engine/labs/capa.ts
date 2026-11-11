@@ -51,8 +51,18 @@ export interface CapaSpec {
   movable?: 'ij' | 'i' | 'j' | 'none';
   /** Una capa fija B que actúa antes que A: la salida es A·B·p. Se dibuja el paso intermedio. */
   before?: { i: [number, number]; j: [number, number] };
-  /** La neurona siguiente: dice «grupo 1» si w·p′ + b > 0. Se dibuja su frontera y su lado. */
-  readout?: { w: [number, number]; b: number };
+  /**
+   * Nombre de lo que le llega a A por cada entrada cuando no es un rasgo suelto (lo que dejó la capa
+   * de delante): rotula las columnas de la tabla de pesos. Sin él, con `before` se llaman «entrada 1»
+   * y «entrada 2», y sin `before`, como los rasgos de `axes`.
+   */
+  inputs?: [string, string];
+  /**
+   * La neurona siguiente: dice «grupo 1» si w·p′ + b > 0. Se dibuja su frontera y su lado. `says` es lo
+   * que la nota del panel pone en su boca cuando no es el nombre del grupo 1 (una neurona cualquiera,
+   * que no detecta ese grupo): «se activa», «spam»…
+   */
+  readout?: { w: [number, number]; b: number; says?: string };
   /**
    * Una dirección v desde el origen. Se dibujan su recta y la proyección de cada punto sobre ella:
    * los de salida (`output`, por defecto) o los de entrada (`input`).

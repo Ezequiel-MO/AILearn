@@ -93,6 +93,8 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
     movable.has('ix') || movable.has('jx') || a11 !== 1 || a12 !== 0 || a21 !== 0 || a22 !== 1;
   // Con la capa a la vista, el plano es el de sus salidas: los rasgos de entrada van en las columnas.
   const axisNames = layerShown ? t.labs.capa.outputs : spec.axes;
+  // Con una capa delante, a A no le llega un rasgo suelto: la columna no puede llamarse como él.
+  const columnNames = spec.inputs ?? (spec.before ? t.labs.capa.inputs : spec.axes);
 
   // --- Rótulos de las palabras: cada uno busca sitio sin pisar puntos, nombres de eje ni rótulos ya puestos ---
   const area: Box = { x0: MARGIN, y0: MARGIN, x1: VIEW - MARGIN, y1: VIEW - MARGIN };
@@ -408,7 +410,9 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
           ))}
         </ul>
       ) : null}
-      {spec.readout && groups[1] ? <p className="lab__note">{L.zone(groups[1])}</p> : null}
+      {spec.readout && (spec.readout.says ?? groups[1]) ? (
+        <p className="lab__note">{L.zone(spec.readout.says ?? groups[1]!)}</p>
+      ) : null}
       <div className="capa__matrix" role="group" aria-label={L.matrix} hidden={!layerShown}>
         <span className="capa__matrix-title">{L.matrix}</span>
         <table>
@@ -416,10 +420,10 @@ export function CapaLab({ spec, state, onChange }: LabProps<CapaSpec>) {
             <tr>
               <td className="capa__matrix-corner" />
               <th scope="col" data-tone={0}>
-                {L.column('î', spec.axes?.[0])}
+                {L.column('î', columnNames?.[0])}
               </th>
               <th scope="col" data-tone={1}>
-                {L.column('ĵ', spec.axes?.[1])}
+                {L.column('ĵ', columnNames?.[1])}
               </th>
             </tr>
           </thead>

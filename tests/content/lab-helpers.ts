@@ -104,6 +104,12 @@ export const defineLabProjectTests = (project: Project, bank: readonly BankEntry
               .filter(([, at]) => outside(at))
               .map(([id]) => `${q.id}: «${id}» queda fuera de la ventana ${when}`),
           ),
+          // Con una capa delante se dibuja también el paso intermedio (los cuadraditos), que no depende de los mandos.
+          ...(spec.before
+            ? Object.entries(capaScene(spec, labStart(spec)).middle)
+                .filter(([, at]) => outside(at))
+                .map(([id]) => `${q.id}: el cuadradito de «${id}» queda fuera de la ventana`)
+            : []),
           ...Object.entries(spec.targets ?? {})
             .filter(([, at]) => outside(at))
             .map(([id]) => `${q.id}: la diana de «${id}» queda fuera de la ventana`),

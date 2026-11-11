@@ -9,6 +9,8 @@ export const capaStrings = {
   matrix: 'Pesos de la capa A',
   /** Las dos salidas de la capa: los ejes del dibujo cuando la capa está a la vista y las filas de A. */
   outputs: ['salida 1', 'salida 2'] as [string, string],
+  /** Lo que le llega a A cuando hay una capa delante y el contenido no le pone nombre. */
+  inputs: ['entrada 1', 'entrada 2'] as [string, string],
   column: (name: string, feature?: string) =>
     feature ? `${name}: adónde va «${feature}»` : `columna ${name}`,
   before: 'Los cuadraditos marcan dónde deja cada palabra la primera capa, antes de A.',

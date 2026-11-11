@@ -23,14 +23,12 @@ export const examen0Componer: BankEntry[] = [
         'Tu capa trabaja con la mezcla, no con los rasgos. La primera coordenada de un cuadradito es tamaño menos domesticidad, y la segunda, tamaño más domesticidad. La segunda menos la primera es el doble de la domesticidad.',
       solution:
         'Una capa que vale: $\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(0, 1)$. La primera salida es la primera coordenada cambiada de signo, domesticidad menos tamaño, y separa los seis. También vale $\\hat{\\imath}$ en $(-1, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$, el doble de la domesticidad. Intercambiar las columnas deja tamaño más domesticidad, y «tigre» y «oso» fallan.',
-      lab: capaLab(
-        { ...ANIMALES, axes: ['tamaño − domesticidad', 'tamaño + domesticidad'] },
-        {
-          range: 5.5,
-          before: { i: [1, 1], j: [-1, 1] },
-          readout: { w: [1, 0], b: 0 },
-        },
-      ),
+      lab: capaLab(ANIMALES, {
+        range: 5.5,
+        before: { i: [1, 1], j: [-1, 1] },
+        inputs: ['tamaño − domesticidad', 'tamaño + domesticidad'],
+        readout: { w: [1, 0], b: 0 },
+      }),
       goals: [
         {
           metric: 'acc',

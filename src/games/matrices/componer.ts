@@ -1,13 +1,7 @@
 import type { Project } from '../../content/schema';
 import { componerWarmup } from './componer.calentamiento';
 import { py } from '../py';
-import { RESENAS, capaLab, type Cloud } from './datos';
-
-/**
- * Las reseñas tal como llegan a la capa del jugador cuando hay otra delante: la tabla de pesos nombra
- * cada columna por lo que entra en ella, que ya no es un rasgo suelto sino lo que dejó la primera capa.
- */
-const llegan = (axes: [string, string]): Cloud => ({ ...RESENAS, axes });
+import { RESENAS, capaLab } from './datos';
 
 /** Lo que mide la meta de las preguntas con neurona: la que viene detrás de las dos capas. */
 const ACIERTOS = {
@@ -76,7 +70,8 @@ export const componer: Project = {
             'Tu capa no ve los rasgos originales, sino la mezcla. La primera coordenada de un cuadradito es intensidad más tono, y la segunda, intensidad menos tono. Su diferencia es el doble del tono: la intensidad se cancela.',
           solution:
             'Una capa que vale: $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(-1, 1)$. La primera salida es la primera coordenada menos la segunda, el doble del tono: positiva en las tres buenas y negativa en las tres malas. Valen muchas, siempre que la primera fila reste una coordenada de la otra. Intercambiar las columnas no basta: deja la segunda coordenada, que mezcla los dos rasgos.',
-          lab: capaLab(llegan(['intensidad + tono', 'intensidad − tono']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad + tono', 'intensidad − tono'],
             range: 5.5,
             before: MEZCLA,
             readout: MIRA_SALIDA_1,
@@ -126,7 +121,8 @@ export const componer: Project = {
             'Tras la primera capa, cada reseña es un punto de la diagonal, a la altura de su intensidad. Tu primera salida es esa intensidad por un número, y la neurona corta por un umbral. Una palabra positiva y una negativa con la misma intensidad reciben siempre la misma respuesta.',
           solution:
             'Con $\\hat{\\imath}$ en $(1, 0)$ y $\\hat{\\jmath}$ en $(1, 1)$ la primera salida es el doble de la intensidad: «genial» y «feliz» pasan de $3{,}5$, «triste» y «malo» no, y se aciertan cuatro. Vale cualquier capa cuyas dos primeras coordenadas sumen $2$. No se puede más: «genial» y «horrible» son el mismo punto, «bueno» y «malo» también, y de cada pareja falla una.',
-          lab: capaLab(llegan(['intensidad', 'intensidad, otra vez']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad', 'intensidad, otra vez'],
             range: 5.5,
             before: { i: [1, 1], j: [0, 0] },
             readout: { w: [1, 0], b: -3.5 },
@@ -161,7 +157,8 @@ export const componer: Project = {
             'El determinante de las dos capas juntas es el de la primera por el de la segunda. La primera vale $4$, así que la tuya tiene que valer $\\frac{1}{4}$. Encoger una sola columna da $\\frac{1}{2}$, y el total se queda en $2$.',
           solution:
             'Con $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0;\\ 0{,}5)$ tu capa tiene determinante $\\frac{1}{4}$ y las palabras vuelven a su sitio. Vale cualquier capa de determinante $\\frac{1}{4}$, como $\\hat{\\imath}$ en $(0{,}5;\\ 0)$ y $\\hat{\\jmath}$ en $(0{,}5;\\ 0{,}5)$, que además inclina. Con $\\hat{\\imath}$ en $(-0{,}5;\\ 0)$ el determinante total es $-1$: el tamaño está bien, pero el plano queda volteado.',
-          lab: capaLab(llegan(['intensidad × 2', 'tono × 2']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad × 2', 'tono × 2'],
             range: 5.5,
             before: { i: [2, 0], j: [0, 2] },
           }),
@@ -195,7 +192,8 @@ export const componer: Project = {
             'Doblar la intensidad antes del intercambio es doblar la primera coordenada. Después del intercambio, esa intensidad ya está en la segunda. Tu capa actúa sobre los cuadraditos, así que tiene que doblar la coordenada donde está ahora.',
           solution:
             'Con $\\hat{\\jmath}$ en $(0, 2)$ tu capa dobla la segunda salida y todas las palabras caen en su diana. Con $\\hat{\\imath}$ en $(2, 0)$, que dobla la primera, se dobla el tono: es el orden contrario y las palabras se alejan en horizontal. Las dos capas juntas son $\\begin{pmatrix}1&0\\\\0&2\\end{pmatrix}\\begin{pmatrix}0&1\\\\1&0\\end{pmatrix}=\\begin{pmatrix}0&1\\\\2&0\\end{pmatrix}$.',
-          lab: capaLab(llegan(['tono', 'intensidad']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['tono', 'intensidad'],
             range: 5.5,
             before: INTERCAMBIA,
             targets: dianas((x, y) => [y, 2 * x]),
@@ -249,7 +247,8 @@ export const componer: Project = {
             'Cada camino de un rasgo a una salida multiplica los pesos que recorre, y los caminos se suman. Es la cuenta de la fila 1 de $A$ por la columna 2 de $B$.',
           solution:
             '$(AB)_{12}=1\\cdot 1+2\\cdot 1=3$. La capa única es $AB=\\begin{pmatrix}1&3\\\\0&1\\end{pmatrix}$. Si tomas solo el camino directo sale $1$, y si multiplicas $1\\cdot 2$ sale $2$: el camino que pasa por la salida 2 se suma al otro.',
-          lab: capaLab(llegan(['intensidad + tono', 'tono']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad + tono', 'tono'],
             range: 5.5,
             before: { i: [1, 0], j: [1, 1] },
           }),
@@ -275,7 +274,8 @@ export const componer: Project = {
             '$A(B\\vec{x})=(AB)\\vec{x}$: las dos capas actúan como una matriz, su producto. Cualquier cosa que hagan juntas la hace una capa con esa matriz.',
           solution:
             'Las dos capas equivalen a una sola, $AB$: cada palabra acaba donde la dejaría esa matriz, y la frontera de la neurona sigue siendo una recta. No es que la segunda deshaga a la primera, ni que haga falta otro tamaño: es que todo producto de matrices es otra matriz. Una función no lineal entre ellas lo evita.',
-          lab: capaLab(llegan(['intensidad + tono', 'intensidad − tono']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad + tono', 'intensidad − tono'],
             range: 5.5,
             before: MEZCLA,
             readout: MIRA_SALIDA_1,
@@ -307,7 +307,8 @@ export const componer: Project = {
             'Cada capa multiplica las áreas por su determinante, y la segunda actúa sobre lo que deja la primera: los factores se multiplican. $\\det(AB)=\\det A\\cdot\\det B$.',
           solution:
             '$\\det B=1\\cdot 1-1\\cdot(-1)=2$ y $\\det A=0{,}5\\cdot 1+0{,}5\\cdot 0{,}5=0{,}75$. Juntas: $0{,}75\\cdot 2=1{,}5$. Sumarlos daría $2{,}75$, que no es nada: las escalas se componen multiplicando.',
-          lab: capaLab(llegan(['intensidad + tono', 'tono − intensidad']), {
+          lab: capaLab(RESENAS, {
+            inputs: ['intensidad + tono', 'tono − intensidad'],
             range: 5.5,
             before: { i: [1, -1], j: [1, 1] },
             i: [0.5, -0.5],
